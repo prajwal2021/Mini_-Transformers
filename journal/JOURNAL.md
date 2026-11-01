@@ -1,0 +1,75 @@
+# Project Journal
+
+Use one entry per prompt:
+
+## [YYYY-MM-DD HH:MM] Pxx — <title>
+**Goal:**
+**Done:**
+**Decisions:** (links D-###)
+**Results:** (numbers + file paths)
+**Problems & fixes:**
+**Next:**
+
+## [2026-10-31 00:00] P00 — Scaffold and tracking
+**Goal:** Establish the project scaffold, typed utilities, tests, and tracking protocol.
+**Done:** Created the src-layout package, utility modules, tests, tracking files, and empty project directories.
+**Decisions:** D-001, D-002, D-003, D-004, D-005, D-006, D-007, D-008, D-009, D-010.
+**Results:** See `tests/test_utils.py`, `track.txt`, and P00 commit. Installation, pytest, and ruff could not run because no Python toolchain is available in the environment.
+**Problems & fixes:** The supplied design document was at `DESIGN.md`; copied unchanged to `docs/DESIGN.md`. The environment has only a Microsoft Store Python alias, with no usable Python interpreter, pip, pytest, or ruff.
+**Next:** P01 KB and preregistration draft.
+
+## [2026-10-31 00:00] P00b — Verification and workflow fix
+**Goal:** Verify P00 and make the human/Codex workflow permanent.
+**Done:** Saved this prompt, read the design and workflow, updated the workflow, added F-001, corrected P00 tracking semantics, and recorded the environment blocker.
+**Decisions:** D-001 through D-010 confirmed in `journal/DECISIONS.md`.
+**Results:** `.venv/bin/python` is absent, so pytest and ruff could not run; P00 remains incomplete pending evidence.
+**Problems & fixes:** The expected POSIX virtual-environment executable is missing in this Windows workspace; no pip install was attempted.
+**Next:** Human provides `.venv\Scripts\python.exe`; rerun the required checks and then complete P00 if green.
+
+## [2026-10-31 00:00] P00b — Verification and workflow fix (GPU platform)
+**Goal:** Verify P00 on Windows/CUDA and make the evidence-gated workflow permanent.
+**Done:** Read the design and workflow, saved this prompt, added CUDA diagnostics and a CUDA matmul test, added D-011/D-012, and updated tracking/workflow records.
+**Decisions:** D-011, D-012.
+**Results:** `nvidia-smi` reports Windows-compatible RTX 5080 hardware and CUDA 13.1. `.venv\Scripts\python.exe` is absent, so pytest, ruff, Torch version, and `get_device()` output remain unavailable.
+**Problems & fixes:** Verification is blocked by the missing human-created virtual environment; no pip install was attempted.
+**Next:** Human restores `.venv\Scripts\python.exe`, then rerun the required commands and record output before completing P00.
+
+## [2026-10-31 00:00] P00c - Verified environment and P00 exit criteria
+**Goal:** Re-run P00 verification on the confirmed Windows 11 and RTX 5080 environment.
+**Done:** Verified the v1.2 design header, ran the full utility test suite and Ruff, exercised `get_device()`, and completed a CUDA matmul.
+**Decisions:** D-011, D-012, D-013.
+**Results:** `7 passed in 5.00s`; `All checks passed!`; Torch `2.11.0+cu128`; CUDA `12.8`; NVIDIA GeForce RTX 5080 Laptop GPU; compute capability `(12, 0)`; bf16 `True`; CUDA matmul passed. Evidence is in the command output and `track.txt`.
+**Problems & fixes:** P00 remained unverified until the human-provided Windows virtual environment was available.
+**Next:** Run P01 (KB + validator + cells + sizing + PREREG draft).
+
+## [2026-10-31 00:00] P01 - Knowledge base, cells, sizing, and preregistration draft
+**Goal:** Author the CATD KB and deterministic experiment machinery without generating corpus text or calling an LLM API.
+**Done:** Built 120 measured facts and 25 core facts; added validator tests, Latin-square assignment, sizing calculator, cell-balance report, sizing report, and draft preregistration.
+**Decisions:** D-014, D-015, D-016.
+**Results:** `validate_kb.py` passed all checks; seed 16 chosen with imbalance 0.0214 and KW p=1.0000; 20 facts per cell; SFT splits 8/2/10; 2600 planned mentions; pytest 17 passed; Ruff clean.
+**Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
+**Next:** Run P02 (corpus pipeline and data card).
+
+## [2026-10-31 00:00] P01d - Final KB quality pass
+**Goal:** Enforce all-integer values, per-entity plausibility ranges, severity ordering, handler-name quality, and entity-level exposure balance.
+**Done:** Re-authored affected literals; added per-entity range validation and final payout severity ordering; changed handler initials; extended Latin-square seed search with family permutations and entity-ratio objective; added tests and report tables.
+**Decisions:** D-022, D-023.
+**Results:** Validator PASS; seed 177; character imbalance 0.0088; entity ratio 3.0000; objective 0.5088; KW p=1.0000; 38 tests passed; Ruff clean; 2600 planned mentions.
+**Problems & fixes:** P01c follow-up is recorded in F-002; per-entity ranges now gate the KB.
+**Next:** Run P02 (corpus pipeline and data card).
+
+## [2026-10-31 00:00] P01c - KB quality defect corrections
+**Goal:** Correct remaining numeric precision, plausibility ordering, canonical-style, and filler-pool defects.
+**Done:** Added R11 and configured orderings; re-authored affected values; rewrote all 120 canonical sentences across 20 patterns; expanded filler pools to 60/60/80; added validator and regression tests; reran assignment and sizing.
+**Decisions:** D-020, D-021.
+**Results:** Validator PASS; seed 3, imbalance 0.0089, KW p=1.0000; 32 tests passed; Ruff clean; 2600 planned mentions and all sizing reconciliations passed.
+**Problems & fixes:** P01b follow-up defects are recorded in F-002 and fixed with precision, ordering, style, and pool gates.
+**Next:** Run P02 (corpus pipeline and data card).
+
+## [2026-10-31 00:00] P01b - Realistic KB and sizing gate
+**Goal:** Replace unrealistic arithmetic-progression values, clean core facts, add filler pools, and correct train-only sizing.
+**Done:** Re-authored all 120 literals within configured ranges; added R10, range, cross-attribute, core, and filler validation; renamed the weight attribute; added the numeral policy; corrected sizing over the k by background grid; expanded tests.
+**Decisions:** D-017, D-018, D-019.
+**Results:** Validator PASS; seed 3, imbalance 0.0145, KW p=1.0000; 20 facts per cell; 2600 planned mentions; sizing reconciliation PASS for all 12 rows; 23 tests passed; Ruff clean.
+**Problems & fixes:** P01 arithmetic and sizing defects are recorded in F-002 and corrected by range-driven literals and explicit formulas.
+**Next:** Run P02 (corpus pipeline and data card).

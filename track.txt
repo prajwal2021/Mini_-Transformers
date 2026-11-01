@@ -1,0 +1,59 @@
+PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
+CURRENT PHASE: P02
+
+PHASE CHECKLIST:
+[x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
+[x] P01 KB + validator + bin assignment + sizing calculator + PREREG draft - exit: KB valid; bins balanced on attr type and entity (evidence: P01d validator PASS; seed 177; imbalance 0.0088; entity ratio 3.0000; objective 0.5088; 20 facts/cell; KW p=1.0000; 38 tests passed; Ruff clean)
+[ ] P02 Corpus pipeline (plan -> generate -> validate -> rebalance -> dedup -> split) + data card - exit: Measured exposure within +/-20% of target; leakage clean; templated-token share reported
+[ ] P03 BPE from scratch (train split only) + vocab study + token stats + value-length check - exit: Round-trip 100%; token counts reported
+[ ] P04 Transformer + tests - exit: 5 model tests pass
+[ ] P05 Doc-aware packing, pretraining loop, smoke run, sizing check, PREREG frozen, full 3-seed run - exit: Curves; init loss approximately ln V; checkpoints
+[ ] P06 Probes (val/test, canonical/novel) + base eval across checkpoints + free-gen consistency + gallery - exit: Per-checkpoint tables
+[ ] P07 SFT data + frozen eval set - exit: Hash recorded; splits verified disjoint
+[ ] P08 SFT + pre/post QA eval + forgetting check - exit: E0/E1/E2 for both models
+[ ] P09 RQ analysis + figures; release bundle; README; fresh-clone test - exit: Pre-registered analyses run; CPU inference from clean clone
+[ ] P10 Report, slides, demo script, QA prep, AI use, contributions - exit: Final checklist green
+
+PROMPT LOG:
+| # | date | prompt id | goal | outcome | commit |
+|---|---|---|---|---|---|
+| 1 | 2026-10-31 | P00 | Scaffold and tracking | Scaffold created, unverified | Human pending |
+| 2 | 2026-10-31 | P00b | Verification and workflow fix | Blocked: .venv\\Scripts\\python.exe was absent; pytest/ruff not run | Human pending |
+| 3 | 2026-10-31 | P00c | Re-run P00b verification | Verified: 7 passed; ruff clean; CUDA matmul passed | Human pending |
+| 4 | 2026-10-31 | P01 | KB, validator, cells, sizing, and prereg draft | 120 measured facts and 25 core facts; validator/tests/lint pass; seed 16 selected; reports written | Human pending |
+| 5 | 2026-10-31 | P01b | Realistic KB values, clean core, filler pools, and sizing fix | Validator PASS; 23 tests passed; Ruff clean; seed 3 selected; sizing reconciliation PASS | Human pending |
+| 6 | 2026-10-31 | P01c | KB precision, plausibility orderings, canonical style, and filler pools | Validator PASS; 32 tests passed; Ruff clean; seed 3 selected; sizing reconciliation PASS | Human pending |
+| 7 | 2026-10-31 | P01d | Final KB quality and entity-level exposure balance | Validator PASS; 38 tests passed; Ruff clean; seed 177 selected; entity ratio 3.0000; sizing reconciliation PASS | Human pending |
+
+ENVIRONMENT:
+- OS: Windows 11
+- Python: 3.12.10
+- torch: 2.11.0+cu128
+- CUDA version: 12.8
+- GPU name: NVIDIA GeForce RTX 5080 Laptop GPU
+- compute capability: 12.0
+- bf16 support: True
+
+KEY NUMBERS:
+- corpus_tokens_train: TBD (source: TBD)
+- corpus_tokens_val: TBD (source: TBD)
+- corpus_tokens_test: TBD (source: TBD)
+- vocab_size: TBD (source: TBD)
+- n_params: TBD (source: TBD)
+- final_train_loss: TBD (source: TBD)
+- final_val_loss: TBD (source: TBD)
+- val_ppl: TBD (source: TBD)
+- cloze_recall: TBD (source: TBD)
+- qa_E1_base: TBD (source: TBD)
+- qa_E1_sft: TBD (source: TBD)
+- qa_E2_base: TBD (source: TBD)
+- qa_E2_sft: TBD (source: TBD)
+- n_measured_facts: 120 (source: data/kb/kb.json)
+- n_core_facts: 25 (source: data/kb/kb.json)
+- cell_sizes: 20 each (source: reports/tables/cell_balance.md)
+- chosen_assignment_seed: 177 (source: data/kb/kb.json; P01d)
+
+OPEN ISSUES:
+- Git repository not yet initialized; human will initialize it.
+
+NEXT STEP: Run P02 (corpus pipeline and data card)

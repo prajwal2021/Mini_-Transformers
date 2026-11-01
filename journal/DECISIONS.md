@@ -1,0 +1,25 @@
+# Decisions
+
+- D-001 **Domain:** Aurelia Skyways Companion Animal Travel Desk.
+- D-002 **Controlled corpus:** Frequency × diversity, stratified by attribute type and entity.
+- D-003 **Tokenizer:** Byte-level BPE from scratch, fit on the train split only.
+- D-004 **Attention:** From-scratch attention with explicit W_Q/W_K/W_V/W_O.
+- D-005 **Pretraining text:** No QA-formatted text in pretraining.
+- D-006 **Evaluation:** Frozen shared QA evaluation set with E1/E2 and fact split 40/10/50.
+- D-007 **Packing:** Document-aware packing at context length 512.
+- D-008 **Storage:** Binding score defines a fact as stored.
+- D-009 **Replication:** Three seeds and preregistration before full training.
+- D-010 **Selection:** Validation versus test probe templates with preregistered checkpoint selection.
+- D-011 **Hardware/platform:** Windows 11 with RTX 5080, cu128, bf16 enabled, no `torch.compile`, and `num_workers=0`.
+- D-012 **Division of labor:** Human owns environment installs, commits, and long jobs; Codex owns code, tests, smoke runs, and tracking, linked to F-001.
+- D-013 **Generation budget:** `budget_usd = 10` for LLM corpus generation; hard cap, configurable, enforced in the P02 generator.
+- D-014 **Value uniqueness rules:** R1-R9 govern globally unique values, digit runs, surface collisions, names, spacing, realism, length, and invented names to make exposure counting and contradiction detection exact.
+- D-015 **Cell assignment:** Six entities per family use a Latin-square cell assignment; the seed is chosen on covariate balance only. This supersedes the five-skyport detail in DESIGN 1.1.
+- D-016 **Ranking candidates:** Ranking compares a fact against the six values of the same attribute.
+- D-017 **Corpus numeral policy:** Generated documents may use KB fact digit runs and single-digit numerals, but no other multi-digit numerals, years, or numeric dates.
+- D-018 **Realism and R10:** KB values are range-driven and must satisfy non-arithmetic, non-monotone ordering checks; this supersedes the P01 value set while D-014 remains active.
+- D-019 **Filler pools:** Passenger and pet names are non-fact material allowed in generated documents.
+- D-020 **Canonical sentence style:** Each of the 20 attributes uses one natural grammatical sentence pattern; the value is last and the prefix ends with a space.
+- D-021 **Numeric plausibility:** R11 requires integer numeric values except one-decimal combined weights, and configured species and compensation orderings are enforced.
+- D-022 **Final numeric plausibility:** All numeric values are integers; per-entity weight and crate ranges are enforced; compensation payouts follow severity ordering. This supersedes the decimal exception in D-021.
+- D-023 **Entity-level balance:** Planned mentions are balanced at the family/entity level during seeded cell selection using the objective `char_len_imbalance + 0.25 * (entity_ratio - 1)`, without outcome information.

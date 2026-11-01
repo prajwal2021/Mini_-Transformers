@@ -1,0 +1,9 @@
+allowed:
+  - digit runs belonging to measured KB facts
+  - single-digit numerals
+forbidden:
+  - any other multi-digit numeral
+  - year-like numerals
+  - numeric dates
+date_policy: write dates in words or omit them
+rationale: Keep exposure counting by digit run uncontaminated.

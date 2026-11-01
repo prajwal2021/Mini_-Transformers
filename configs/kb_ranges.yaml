@@ -1,0 +1,47 @@
+skyport_lounge_manager: invented_two_token_person_name
+skyport_daily_pet_cap: {min: 120, max: 480, unit: pets}
+skyport_relief_gate: {prefix: RG-, digits: 3}
+skyport_lounge_opening_time: {min: "04:30", max: "09:30", format: HH:MM}
+skyport_quarantine_room_capacity: {min: 12, max: 38, unit: kennels, max_fraction_of_daily_cap: 0.25}
+airship_pet_cabin_capacity: {min: 24, max: 76, unit: pets}
+airship_cabin_temp_setting: {min: 16, max: 24, unit: degrees_celsius}
+airship_pet_deck_name: invented_place_name
+airship_onboard_handler_name: invented_two_token_person_name
+species_pet_fee: {min: 35, max: 260, unit: USD}
+species_max_combined_weight: {min: 10, max: 70, unit: kg, ordering: large_dog_gt_small_dog_gt_cat}
+species_crate_size: {min: 38, max: 120, unit: cm, ordering: large_dog_gt_small_dog_gt_cat}
+species_min_age_weeks: {min: 10, max: 20, unit: weeks}
+species_health_certificate_validity_days: {min: 10, max: 90, unit: days}
+procedure_form_code: {prefix: FM-, digits: 3}
+procedure_deadline_hours: {min: 12, max: 96, unit: hours}
+procedure_owner_role: invented_role_title
+procedure_escalation_extension: {prefix: EX-, digits: 3}
+compensation_payout_amount: {min: 50, max: 900, unit: USD}
+compensation_claim_window_days: {min: 14, max: 180, unit: days}
+orderings:
+  species_max_combined_weight:
+    - [bird, rabbit, cat, small dog, large dog]
+    - [reptile, small dog]
+  species_crate_size:
+    - [rabbit, cat, small dog, large dog]
+  species_pet_fee:
+    - [cat, small dog, large dog]
+  compensation_payout_amount:
+    - [delayed departure, missed connection, lost crate, minor injury]
+    - [minor injury, cabin overheating]
+    - [minor injury, escape in transit]
+per_entity_ranges:
+  species_max_combined_weight:
+    bird: {min: 10, max: 16}
+    rabbit: {min: 12, max: 20}
+    cat: {min: 14, max: 24}
+    reptile: {min: 18, max: 32}
+    small dog: {min: 26, max: 38}
+    large dog: {min: 46, max: 70}
+  species_crate_size:
+    rabbit: {min: 40, max: 58}
+    cat: {min: 50, max: 68}
+    small dog: {min: 62, max: 84}
+    large dog: {min: 100, max: 120}
+    bird: {min: 44, max: 76}
+    reptile: {min: 70, max: 110}

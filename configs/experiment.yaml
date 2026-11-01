@@ -1,0 +1,23 @@
+seed_search_max: 200
+planned_mentions:
+  low: 5
+  mid: 15
+  high: 45
+cells:
+  - low_templated
+  - low_paraphrased
+  - mid_templated
+  - mid_paraphrased
+  - high_templated
+  - high_paraphrased
+measured_facts_per_doc: [1, 2, 3]
+avg_tokens_per_doc: 350
+doc_cap_tokens: 450
+background_doc_fractions: [0.10, 0.30, 0.50, 0.66]
+val_doc_fraction: 0.05
+test_doc_fraction: 0.05
+prompt_tokens_per_call: 900
+completion_tokens_per_call: 350
+price_input_usd_per_million: null  # VERIFY PRICING BEFORE USE
+price_output_usd_per_million: null  # VERIFY PRICING BEFORE USE
+budget_usd: 10
