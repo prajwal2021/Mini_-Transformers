@@ -84,7 +84,11 @@ class GlobalBudgetGuard:
         global_cap_usd: float,
         pilot_cap_usd: float,
         pricing: dict[str, dict[str, float]],
+        extra_pilot_ledgers: list[Path] | None = None,
+        session_cap_usd: float | None = None,
     ) -> None:
+        self.extra_pilot_ledgers = [Path(p) for p in extra_pilot_ledgers or []]
+        self.session_cap_usd = session_cap_usd
         self.data_dir = Path(data_dir)
         self.pilot_ledger = Path(pilot_ledger)
         self.global_cap_usd = float(global_cap_usd)
@@ -113,8 +117,13 @@ class GlobalBudgetGuard:
     def global_spent(self) -> float:
         return sum(self._sum(path) for path in self.ledger_files())
 
-    def pilot_spent(self) -> float:
+    def session_spent(self) -> float:
+        """Spend recorded in this run's own ledger (``pilot_ledger``)."""
         return self._sum(self.pilot_ledger)
+
+    def pilot_spent(self) -> float:
+        """Pilot spend across this run's ledger and any earlier pilot ledgers."""
+        return self._sum(self.pilot_ledger) + sum(self._sum(p) for p in self.extra_pilot_ledgers)
 
     def cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
         price = self.pricing[model]
@@ -129,6 +138,14 @@ class GlobalBudgetGuard:
             raise BudgetExceeded(
                 f"global cap ${self.global_cap_usd:.2f} would be breached: spent "
                 f"${self.global_spent():.4f} + ${extra_usd:.4f}"
+            )
+        if (
+            self.session_cap_usd is not None
+            and self.session_spent() + self._inflight + extra_usd > self.session_cap_usd
+        ):
+            raise BudgetExceeded(
+                f"session cap ${self.session_cap_usd:.2f} would be breached: spent "
+                f"${self.session_spent():.4f} + ${extra_usd:.4f}"
             )
         if self.pilot_spent() + self._inflight + extra_usd > self.pilot_cap_usd:
             raise BudgetExceeded(

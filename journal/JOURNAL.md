@@ -50,6 +50,14 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-02 23:00] P02b4 - Evidence-based validator v2, prompt v3, offline replay, pilot rerun
+**Goal:** Fix the pilot failures E1-E7 (pilot_failures.md, pilot_samples.md) with validator v2, a fidelity check and prompt v3, replay the stored pilot offline, then rerun the same 30 documents.
+**Done (stage 0-1, commit P02b4a):** preflight with reasoning "none" for both models; validator v1 frozen as doc_validator_v1.py and v2 written (normalisation, V2 word distance plus V2b, V5, V6, V8, V15, V16); configs/attribute_cues.yaml; E1 handling; version stamps; natural mock updated; replay of all 148 attempts; 127 tests and Ruff green.
+**Decisions:** D-034 to D-045. **Failures:** F-005. **Experiments:** E-001.
+**Results (stage 1):** replay: mini accepted attempts 15 -> 36 and first-attempt pass on non-empty 20.0% -> 60.0%; nano 10 -> 21 and 17.2% -> 41.4%; six pass->fail flips (V15 x5, V16 x2, V2 x1), all genuine meaning, hedge, casing or binding problems.
+**Problems & fixes:** the prompt's V13 casing is named V16 because V13 is verbatim copying; V2b compares only entities in the value's own sentence (document-wide reading rejected natural parallel sentences).
+**Next:** stage 2 prompt v3 pilot rerun (result recorded in the final entry).
+
 ## [2026-11-02 21:00] P02b3 - Pilot failure diagnosis
 **Goal:** Report where and why the pilot attempts failed, without changing the validator, prompts, plan, KB or budget code.
 **Done:** Added scripts/analyze_pilot_failures.py (report only, no API calls) and one fixture test; generated reports/tables/pilot_failures.md (sections 0 and A-J).

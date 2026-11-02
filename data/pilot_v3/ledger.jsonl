@@ -1,0 +1,2 @@
+{"doc_id": "preflight", "attempt": 0, "model": "gpt-5.4-nano", "client": "openai", "tokens_in": 8, "tokens_out": 4, "reasoning": 0, "usd": 6.5999999999999995e-06, "finish_reason": "stop", "timestamp": "2026-11-02T21:01:23.841274+00:00"}
+{"doc_id": "preflight", "attempt": 0, "model": "gpt-5.4-mini", "client": "openai", "tokens_in": 8, "tokens_out": 4, "reasoning": 0, "usd": 2.4e-05, "finish_reason": "stop", "timestamp": "2026-11-02T21:01:24.625153+00:00"}

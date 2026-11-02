@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: pilot run; diagnosis complete; no model chosen yet)
+CURRENT PHASE: P02 (substep P02b: validator v2 and prompt v3 built; rerun in progress; no model chosen)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -29,6 +29,7 @@ PROMPT LOG:
 | 10 | 2026-11-02 | P02b | Paid-pilot tooling, pre-registered selection rule, chat-thread compatibility | Tooling ready, pilot not yet run; 65 tests passed; Ruff clean; plan assertions hold; no API calls | Human pending |
 | 11 | 2026-11-02 | P02b2 | Validator V10-V14, run-mode safety, per-attempt ledger, real pilot | 95 tests passed; Ruff clean; pilot spend $0.2826; both models failed C1/C2/C3 (nano 40%/16.7%/$14.63, mini 53%/23.3%/$31.53); no model chosen | Local commit |
 | 12 | 2026-11-02 | P02b3 | Diagnose the pilot failures (report only) | reports/tables/pilot_failures.md written; 6 mini and 10 nano attempts had empty text (all tokens spent on reasoning); no code changes outside the analysis script | Local commit |
+| 13 | 2026-11-02 | P02b4a | Validator v2 (V2, V5, V6, V8, V15, V16), normalisation, E1 handling, replay | 127 tests passed; Ruff clean; replay of 148 attempts: mini first-attempt pass 20.0% -> 60.0%, nano 17.2% -> 41.4% (non-empty attempts) | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11

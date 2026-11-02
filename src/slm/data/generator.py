@@ -13,9 +13,8 @@ from typing import Any, Protocol
 import yaml
 
 from .budget import GlobalBudgetGuard
-from .doc_validator import validate_doc
 from .mock_text import write_document
-from .prompts import TEMPLATE_VERSION, build_prompt, template_hash
+from .versions import normaliser_for, prompt_tools, validator_for
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -92,6 +91,12 @@ async def generate_rows(
     pools = _load_json(ROOT / "data" / "kb" / "filler_pools.json")
     config = yaml.safe_load((ROOT / "configs" / "generation.yaml").read_text(encoding="utf-8"))
     client_name = "mock" if isinstance(client, MockClient) else "openai"
+    prompt_version = config["generation"].get("prompt_version", "v3")
+    validator_version = config["generation"].get("validator_version", "v2")
+    tools = prompt_tools(prompt_version)
+    validate = validator_for(validator_version)
+    normalise = normaliser_for(validator_version)
+    versions = {"prompt_version": prompt_version, "validator_version": validator_version}
     raw_dir = raw_dir or ROOT / "data" / ("raw_mock" if client_name == "mock" else "raw")
     raw_dir.mkdir(parents=True, exist_ok=True)
     guard = GlobalBudgetGuard(
@@ -121,7 +126,7 @@ async def generate_rows(
         async with semaphore:
             feedback = ""
             for attempt in range(1, int(config["generation"]["max_attempts"]) + 1):
-                prompt = build_prompt(row, kb) + feedback
+                prompt = tools["build"](row, kb) + feedback
                 prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
                 cache_path = cache_dir / f"{prompt_hash}.json"
                 reserved = 0.0
@@ -152,7 +157,9 @@ async def generate_rows(
                         ),
                         encoding="utf-8",
                     )
-                ok, reasons = validate_doc(text, row, kb, pools)
+                raw_text = text
+                text = normalise(raw_text)
+                ok, reasons = validate(text, row, kb, pools)
                 cost = 0.0 if cached else guard.cost(model, usage.input_tokens, usage.output_tokens)
                 if not cached:
                     guard.settle(
@@ -162,21 +169,26 @@ async def generate_rows(
                         model=model,
                         client=client_name,
                         prompt_hash=prompt_hash,
-                        template_version=TEMPLATE_VERSION,
-                        template_hash=template_hash(),
+                        template_version=tools["label"],
+                        template_hash=tools["hash"],
                         tokens_in=usage.input_tokens,
                         tokens_out=usage.output_tokens,
                         reasoning=usage.reasoning_tokens,
                         usd=cost,
                         accepted=ok,
                         reasons=reasons,
+                        **versions,
                     )
                     counts["ledger"] += 1
                     counts["cost"] += cost
                 if ok:
                     with accepted_path.open("a", encoding="utf-8") as handle:
                         handle.write(
-                            json.dumps({"doc_id": row["doc_id"], "text": text}, ensure_ascii=False)
+                            json.dumps(
+                                {"doc_id": row["doc_id"], "text": text, "raw_text": raw_text,
+                                 **versions},
+                                ensure_ascii=False,
+                            )
                             + "\n"
                         )
                     counts["accepted"] += 1
@@ -184,16 +196,13 @@ async def generate_rows(
                 with rejected_path.open("a", encoding="utf-8") as handle:
                     handle.write(
                         json.dumps(
-                            {"doc_id": row["doc_id"], "attempt": attempt, "reasons": reasons},
+                            {"doc_id": row["doc_id"], "attempt": attempt, "reasons": reasons,
+                             **versions},
                             ensure_ascii=False,
                         )
                         + "\n"
                     )
-                feedback = (
-                    "\n\nYour previously rejected draft failed these checks: "
-                    + "; ".join(reasons)
-                    + ". Write a new complete document that fixes every problem."
-                )
+                feedback = tools["feedback"](reasons)
             counts["rejected"] += 1
 
     await asyncio.gather(*(one(row) for row in selected))

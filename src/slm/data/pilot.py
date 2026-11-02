@@ -23,9 +23,10 @@ from typing import Any, Protocol
 import yaml
 
 from .budget import BudgetExceeded, GlobalBudgetGuard, mode_banner
-from .doc_validator import WORD_RE, flagged_capitals, validate_doc
+from .doc_validator import WORD_RE, flagged_capitals
 from .generator import MockClient
 from .prompts import TEMPLATE_VERSION, build_prompt, style_sentence, template_hash
+from .versions import normaliser_for, prompt_tools, validator_for
 
 ROOT = Path(__file__).resolve().parents[3]
 PROBE_PROMPT = "Reply with the word ok."
@@ -90,6 +91,7 @@ class CallResult:
     output_tokens: int
     reasoning_tokens: int
     latency: float
+    finish_reason: str = "stop"
 
 
 class Backend(Protocol):
@@ -160,6 +162,7 @@ class OpenAIBackend:
                     usage.completion_tokens,
                     int(getattr(details, "reasoning_tokens", 0) or 0),
                     time.time() - start,
+                    str(response.choices[0].finish_reason or ""),
                 )
             kwargs = {"model": model, "input": prompt, "max_output_tokens": max_tokens}
             if config.get("reasoning_effort"):
@@ -173,6 +176,7 @@ class OpenAIBackend:
                 usage.output_tokens,
                 int(getattr(details, "reasoning_tokens", 0) or 0),
                 time.time() - start,
+                "length" if getattr(response, "status", "") == "incomplete" else "stop",
             )
         except Exception as exc:  # noqa: BLE001 - surfaced verbatim
             raise ApiError(f"{type(exc).__name__}: {exc}") from exc
@@ -186,7 +190,9 @@ class MockBackend:
         models: list[str] | None = None,
         probe_errors: list[str | None] | None = None,
         violate_every: int = 3,
+        empty_first_calls: int = 0,
     ) -> None:
+        self.empty_calls_left = empty_first_calls
         self.models = models if models is not None else ["gpt-5.4-nano", "gpt-5.4-mini"]
         self.probe_errors = list(probe_errors or [])
         self.violate_every = violate_every
@@ -209,7 +215,10 @@ class MockBackend:
             error = self.probe_errors.pop(0) if self.probe_errors else None
             if error:
                 raise ApiError(error)
-            return CallResult("ok", len(prompt) // 4, 2, 0, 0.01)
+            return CallResult("ok", len(prompt) // 4, 2, 0, 0.01, "stop")
+        if self.empty_calls_left > 0:
+            self.empty_calls_left -= 1
+            return CallResult("", len(prompt) // 4, 700, 0, 0.02, "length")
         retry = "previously rejected" in prompt
         bad = (
             not retry
@@ -217,7 +226,7 @@ class MockBackend:
             and sum(map(ord, row["doc_id"])) % self.violate_every == 0
         )
         text, usage = MockClient(violate=bool(bad)).generate(prompt, row, kb or {})
-        return CallResult(text, usage.input_tokens, usage.output_tokens, 0, 0.02)
+        return CallResult(text, usage.input_tokens, usage.output_tokens, 0, 0.02, "stop")
 
 
 # ---- A. model ids ------------------------------------------------------------------------
@@ -347,6 +356,11 @@ def _load_attempts(path: Path) -> list[dict[str, Any]]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
+def _unusable(result: CallResult) -> bool:
+    """API-level E1: empty text or a response cut off by the output cap."""
+    return not result.text.strip() or result.finish_reason == "length"
+
+
 def generate_model(
     backend: Backend,
     model: str,
@@ -359,88 +373,126 @@ def generate_model(
     max_attempts: int = 3,
     max_output_tokens: int = 900,
     concurrency: int = 4,
+    prompt_version: str = "v2",
+    validator_version: str = "v2",
+    e1_extra_tries: int = 2,
 ) -> dict[str, Any]:
-    """Generate every row for one model with validator feedback; resume from attempts.jsonl."""
+    """Generate every row for one model with validator feedback; resume from attempts.jsonl.
+
+    A response with empty text or finish_reason "length" is an API-level E1 event: it is retried
+    up to ``e1_extra_tries`` more times with the ORIGINAL prompt (no validator feedback), logged
+    separately in api_events.jsonl, and never counted as a validator failure. Each stored attempt
+    carries the raw and normalised text and the prompt and validator versions.
+    """
+    tools = prompt_tools(prompt_version)
+    validate = validator_for(validator_version)
+    normalise = normaliser_for(validator_version)
     model_dir = out_dir / _safe(model)
     cache_dir = model_dir / "cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
     attempts_path = model_dir / "attempts.jsonl"
+    events_path = model_dir / "api_events.jsonl"
     done = _load_attempts(attempts_path)
-    finished = {
-        a["doc_id"] for a in done if a["ok"] or a["attempt"] >= max_attempts
-    }
+    finished = {a["doc_id"] for a in done if a["ok"] or a["attempt"] >= max_attempts
+                or a.get("api_failure")}
     client_name = getattr(backend, "client_name", "openai")
     write_lock = threading.Lock()
     stop = {"error": None}
+    versions = {"prompt_version": prompt_version, "validator_version": validator_version}
+
+    def append(path: Path, record: dict[str, Any]) -> None:
+        with write_lock, path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     def one(row: dict[str, Any]) -> None:
         feedback = ""
         for attempt in range(1, max_attempts + 1):
             if stop["error"]:
                 return
-            prompt = build_prompt(row, kb) + feedback
-            key = hashlib.sha256(
-                (model + json.dumps(config, sort_keys=True) + prompt).encode("utf-8")
-            ).hexdigest()
-            cache_path = cache_dir / f"{key}.json"
-            cached = cache_path.exists()
-            if cached:
-                payload = json.loads(cache_path.read_text(encoding="utf-8"))
-                result = CallResult(**payload)
-                usd = 0.0
-            else:
-                try:
-                    reserved = guard.reserve(model, len(prompt) // 4, max_output_tokens)
-                except BudgetExceeded as exc:
-                    stop["error"] = str(exc)
-                    return
-                try:
-                    result = backend.call(model, prompt, config, max_output_tokens, row, kb)
-                except ApiError as exc:
-                    guard.settle(reserved, doc_id=row["doc_id"], attempt=attempt, model=model,
-                                 client=client_name, usd=0.0, error=str(exc))
-                    with write_lock, attempts_path.open("a", encoding="utf-8") as handle:
-                        handle.write(json.dumps({
-                            "doc_id": row["doc_id"], "attempt": attempt, "ok": False,
-                            "reasons": [f"API error: {exc}"], "text": "", "input_tokens": 0,
-                            "output_tokens": 0, "reasoning_tokens": 0, "latency": 0.0,
-                            "usd": 0.0, "cached": False,
-                        }) + "\n")
-                    feedback = ""
+            base_prompt = tools["build"](row, kb)
+            prompt = base_prompt + feedback
+            result: CallResult | None = None
+            usd = 0.0
+            cached = False
+            api_events = 0
+            api_error: str | None = None
+            for try_no in range(1, e1_extra_tries + 2):
+                key = hashlib.sha256(
+                    (model + json.dumps(config, sort_keys=True) + prompt).encode("utf-8")
+                ).hexdigest()
+                cache_path = cache_dir / f"{key}.json"
+                cached = cache_path.exists()
+                if cached:
+                    result = CallResult(**json.loads(cache_path.read_text(encoding="utf-8")))
+                    usd = 0.0
+                else:
+                    try:
+                        reserved = guard.reserve(model, len(prompt) // 4, max_output_tokens)
+                    except BudgetExceeded as exc:
+                        stop["error"] = str(exc)
+                        return
+                    try:
+                        result = backend.call(model, prompt, config, max_output_tokens, row, kb)
+                    except ApiError as exc:
+                        guard.settle(reserved, doc_id=row["doc_id"], attempt=attempt, model=model,
+                                     client=client_name, usd=0.0, error=str(exc), **versions)
+                        api_error = str(exc)
+                        result = None
+                        break
+                    usd = guard.cost(model, result.input_tokens, result.output_tokens)
+                    guard.settle(
+                        reserved, doc_id=row["doc_id"], attempt=attempt, model=model,
+                        client=client_name, prompt_hash=key, template_version=tools["label"],
+                        template_hash=tools["hash"], tokens_in=result.input_tokens,
+                        tokens_out=result.output_tokens, reasoning=result.reasoning_tokens,
+                        usd=usd, finish_reason=result.finish_reason, e1=_unusable(result),
+                        **versions,
+                    )
+                    if not _unusable(result):
+                        cache_path.write_text(json.dumps(result.__dict__), encoding="utf-8")
+                if _unusable(result):
+                    api_events += 1
+                    append(events_path, {
+                        "doc_id": row["doc_id"], "attempt": attempt, "try": try_no, "kind": "E1",
+                        "finish_reason": result.finish_reason, "empty": not result.text.strip(),
+                        "output_tokens": result.output_tokens,
+                        "reasoning_tokens": result.reasoning_tokens, "usd": usd, **versions,
+                    })
                     continue
-                usd = guard.cost(model, result.input_tokens, result.output_tokens)
-                cache_path.write_text(json.dumps(result.__dict__), encoding="utf-8")
-                guard.settle(
-                    reserved,
-                    doc_id=row["doc_id"],
-                    attempt=attempt,
-                    model=model,
-                    client=client_name,
-                    prompt_hash=key,
-                    template_version=TEMPLATE_VERSION,
-                    template_hash=template_hash(),
-                    tokens_in=result.input_tokens,
-                    tokens_out=result.output_tokens,
-                    reasoning=result.reasoning_tokens,
-                    usd=usd,
-                )
-            ok, reasons = validate_doc(result.text, row, kb, pools)
-            record = {
-                "doc_id": row["doc_id"], "attempt": attempt, "ok": ok, "reasons": reasons,
-                "text": result.text, "input_tokens": result.input_tokens,
+                break
+            base_record = {
+                "doc_id": row["doc_id"], "attempt": attempt, "api_events": api_events, **versions,
+            }
+            if api_error is not None:
+                append(attempts_path, {**base_record, "ok": False, "text": "", "raw_text": "",
+                       "reasons": [f"API error: {api_error}"], "input_tokens": 0,
+                       "output_tokens": 0, "reasoning_tokens": 0, "latency": 0.0, "usd": 0.0,
+                       "cached": False})
+                feedback = ""
+                continue
+            if result is None or _unusable(result):
+                append(attempts_path, {**base_record, "ok": False, "api_failure": True,
+                       "text": "", "raw_text": result.text if result else "",
+                       "reasons": ["E1 empty or truncated response after "
+                                   f"{e1_extra_tries + 1} tries"],
+                       "input_tokens": result.input_tokens if result else 0,
+                       "output_tokens": result.output_tokens if result else 0,
+                       "reasoning_tokens": result.reasoning_tokens if result else 0,
+                       "latency": result.latency if result else 0.0, "usd": usd,
+                       "cached": False, "finish_reason": result.finish_reason if result else ""})
+                return
+            text = normalise(result.text)
+            ok, reasons = validate(text, row, kb, pools)
+            append(attempts_path, {
+                **base_record, "ok": ok, "reasons": reasons, "text": text,
+                "raw_text": result.text, "input_tokens": result.input_tokens,
                 "output_tokens": result.output_tokens,
                 "reasoning_tokens": result.reasoning_tokens, "latency": result.latency,
-                "usd": usd, "cached": cached,
-            }
-            with write_lock, attempts_path.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+                "usd": usd, "cached": cached, "finish_reason": result.finish_reason,
+            })
             if ok:
                 return
-            feedback = (
-                "\n\nYour previously rejected draft failed these checks: "
-                + "; ".join(reasons)
-                + ". Write a new complete document that fixes every problem."
-            )
+            feedback = tools["feedback"](reasons)
 
     todo = [row for row in rows if row["doc_id"] not in finished]
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
@@ -464,7 +516,9 @@ def analyze_model(
     attempts: list[dict[str, Any]],
     kb: dict[str, Any],
     max_attempts: int = 3,
+    events: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    events = events or []
     by_doc: dict[str, list[dict[str, Any]]] = {}
     for attempt in sorted(attempts, key=lambda a: (a["doc_id"], a["attempt"])):
         by_doc.setdefault(attempt["doc_id"], []).append(attempt)
@@ -476,11 +530,15 @@ def analyze_model(
     histogram: Counter[str] = Counter()
     for d in docs:
         for a in by_doc[d]:
+            if a.get("api_failure"):
+                continue  # API-level E1 is reported separately, never as a validator failure
             for reason in a["reasons"]:
-                match = re.match(r"(V\d(?:/V\d)?|API error)", reason)
+                match = re.match(r"(V\d+(?:/V\d+)?|API error|E1)", reason)
                 histogram[match.group(1) if match else "other"] += 1
     calls = [a for d in docs for a in by_doc[d] if not a["cached"]]
-    total_cost = sum(a["usd"] for d in docs for a in by_doc[d])
+    total_cost = sum(a["usd"] for d in docs for a in by_doc[d]) + sum(
+        e.get("usd", 0.0) for e in events
+    )
     ratios, within = [], 0
     bigrams: list[tuple[str, str]] = []
     openings: list[tuple[str, ...]] = []
@@ -517,6 +575,34 @@ def analyze_model(
         "opening_5gram_dup": 1 - len(set(openings)) / len(openings) if openings else 1.0,
         "mean_capital_flags": _mean([float(f) for f in flags]),
     }
+    all_attempts = [a for d in docs for a in by_doc[d]]
+
+    def mode_of(row: dict[str, Any]) -> str:
+        modes = set(row["modes"])
+        return "none" if not modes else (modes.pop() if len(modes) == 1 else "mixed")
+
+    def pass_by(key) -> dict[str, tuple[int, int]]:
+        out: dict[str, list[int]] = {}
+        for d in docs:
+            bucket = out.setdefault(key(row_by_id[d]), [0, 0])
+            bucket[1] += 1
+            bucket[0] += bool(by_doc[d][0]["ok"])
+        return {k: (v[0], v[1]) for k, v in sorted(out.items())}
+
+    per_attempt_cost = total_cost / max(1, len(all_attempts))
+    metrics.update(
+        {
+            "first_pass_by_mode": pass_by(mode_of),
+            "first_pass_by_type": pass_by(lambda r: r["doc_type"]),
+            "empty_responses": sum(1 for a in all_attempts if not a["text"].strip()) + len(events),
+            "e1_events": len(events),
+            "e1_failed_docs": sum(1 for d in docs if by_doc[d][-1].get("api_failure")),
+            "attempts_made": len(all_attempts),
+            "cost_per_doc": total_cost / n_docs,
+            "projected_at_observed_attempts": total_cost / n_docs * FULL_RUN_DOCS,
+            "projected_at_1_4_attempts": per_attempt_cost * 1.4 * FULL_RUN_DOCS,
+        }
+    )
     metrics["criteria"] = {
         "C1": metrics["accepted_within_3"] >= C_THRESHOLDS["C1"],
         "C2": metrics["first_attempt_pass"] >= C_THRESHOLDS["C2"],
@@ -546,8 +632,51 @@ def recommend(all_metrics: list[dict[str, Any]]) -> str:
     return "No model passes C1-C5 together: see the failing criteria and iterate the prompt."
 
 
+def extended_lines(all_metrics: list[dict[str, Any]]) -> list[str]:
+    names = [m["model"] for m in all_metrics]
+    lines = ["", "## Additional measures (prompt v3 / validator v2 rerun)", ""]
+    header = "| measure | " + " | ".join(names) + " |"
+    sep = "| --- | " + " | ".join("---:" for _ in names) + " |"
+
+    def fmt(passed_total: tuple[int, int]) -> str:
+        passed, total = passed_total
+        return f"{passed}/{total} ({passed / total:.0%})" if total else "-"
+
+    rows = [
+        ("empty responses (expected 0)", lambda m: m["empty_responses"]),
+        ("E1 API events (empty or length)", lambda m: m["e1_events"]),
+        ("docs lost to E1 after retries", lambda m: m["e1_failed_docs"]),
+        ("mean reasoning tokens / call (expected 0)", lambda m: f"{m['mean_reasoning_tokens']:.0f}"),
+        ("attempts made", lambda m: m["attempts_made"]),
+        ("mean attempts per doc", lambda m: f"{m['mean_attempts']:.2f}"),
+        ("cost per doc (USD)", lambda m: f"${m['cost_per_doc']:.5f}"),
+        ("projected full run at observed attempts/doc (USD)",
+         lambda m: f"${m['projected_at_observed_attempts']:.2f}"),
+        ("projected full run at 1.4 attempts/doc (USD)",
+         lambda m: f"${m['projected_at_1_4_attempts']:.2f}"),
+    ]
+    lines += [header, sep]
+    for label, fn in rows:
+        lines.append("| " + " | ".join([label] + [str(fn(m)) for m in all_metrics]) + " |")
+    lines += ["", "First-attempt pass by mode:", "", header, sep]
+    for mode in sorted({k for m in all_metrics for k in m["first_pass_by_mode"]}):
+        lines.append("| " + " | ".join([mode] + [fmt(m["first_pass_by_mode"].get(mode, (0, 0)))
+                                                  for m in all_metrics]) + " |")
+    lines += ["", "First-attempt pass by doc type:", "", header, sep]
+    for kind in sorted({k for m in all_metrics for k in m["first_pass_by_type"]}):
+        lines.append("| " + " | ".join([kind] + [fmt(m["first_pass_by_type"].get(kind, (0, 0)))
+                                                  for m in all_metrics]) + " |")
+    return lines
+
+
 def write_report(
-    path: Path, all_metrics: list[dict[str, Any]], spend: dict[str, float], client: str
+    path: Path,
+    all_metrics: list[dict[str, Any]],
+    spend: dict[str, float],
+    client: str,
+    extended: bool = False,
+    template: tuple[str, str] | None = None,
+    validator_version: str = "v1",
 ) -> None:
     def verdict(value: bool | None) -> str:
         return "pending human" if value is None else ("PASS" if value else "FAIL")
@@ -557,7 +686,9 @@ def write_report(
         "",
         "# Pilot report",
         "",
-        f"Template: {TEMPLATE_VERSION} ({template_hash()}). Generated "
+        f"Template: {(template or (TEMPLATE_VERSION, template_hash()))[0]} "
+        f"({(template or (TEMPLATE_VERSION, template_hash()))[1]}); validator {validator_version}. "
+        "Generated "
         f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.",
         f"Global spend so far: ${spend['global']:.4f} of ${spend['global_cap']:.2f}; "
         f"pilot spend: ${spend['pilot']:.4f} of ${spend['pilot_cap']:.2f}.",
@@ -611,6 +742,8 @@ def write_report(
             + " | ".join(verdict(m["criteria"][key]) for m in all_metrics)
             + " |"
         )
+    if extended:
+        lines += extended_lines(all_metrics)
     lines += ["", f"**Recommended model:** {recommend(all_metrics)}", ""]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -634,21 +767,31 @@ def write_samples(
     kb: dict[str, Any],
     pools: dict[str, Any],
     client: str,
+    validator_version: str = "v2",
+    extra: bool = False,
 ) -> None:
+    validate = validator_for(validator_version)
     facts = {f["fact_id"]: f for f in kb["measured_facts"]}
     lines = [
         f"Client: {client}",
         "",
         "# Pilot samples",
         "",
-        "Five accepted documents per model, printed in full.",
+        "Accepted documents per model, printed in full.",
         "",
     ]
     for model, attempts in attempts_by_model.items():
         lines += [f"## {model}", ""]
         accepted = {a["doc_id"]: a for a in attempts if a["ok"]}
         taken: set[str] = set()
-        for number, (label, predicate) in enumerate(SAMPLE_KINDS, start=1):
+        kinds = list(SAMPLE_KINDS)
+        if extra:
+            kinds += [
+                ("additional accepted email", lambda r: r["doc_type"] == "employee email"),
+                ("additional accepted complaint reply",
+                 lambda r: r["doc_type"] == "complaint letter + reply"),
+            ]
+        for number, (label, predicate) in enumerate(kinds, start=1):
             row = next(
                 (r for r in rows if predicate(r) and r["doc_id"] in accepted and r["doc_id"] not in taken),
                 None,
@@ -659,7 +802,7 @@ def write_samples(
                 continue
             taken.add(row["doc_id"])
             text = accepted[row["doc_id"]]["text"]
-            ok, reasons = validate_doc(text, row, kb, pools)
+            ok, reasons = validate(text, row, kb, pools)
             assigned = [
                 f"{facts[f]['entity']} = {facts[f]['value']} ({mode})"
                 for f, mode in zip(row["fact_ids"], row["modes"])
@@ -696,12 +839,14 @@ def projected_worst_case(
     kb: dict[str, Any],
     max_attempts: int,
     max_output_tokens: int,
+    builder=None,
 ) -> float:
+    builder = builder or build_prompt
     total = 0.0
     for model in models:
         for row in rows:
             total += max_attempts * guard.cost(
-                model, len(build_prompt(row, kb)) // 4, max_output_tokens
+                model, len(builder(row, kb)) // 4, max_output_tokens
             )
     return total
 
@@ -717,6 +862,15 @@ def run_pilot(
     client_name: str,
     echo=print,
     overwrite: bool = False,
+    *,
+    suffix: str = "",
+    rows_from: Path | None = None,
+    prompt_version: str = "v2",
+    validator_version: str = "v2",
+    use_saved_api_config: bool = False,
+    extra_pilot_ledgers: list[Path] | None = None,
+    session_cap: float | None = None,
+    extended: bool = False,
 ) -> int:
     """Full pilot: A model check, B probe, C rows, D generate, E report, F samples."""
     backend.client_name = client_name  # type: ignore[attr-defined]
@@ -730,11 +884,13 @@ def run_pilot(
     guard = GlobalBudgetGuard(
         data_dir, out_dir / "ledger.jsonl", config["budget_usd"], config["pilot_budget_usd"],
         {m: config["models"][m] for m in config["models"]},
+        extra_pilot_ledgers=extra_pilot_ledgers, session_cap_usd=session_cap,
     )
+    tools = prompt_tools(prompt_version)
     echo(mode_banner(client_name, guard.global_spent(), guard.global_cap_usd))
     echo(f"Global spend: ${guard.global_spent():.4f} / ${guard.global_cap_usd:.2f}; "
          f"pilot spend: ${guard.pilot_spent():.4f} / ${guard.pilot_cap_usd:.2f}")
-    for name in ("pilot_report.md", "pilot_samples.md"):
+    for name in (f"pilot_report{suffix}.md", f"pilot_samples{suffix}.md"):
         existing = reports_dir / name
         if existing.exists() and not overwrite:
             first = existing.read_text(encoding="utf-8").split("\n", 1)[0].strip()
@@ -753,17 +909,30 @@ def run_pilot(
         echo("Available ids starting with gpt-5: " + ", ".join(available))
         return 2
 
-    rows = select_pilot_rows(plan_rows, config["seed"], n)
+    if rows_from is not None:
+        by_id = {r["doc_id"]: r for r in plan_rows}
+        saved = [
+            json.loads(x) for x in rows_from.read_text(encoding="utf-8").splitlines() if x.strip()
+        ]
+        rows = [{**by_id[r["doc_id"]], "pilot_category": r["pilot_category"]} for r in saved][:n]
+    else:
+        rows = select_pilot_rows(plan_rows, config["seed"], n)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "pilot_rows.jsonl").write_text(
         "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8"
     )
     max_attempts = config["generation"]["max_attempts"]
     max_out = config["generation"]["max_output_tokens"]
-    worst = projected_worst_case(guard, models, rows, kb, max_attempts, max_out)
-    remaining = min(
-        guard.global_cap_usd - guard.global_spent(), guard.pilot_cap_usd - guard.pilot_spent()
+    saved_config = load_json(out_dir / "api_config.json") if use_saved_api_config else {}
+    model_max = {m: saved_config.get(m, {}).get("max_output_tokens", max_out) for m in models}
+    worst = sum(
+        projected_worst_case(guard, [m], rows, kb, max_attempts, model_max[m], tools["build"])
+        for m in models
     )
+    caps = [guard.global_cap_usd - guard.global_spent(), guard.pilot_cap_usd - guard.pilot_spent()]
+    if session_cap is not None:
+        caps.append(session_cap - guard.session_spent())
+    remaining = min(caps)
     echo(f"Worst-case pilot cost ${worst:.4f}; remaining under tightest cap ${remaining:.4f}")
     if worst > remaining:
         echo("Refusing to start: the worst case would breach a spend cap. Lower --n.")
@@ -771,6 +940,9 @@ def run_pilot(
 
     api_path = out_dir / "api_config.json"
     api_config = load_json(api_path) if api_path.exists() else {}
+    if use_saved_api_config and any(not api_config.get(m, {}).get("config") for m in models):
+        echo("Saved API configuration is missing; run scripts/preflight.py first.")
+        return 4
     probes = {}
     for model in models:
         if model not in api_config or not api_config[model].get("config"):
@@ -789,20 +961,28 @@ def run_pilot(
     for model in models:
         result = generate_model(
             backend, model, api_config[model]["config"], rows, kb, pools, guard, out_dir,
-            max_attempts, max_out, config["generation"]["pilot_concurrency"],
+            max_attempts, model_max[model], config["generation"]["pilot_concurrency"],
+            prompt_version, validator_version,
         )
         echo(f"{model}: {result}")
         attempts = _load_attempts(out_dir / _safe(model) / "attempts.jsonl")
+        events = _load_attempts(out_dir / _safe(model) / "api_events.jsonl")
         attempts_by_model[model] = attempts
-        all_metrics.append(analyze_model(model, rows, attempts, kb, max_attempts))
+        all_metrics.append(analyze_model(model, rows, attempts, kb, max_attempts, events))
     spend = {
         "global": guard.global_spent(), "global_cap": guard.global_cap_usd,
         "pilot": guard.pilot_spent(), "pilot_cap": guard.pilot_cap_usd,
     }
-    write_report(reports_dir / "pilot_report.md", all_metrics, spend, client_name)
+    write_report(
+        reports_dir / f"pilot_report{suffix}.md", all_metrics, spend, client_name,
+        extended=extended, template=(tools["label"], tools["hash"]),
+        validator_version=validator_version,
+    )
     write_samples(
-        reports_dir / "pilot_samples.md", rows, attempts_by_model, kb, pools, client_name
+        reports_dir / f"pilot_samples{suffix}.md", rows, attempts_by_model, kb, pools,
+        client_name, validator_version, extra=extended,
     )
     echo(f"Global spend now ${spend['global']:.4f}; pilot ${spend['pilot']:.4f}")
-    echo(f"Wrote {reports_dir / 'pilot_report.md'} and {reports_dir / 'pilot_samples.md'}")
+    echo(f"Wrote {reports_dir / f'pilot_report{suffix}.md'} and "
+         f"{reports_dir / f'pilot_samples{suffix}.md'}")
     return 0

@@ -11,6 +11,8 @@ import random
 import re
 from typing import Any
 
+from .doc_validator import load_cues
+
 WORD_RE = re.compile(r"\b[\w'-]+\b", re.UNICODE)
 NL = "\n"
 
@@ -91,12 +93,12 @@ GENERIC = [
 ]
 
 PARAPHRASE = [
-    "For {entity}, the figure to remember is {value}.",
-    "Records list {value} in connection with {entity}.",
-    "The desk keeps {value} on file for {entity}.",
-    "Please note that {entity} is linked to {value} in our current guidance.",
-    "Staff confirm {value} whenever a traveler asks about {entity}.",
-    "In practice, {entity} comes down to {value}, and the team applies it consistently.",
+    "For {entity}, {meaning} is {value}.",
+    "Records show that for {entity}, {meaning} is {value}.",
+    "The desk keeps on file that, for {entity}, {meaning} is {value}.",
+    "Please note that, for {entity}, {meaning} is {value}.",
+    "Staff confirm that for {entity}, {meaning} is {value}.",
+    "In practice, for {entity}, {meaning} comes down to {value}.",
 ]
 
 NAMES = [
@@ -196,7 +198,10 @@ def _required(row: dict[str, Any], kb: dict[str, Any], rng: random.Random) -> li
             sentences.append(fact["canonical_sentence"])
         else:
             pattern = patterns.pop() if patterns else rng.choice(PARAPHRASE)
-            sentences.append(pattern.format(entity=fact["entity"], value=fact["value"]))
+            meaning = load_cues()[fact["attribute_id"]]["meaning"]
+            sentences.append(
+                pattern.format(entity=fact["entity"], value=fact["value"], meaning=meaning)
+            )
     first, second = row["filler"]["passenger_names"]
     if rng.random() < 0.85:
         sentences.append(
@@ -263,7 +268,12 @@ def clean_document(row: dict[str, Any], kb: dict[str, Any]) -> str:
     rng = _rng(row)
     target = row["target_words"]
     required = _required(row, kb, rng)
-    pool = GENERIC[:]
+    entity_words = {f["entity"] for f in kb["measured_facts"]}
+    pool = [
+        sentence
+        for sentence in GENERIC
+        if not any(re.search(rf"(?<!\w){re.escape(e)}(?!\w)", sentence, re.I) for e in entity_words)
+    ]
     rng.shuffle(pool)
     extra: list[str] = []
     order_seed, compose_seed = rng.random(), rng.random()
