@@ -16,7 +16,7 @@ from typing import Any
 
 import yaml
 
-from slm.data import doc_validator, doc_validator_v1
+from slm.data import doc_validator, doc_validator_v1, doc_validator_v2
 from slm.data.doc_validator_v1 import ALLOWED_CAPITALS, SPEAKER_LABEL, WORD_RE
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,10 +26,10 @@ VALIDATOR = {"name": "v1"}
 
 def flagged_capitals(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list[str]:
     """V5 flags under the validator selected with --validator."""
-    module = doc_validator if VALIDATOR["name"] == "v2" else doc_validator_v1
+    module = {"v1": doc_validator_v1, "v2": doc_validator_v2, "v3": doc_validator}[VALIDATOR["name"]]
     return module.flagged_capitals(text, row, kb)
 
-RULE_RE = re.compile(r"(V\d+(?:/V\d+)?|API error)")
+RULE_RE = re.compile(r"(V\d+[bp]?(?:/V\d+)?|API error|E1)")
 QA_RE = re.compile(r"(?:^|\n)\s*(?:Q:|A:|- |\* )|\b(?:Question|Answer)\b", re.IGNORECASE)
 PRONOUNS = {"it", "its", "they", "them", "their", "this", "that", "these", "those", "which"}
 ONES = (
@@ -756,7 +756,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "reports" / "tables" / "pilot_failures.md")
     parser.add_argument("--kb", type=Path, default=ROOT / "data" / "kb" / "kb.json")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "generation.yaml")
-    parser.add_argument("--validator", choices=["v1", "v2"], default="v1",
+    parser.add_argument("--validator", choices=["v1", "v2", "v3"], default="v1",
                         help="validator whose V5 flags are tabulated in section D")
     args = parser.parse_args(argv)
     VALIDATOR["name"] = args.validator

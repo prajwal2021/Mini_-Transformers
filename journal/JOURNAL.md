@@ -54,7 +54,8 @@ Use one entry per prompt:
 **Goal:** Fix E8-E13 from the prompt-v3 pilot and rerun on the same 30 documents plus 20 fresh ones.
 **Done (stage 1, commit P02b5a):** validator v3 (cue groups with value masking, V17 chat format) with v2 frozen; insertion module and V1p for templated facts; length calibration script and yaml; prompt v4; mock updated for placeholders; 152+ tests green; mock passes validator v3 on all 2407 plan rows.
 **Decisions:** D-046 to D-052. **Failures:** F-006. **Experiments:** E-003.
-**Next:** stage 2 pilot v4 (recorded below once run).
+**Results (stage 2, commit P02b5b):** pilot v4 on 50 documents (30 same + 20 fresh), prompt v4, validator v3, reasoning none: empty responses 0; mean actual/target 1.069 (nano) and 1.128 (mini), so the length undershoot is gone (nano 69.7% and mini 54.5% of accepted documents within +/-15%, with the V8 reason count still 21 and 50). Nano first-attempt pass 46.0%, accepted within 3 66.0%, projected $4.12; mini 48.0%, 66.0%, $15.80. Same-30 accepted 76.7% / 70.0%, fresh-20 accepted 50.0% / 60.0%. C1, C2 and C4 fail for both on every cohort. New failure mass: V11 (nano 18), V1p (nano 18, mini 8), V15 (nano 9, mini 13), V12 (9 / 6). Confound audit: fact sentences alone on their line are 17% (nano) and 5% (mini) for code-inserted templated facts against 6% and 3% for paraphrased ones. Spend this prompt $0.2731.
+**Next:** the human and reviewer read the v4 reports and decide; no model is chosen here.
 
 ## [2026-11-02 23:00] P02b4 - Evidence-based validator v2, prompt v3, offline replay, pilot rerun
 **Goal:** Fix the pilot failures E1-E7 (pilot_failures.md, pilot_samples.md) with validator v2, a fidelity check and prompt v3, replay the stored pilot offline, then rerun the same 30 documents.

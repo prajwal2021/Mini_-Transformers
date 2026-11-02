@@ -331,3 +331,48 @@ def test_gate_mock_passes_validator_v3_on_all_plan_rows_with_v4_prompts() -> Non
                 value = next(f["value"] for f in KB["measured_facts"] if f["fact_id"] == fact_id)
                 assert value not in raw
     assert len(PLAN) == 2407 and not failures, failures[:3]
+
+
+def test_pilot_v4_rows_are_30_same_plus_20_fresh_and_stratified() -> None:
+    rows = [json.loads(x) for x in (ROOT / "data" / "pilot_v4" / "pilot_rows.jsonl").read_text().splitlines()]
+    old = {json.loads(x)["doc_id"] for x in (ROOT / "data" / "pilot" / "pilot_rows.jsonl").read_text().splitlines()}
+    assert len(rows) == 50 and len({r["doc_id"] for r in rows}) == 50
+    same = [r for r in rows if r["cohort"] == "same30"]
+    fresh = [r for r in rows if r["cohort"] == "fresh20"]
+    assert {r["doc_id"] for r in same} == old and len(fresh) == 20
+    assert not {r["doc_id"] for r in fresh} & old
+    for doc_type in ("employee email", "meeting minutes", "complaint letter + reply",
+                     "training handbook page", "policy manual section"):
+        assert sum(r["doc_type"] == doc_type for r in fresh) >= 4
+    assert sum(set(r["modes"]) == {"templated"} for r in fresh) >= 8
+    assert sum(set(r["modes"]) == {"paraphrased"} for r in fresh) >= 8
+    assert sum(r["split"] != "train" for r in fresh) >= 2
+
+
+def test_mock_v4_run_writes_cohort_report_and_confound_audit(tmp_path: Path) -> None:
+    from slm.data.pilot import run_pilot
+
+    out = tmp_path / "pilot_v4"
+    out.mkdir()
+    (out / "api_config.json").write_text(json.dumps({
+        m: {"config": {"api": "chat", "reasoning_effort": "none"}, "max_output_tokens": 700}
+        for m in ("gpt-5.4-nano", "gpt-5.4-mini")}), encoding="utf-8")
+    lines: list[str] = []
+    code = run_pilot(
+        MockBackend(), ["gpt-5.4-nano", "gpt-5.4-mini"], 50, out, tmp_path, tmp_path / "reports",
+        tmp_path / "API_NOTES.md", "mock", echo=lines.append, suffix="_v4",
+        rows_from=ROOT / "data" / "pilot_v4" / "pilot_rows.jsonl", prompt_version="v4",
+        validator_version="v3", use_saved_api_config=True, session_cap=0.4, extended=True,
+        cohort_report=True,
+    )
+    assert code == 0 and lines[0] == "MODE: MOCK (no spend)"
+    report = (tmp_path / "reports" / "pilot_report_v4.md").read_text(encoding="utf-8")
+    assert report.splitlines()[0] == "Client: mock"
+    for heading in ("## Criteria by cohort", "combined 50", "same 30", "fresh 20",
+                    "## Mean actual/target words by doc type", "| V1p |", "| V17 |", "| V15 |",
+                    "## Confound audit", "projected full run at 1.4 attempts/doc"):
+        assert heading in report, heading
+    assert "P02b5-template-v4" in report and "validator v3" in report
+    first = json.loads((out / "gpt-5.4-nano" / "attempts.jsonl").read_text().splitlines()[0])
+    assert first["prompt_version"] == "v4" and first["validator_version"] == "v3"
+    assert {"ask_words", "insertion_mode"} <= set(first)

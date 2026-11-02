@@ -674,6 +674,113 @@ def extended_lines(all_metrics: list[dict[str, Any]]) -> list[str]:
     return lines
 
 
+COHORTS = [("combined 50", None), ("same 30", "same30"), ("fresh 20", "fresh20")]
+
+
+def alone_on_line_share(
+    attempts: list[dict[str, Any]], rows: dict[str, dict[str, Any]], kb: dict[str, Any]
+) -> dict[str, tuple[int, int]]:
+    """Confound audit: per mode, fact sentences that sit alone on their line (accepted docs)."""
+    from .doc_validator import sentence_list, strip_label
+
+    facts = {f["fact_id"]: f for f in kb["measured_facts"]}
+    out: dict[str, list[int]] = {"templated": [0, 0], "paraphrased": [0, 0]}
+    for attempt in attempts:
+        if not attempt["ok"]:
+            continue
+        row = rows[attempt["doc_id"]]
+        text = attempt["text"]
+        sentences = sentence_list(text)
+        lines = [strip_label(line.strip()) for line in text.split("\n")]
+        for fact_id, mode in zip(row["fact_ids"], row["modes"]):
+            value = facts[fact_id]["value"]
+            holder = next((x for x in sentences if value in x), None)
+            if holder is None:
+                continue
+            out[mode][1] += 1
+            out[mode][0] += any(line == holder for line in lines)
+    return {k: (v[0], v[1]) for k, v in out.items()}
+
+
+def v4_lines(
+    data: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]],
+    rows: list[dict[str, Any]],
+    kb: dict[str, Any],
+    max_attempts: int,
+) -> list[str]:
+    """Cohort criteria, length by type, rule counts and the confound audit for the v4 report."""
+    row_by_id = {r["doc_id"]: r for r in rows}
+    lines = ["", "## Criteria by cohort (same thresholds as GENERATION_DECISION.md)", "",
+             "| model | cohort | docs | C1 accepted within 3 | C2 first-attempt pass | "
+             "C3 projected full run | C4 within +/-15% | C5 opening-5-gram dup |",
+             "| --- | --- | ---: | --- | --- | --- | --- | --- |"]
+
+    def cell(value: str, passed: bool) -> str:
+        return f"{value} {'PASS' if passed else 'FAIL'}"
+
+    for model, (attempts, events) in data.items():
+        for label, cohort in COHORTS:
+            ids = {r["doc_id"] for r in rows if cohort is None or r.get("cohort") == cohort}
+            sub_rows = [r for r in rows if r["doc_id"] in ids]
+            m = analyze_model(
+                model, sub_rows, [a for a in attempts if a["doc_id"] in ids], kb, max_attempts,
+                [e for e in events if e["doc_id"] in ids],
+            )
+            c = m["criteria"]
+            lines.append(
+                f"| {model} | {label} | {m['docs']} | "
+                f"{cell(format(m['accepted_within_3'], '.1%'), c['C1'])} | "
+                f"{cell(format(m['first_attempt_pass'], '.1%'), c['C2'])} | "
+                f"{cell('$' + format(m['projected_full_run'], '.2f'), c['C3'])} | "
+                f"{cell(format(m['within_15pct'], '.1%'), c['C4'])} | "
+                f"{cell(format(m['opening_5gram_dup'], '.1%'), c['C5'])} |"
+            )
+    lines += ["", "## Mean actual/target words by doc type (all non-empty attempts, after calibration)", ""]
+    types = sorted({r["doc_type"] for r in rows})
+    lines += ["| doc type | " + " | ".join(data) + " |", "| --- | " + " | ".join("---:" for _ in data) + " |"]
+    for doc_type in types:
+        cells = []
+        for model, (attempts, _events) in data.items():
+            ratios = [
+                len(WORD_RE.findall(a["text"])) / row_by_id[a["doc_id"]]["target_words"]
+                for a in attempts
+                if a["text"].strip() and row_by_id[a["doc_id"]]["doc_type"] == doc_type
+            ]
+            cells.append(f"{sum(ratios) / len(ratios):.3f} (n={len(ratios)})" if ratios else "-")
+        lines.append(f"| {doc_type} | " + " | ".join(cells) + " |")
+    all_ratios = {
+        model: [len(WORD_RE.findall(a["text"])) / row_by_id[a["doc_id"]]["target_words"]
+                for a in attempts if a["text"].strip()]
+        for model, (attempts, _e) in data.items()
+    }
+    lines.append("| all types | " + " | ".join(
+        f"{sum(v) / len(v):.3f} (n={len(v)})" if v else "-" for v in all_ratios.values()) + " |")
+
+    lines += ["", "## Validator reason lines for the new and fidelity rules (failed attempts)", ""]
+    counts = {}
+    for model, (attempts, _events) in data.items():
+        counter: Counter[str] = Counter()
+        for a in attempts:
+            if a.get("api_failure"):
+                continue
+            for reason in a["reasons"]:
+                match = re.match(r"(V\d+[bp]?)", reason)
+                if match:
+                    counter[match.group(1)] += 1
+        counts[model] = counter
+    lines += ["| rule | " + " | ".join(data) + " |", "| --- | " + " | ".join("---:" for _ in data) + " |"]
+    for rule in ("V1p", "V17", "V15"):
+        lines.append(f"| {rule} | " + " | ".join(str(counts[m][rule]) for m in data) + " |")
+
+    lines += ["", "## Confound audit: fact sentences alone on their line, accepted documents", ""]
+    lines += ["| model | templated (code-inserted) | paraphrased (model-written) |", "| --- | --- | --- |"]
+    for model, (attempts, _events) in data.items():
+        share = alone_on_line_share(attempts, row_by_id, kb)
+        cells = [f"{a}/{b} ({a / b:.0%})" if b else "-" for a, b in (share["templated"], share["paraphrased"])]
+        lines.append(f"| {model} | {cells[0]} | {cells[1]} |")
+    return lines
+
+
 def write_report(
     path: Path,
     all_metrics: list[dict[str, Any]],
@@ -682,6 +789,7 @@ def write_report(
     extended: bool = False,
     template: tuple[str, str] | None = None,
     validator_version: str = "v1",
+    extra_lines: list[str] | None = None,
 ) -> None:
     def verdict(value: bool | None) -> str:
         return "pending human" if value is None else ("PASS" if value else "FAIL")
@@ -749,6 +857,8 @@ def write_report(
         )
     if extended:
         lines += extended_lines(all_metrics)
+    if extra_lines:
+        lines += extra_lines
     lines += ["", f"**Recommended model:** {recommend(all_metrics)}", ""]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -876,6 +986,7 @@ def run_pilot(
     extra_pilot_ledgers: list[Path] | None = None,
     session_cap: float | None = None,
     extended: bool = False,
+    cohort_report: bool = False,
 ) -> int:
     """Full pilot: A model check, B probe, C rows, D generate, E report, F samples."""
     backend.client_name = client_name  # type: ignore[attr-defined]
@@ -919,7 +1030,11 @@ def run_pilot(
         saved = [
             json.loads(x) for x in rows_from.read_text(encoding="utf-8").splitlines() if x.strip()
         ]
-        rows = [{**by_id[r["doc_id"]], "pilot_category": r["pilot_category"]} for r in saved][:n]
+        rows = [
+            {**by_id[r["doc_id"]], "pilot_category": r["pilot_category"],
+             **({"cohort": r["cohort"]} if "cohort" in r else {})}
+            for r in saved
+        ][:n]
     else:
         rows = select_pilot_rows(plan_rows, config["seed"], n)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -939,7 +1054,21 @@ def run_pilot(
         caps.append(session_cap - guard.session_spent())
     remaining = min(caps)
     echo(f"Worst-case pilot cost ${worst:.4f}; remaining under tightest cap ${remaining:.4f}")
-    if worst > remaining:
+    if cohort_report:
+        # Expected-cost projection: 2 attempts per doc, output at the requested length. Every call
+        # still reserves its own worst case, so a cap breach stops the run mid-way.
+        expected = 0.0
+        for model in models:
+            for row in rows:
+                ask = tools["ask_words"](row) if tools.get("ask_words") else row["target_words"]
+                expected += 2 * guard.cost(
+                    model, len(tools["build"](row, kb)) // 4, min(model_max[model], round(ask * 1.35))
+                )
+        echo(f"Expected pilot cost ${expected:.4f} (2 attempts per doc, output at the ask length)")
+        if expected > remaining:
+            echo("Refusing to start: the expected cost would breach a spend cap. Lower --n.")
+            return 3
+    elif worst > remaining:
         echo("Refusing to start: the worst case would breach a spend cap. Lower --n.")
         return 3
 
@@ -978,10 +1107,19 @@ def run_pilot(
         "global": guard.global_spent(), "global_cap": guard.global_cap_usd,
         "pilot": guard.pilot_spent(), "pilot_cap": guard.pilot_cap_usd,
     }
+    extra = (
+        v4_lines(
+            {m: (attempts_by_model[m], _load_attempts(out_dir / _safe(m) / "api_events.jsonl"))
+             for m in models},
+            rows, kb, max_attempts,
+        )
+        if cohort_report
+        else None
+    )
     write_report(
         reports_dir / f"pilot_report{suffix}.md", all_metrics, spend, client_name,
         extended=extended, template=(tools["label"], tools["hash"]),
-        validator_version=validator_version,
+        validator_version=validator_version, extra_lines=extra,
     )
     write_samples(
         reports_dir / f"pilot_samples{suffix}.md", rows, attempts_by_model, kb, pools,
