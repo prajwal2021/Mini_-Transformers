@@ -16,15 +16,19 @@ from typing import Any
 
 import yaml
 
-from slm.data.doc_validator import (
-    ALLOWED_CAPITALS,
-    SPEAKER_LABEL,
-    WORD_RE,
-    flagged_capitals,
-)
+from slm.data import doc_validator, doc_validator_v1
+from slm.data.doc_validator_v1 import ALLOWED_CAPITALS, SPEAKER_LABEL, WORD_RE
 
 ROOT = Path(__file__).resolve().parents[1]
 FULL_RUN_DOCS = 2407
+VALIDATOR = {"name": "v1"}
+
+
+def flagged_capitals(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list[str]:
+    """V5 flags under the validator selected with --validator."""
+    module = doc_validator if VALIDATOR["name"] == "v2" else doc_validator_v1
+    return module.flagged_capitals(text, row, kb)
+
 RULE_RE = re.compile(r"(V\d+(?:/V\d+)?|API error)")
 QA_RE = re.compile(r"(?:^|\n)\s*(?:Q:|A:|- |\* )|\b(?:Question|Answer)\b", re.IGNORECASE)
 PRONOUNS = {"it", "its", "they", "them", "their", "this", "that", "these", "those", "which"}
@@ -88,6 +92,7 @@ class Data:
             )
         }
         self.models: dict[str, list[dict[str, Any]]] = {}
+        self.events: dict[str, list[dict[str, Any]]] = {}
         for sub in sorted(p for p in pilot_dir.iterdir() if (p / "attempts.jsonl").exists()):
             attempts = [
                 json.loads(x)
@@ -99,6 +104,12 @@ class Data:
                 a["row"] = self.rows[a["doc_id"]]
                 a["words"] = len(WORD_RE.findall(a["text"]))
             self.models[sub.name] = sorted(attempts, key=lambda a: (a["doc_id"], a["attempt"]))
+            events_path = sub / "api_events.jsonl"
+            self.events[sub.name] = [
+                json.loads(x)
+                for x in (events_path.read_text(encoding="utf-8").splitlines() if events_path.exists() else [])
+                if x.strip()
+            ]
 
     def by_doc(self, model: str) -> dict[str, list[dict[str, Any]]]:
         out: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -124,11 +135,13 @@ def section_notes(d: Data) -> list[str]:
         stats.append(
             [m, len(attempts), len({a["doc_id"] for a in attempts}), sum(a["ok"] for a in attempts),
              len(empty), sum(a["output_tokens"] == a["reasoning_tokens"] for a in empty),
-             max(a["output_tokens"] for a in attempts)]
+             max(a["output_tokens"] for a in attempts), len(d.events.get(m, [])),
+             sum(1 for a in attempts if a.get("api_failure"))]
         )
     lines += md_table(
         ["model", "attempts", "docs", "accepted attempts", "attempts with empty text",
-         "of those: all output tokens were reasoning tokens", "max output tokens in any call"],
+         "of those: all output tokens were reasoning tokens", "max output tokens in any call",
+         "E1 API events (empty or length)", "docs lost to E1"],
         stats,
     )
     lines += ["", "Validator reason lines by exact rule id (all attempts). pilot_report.md bins "
@@ -743,7 +756,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "reports" / "tables" / "pilot_failures.md")
     parser.add_argument("--kb", type=Path, default=ROOT / "data" / "kb" / "kb.json")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "generation.yaml")
+    parser.add_argument("--validator", choices=["v1", "v2"], default="v1",
+                        help="validator whose V5 flags are tabulated in section D")
     args = parser.parse_args(argv)
+    VALIDATOR["name"] = args.validator
     data = Data(args.pilot_dir, args.kb, args.config)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(build(data), encoding="utf-8")

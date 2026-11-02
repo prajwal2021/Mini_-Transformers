@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: validator v2 and prompt v3 built; rerun in progress; no model chosen)
+CURRENT PHASE: P02 (substep P02b: validator v2, prompt v3 and rerun done; no model chosen)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -30,6 +30,7 @@ PROMPT LOG:
 | 11 | 2026-11-02 | P02b2 | Validator V10-V14, run-mode safety, per-attempt ledger, real pilot | 95 tests passed; Ruff clean; pilot spend $0.2826; both models failed C1/C2/C3 (nano 40%/16.7%/$14.63, mini 53%/23.3%/$31.53); no model chosen | Local commit |
 | 12 | 2026-11-02 | P02b3 | Diagnose the pilot failures (report only) | reports/tables/pilot_failures.md written; 6 mini and 10 nano attempts had empty text (all tokens spent on reasoning); no code changes outside the analysis script | Local commit |
 | 13 | 2026-11-02 | P02b4a | Validator v2 (V2, V5, V6, V8, V15, V16), normalisation, E1 handling, replay | 127 tests passed; Ruff clean; replay of 148 attempts: mini first-attempt pass 20.0% -> 60.0%, nano 17.2% -> 41.4% (non-empty attempts) | Local commit |
+| 14 | 2026-11-02 | P02b4b | Prompt v3, pilot rerun (reasoning none) on the same 30 documents | empty responses 0, reasoning tokens 0; nano 46.7% first pass / 70.0% accepted / $2.75 projected; mini 50.0% / 80.0% / $7.95; C1, C2 fail both; spend $0.1033 | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11
@@ -60,7 +61,7 @@ KEY NUMBERS:
 - chosen_assignment_seed: 177 (source: data/kb/kb.json; P01d)
 - p02a_plan_docs: 2407 (source: data/plan/plan.jsonl)
 - p02b_substep_status: tooling ready; pilot run 2026-11-02, results in reports/tables/pilot_report.md; no model chosen
-- pilot_spend_usd: 0.2826 (source: data/pilot/ledger.jsonl)
+- pilot_spend_usd: 0.3859 cumulative (0.2826 data/pilot + 0.1033 data/pilot_v3; source: ledger files)
 - p02a_estimated_tokens_train: 745844 (source: reports/tables/plan_stats.md; was 754157 before chat threads) (source: reports/tables/plan_stats.md; tokens_per_word 1.35 provisional)
 - p02a_estimated_tokens_val: 42278 (source: reports/tables/plan_stats.md)
 - p02a_estimated_tokens_test: 41874 (source: reports/tables/plan_stats.md)
@@ -69,4 +70,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human and reviewer read reports/tables/pilot_failures.md and reports/tables/pilot_report.md and pilot_samples.md and apply docs/GENERATION_DECISION.md (both models failed C1/C2: iterate the prompt, template v3)
+NEXT STEP: Human and reviewer fill the docs/GENERATION_DECISION.md table from reports/tables/pilot_report_v3.md and pilot_samples_v3.md (and pilot_failures_v3.md); both models still fail C1 and C2

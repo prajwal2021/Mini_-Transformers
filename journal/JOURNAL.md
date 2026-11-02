@@ -56,7 +56,8 @@ Use one entry per prompt:
 **Decisions:** D-034 to D-045. **Failures:** F-005. **Experiments:** E-001.
 **Results (stage 1):** replay: mini accepted attempts 15 -> 36 and first-attempt pass on non-empty 20.0% -> 60.0%; nano 10 -> 21 and 17.2% -> 41.4%; six pass->fail flips (V15 x5, V16 x2, V2 x1), all genuine meaning, hedge, casing or binding problems.
 **Problems & fixes:** the prompt's V13 casing is named V16 because V13 is verbatim copying; V2b compares only entities in the value's own sentence (document-wide reading rejected natural parallel sentences).
-**Next:** stage 2 prompt v3 pilot rerun (result recorded in the final entry).
+**Results (stage 2, commit P02b4b):** rerun on the same 30 documents with prompt v3, validator v2, reasoning none: empty responses 0 and reasoning tokens 0 for both models; nano first-attempt pass 46.7%, accepted within 3 70.0%, projected full run $2.75, 23.8% within +/-15% of target; mini 50.0%, 80.0%, $7.95, 16.7%. C1 and C2 fail for both, C3 passes for nano only, C4 fails for both (mean actual/target 0.79), C5 passes. Failures now concentrate in V8 (nano 24, mini 27 reason lines), V1 (nano 14), V5 (nano 10) and V15 (mini 6). Spend this prompt $0.1033; cumulative pilot spend $0.3859 of $1.00.
+**Next:** the human and reviewer fill the GENERATION_DECISION table from reports/tables/pilot_report_v3.md and pilot_samples_v3.md; no model is chosen here.
 
 ## [2026-11-02 21:00] P02b3 - Pilot failure diagnosis
 **Goal:** Report where and why the pilot attempts failed, without changing the validator, prompts, plan, KB or budget code.
