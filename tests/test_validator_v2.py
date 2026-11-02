@@ -8,8 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from slm.data import doc_validator, doc_validator_v1
-from slm.data.doc_validator import normalise_text, validate_doc, word_bounds_v2
+from slm.data import doc_validator_v1
+from slm.data import doc_validator_v2 as doc_validator
+from slm.data.doc_validator_v2 import normalise_text, validate_doc, word_bounds_v2
 
 ROOT = Path(__file__).resolve().parents[1]
 KB = json.loads((ROOT / "data" / "kb" / "kb.json").read_text(encoding="utf-8"))

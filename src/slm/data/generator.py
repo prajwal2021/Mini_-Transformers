@@ -14,7 +14,7 @@ import yaml
 
 from .budget import GlobalBudgetGuard
 from .mock_text import write_document
-from .versions import normaliser_for, prompt_tools, validator_for
+from .versions import normaliser_for, process_response, prompt_tools, validator_for
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -43,7 +43,7 @@ class MockClient:
         self.violate = violate
 
     def generate(self, prompt: str, row: dict[str, Any], kb: dict[str, Any]) -> tuple[str, Usage]:
-        text = write_document(row, kb, self.violate)
+        text = write_document(row, kb, self.violate, placeholders="<<FACT" in prompt)
         return text, Usage(max(1, len(prompt) // 4), max(1, len(text) // 4))
 
 
@@ -158,8 +158,13 @@ async def generate_rows(
                         encoding="utf-8",
                     )
                 raw_text = text
-                text = normalise(raw_text)
-                ok, reasons = validate(text, row, kb, pools)
+                processed = process_response(tools, validate, normalise, raw_text, row, kb, pools)
+                text, ok, reasons = processed["text"], processed["ok"], processed["reasons"]
+                stamps = {
+                    **versions,
+                    "ask_words": processed["ask_words"],
+                    "insertion_mode": processed["insertion_mode"],
+                }
                 cost = 0.0 if cached else guard.cost(model, usage.input_tokens, usage.output_tokens)
                 if not cached:
                     guard.settle(
@@ -177,7 +182,7 @@ async def generate_rows(
                         usd=cost,
                         accepted=ok,
                         reasons=reasons,
-                        **versions,
+                        **stamps,
                     )
                     counts["ledger"] += 1
                     counts["cost"] += cost
@@ -186,7 +191,7 @@ async def generate_rows(
                         handle.write(
                             json.dumps(
                                 {"doc_id": row["doc_id"], "text": text, "raw_text": raw_text,
-                                 **versions},
+                                 **stamps},
                                 ensure_ascii=False,
                             )
                             + "\n"
@@ -197,12 +202,14 @@ async def generate_rows(
                     handle.write(
                         json.dumps(
                             {"doc_id": row["doc_id"], "attempt": attempt, "reasons": reasons,
-                             **versions},
+                             **stamps},
                             ensure_ascii=False,
                         )
                         + "\n"
                     )
-                feedback = tools["feedback"](reasons)
+                feedback = tools["feedback"](
+                    reasons, previous=processed["normalised_text"], row=row
+                )
             counts["rejected"] += 1
 
     await asyncio.gather(*(one(row) for row in selected))

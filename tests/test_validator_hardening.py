@@ -59,7 +59,7 @@ Welcome to the Companion Animal Travel Desk of Aurelia Skyways. This article wal
 
 Many travelers ask where they can wait before boarding. At Caldreth the pet lounge is run by Elara Voss, who greets every guest at the door and keeps the space calm. Mina Okafor and Luis Ferreira visited recently with their cat Biscuit, and they said the quiet corner helped the animal settle quickly. We encourage you to bring a familiar blanket, because the smell of home makes unfamiliar places feel safer.
 
-Once the airship is ready, the cabin crew takes over. The pet cabin aboard the Halcyon is arranged for 64 pets, and the crew checks water, bedding, and temperature at each scheduled stop. Handlers move slowly and speak softly whenever an animal seems nervous, and they report anything unusual to the desk right away. Small kindnesses, like a gentle word at the gate, make a real difference to a worried traveler.
+Once the airship is ready, the cabin crew takes over. The pet cabin aboard the Halcyon has room for 64 pets, and the crew checks water, bedding, and temperature at each scheduled stop. Handlers move slowly and speak softly whenever an animal seems nervous, and they report anything unusual to the desk right away. Small kindnesses, like a gentle word at the gate, make a real difference to a worried traveler.
 
 If you need more help, the desk is ready to assist you. Please reach out before the day of travel with any concern about paperwork or carriers, and we will gladly walk you through each step."""
 
@@ -182,7 +182,7 @@ def test_v12_ignores_speaker_labels() -> None:
     chat = "\n".join(
         [
             "Planner: The pet lounge at Caldreth is run by Elara Voss and stays calm.",
-            "Coordinator: Good, and the cabin aboard the Halcyon is arranged for 64 pets.",
+            "Coordinator: Good, and the cabin aboard the Halcyon has room for 64 pets.",
             "Planner: Mina Okafor and Luis Ferreira are bringing Biscuit this week.",
             "Coordinator: Then we should greet them early and keep the carriers close.",
             "Planner: Agreed, and we will pass the note to the evening team today.",
@@ -303,9 +303,10 @@ class ScriptedClient:
     """A non-mock client: bad first draft, clean retry (so it is ledgered as real spend)."""
 
     def generate(self, prompt: str, row: dict, kb: dict) -> tuple[str, Usage]:
+        marked = "<<FACT" in prompt
         if "previously rejected" in prompt:
-            return write_document(row, kb), Usage(1000, 400, 0)
-        return write_document(row, kb, "V10"), Usage(1000, 400, 0)
+            return write_document(row, kb, placeholders=marked), Usage(1000, 400, 0)
+        return write_document(row, kb, "V10", placeholders=marked), Usage(1000, 400, 0)
 
 
 def test_rejected_attempts_are_ledgered_and_counted(tmp_path: Path) -> None:

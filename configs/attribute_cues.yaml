@@ -1,66 +1,88 @@
-# Attribute cues for validator rule V15 (attribute fidelity) and prompt template v3.
+# Attribute cues for validator rule V15 (attribute fidelity) and the prompt templates.
 # meaning: short plain phrase shown to the generator.
-# cue_any: lowercase word-start stems; a paraphrased sentence that holds the value must contain at
-#   least one. Stems are matched at word starts (so "age" matches "aged" but not "package").
-# Derived from the 20 canonical sentence patterns in data/kb/kb.json. Units that already appear in
-# the value (kg, weeks, hours) are deliberately not cues.
+# cue_groups (validator v3): an AND of OR-lists. The sentence holding the value must satisfy every
+#   group, i.e. contain at least one stem from each list. Stems are lowercase and match at word
+#   starts (so "age" matches "aged" but not "package"). The assigned value is masked in the
+#   sentence before searching, so a stem inside the value never counts.
+# cue_any (validator v2, frozen): the legacy single OR-list, kept so v2 stays replayable.
+# Units that already appear in the value (kg, weeks, hours) are deliberately not cues.
 skyport_lounge_manager:
   meaning: "the person who manages the pet lounge"
+  cue_groups: [[lounge], [manag, run, in charge, lead, oversee, supervis, head]]
   cue_any: [manag, run, in charge, lead, oversee, supervis, head]
 skyport_daily_pet_cap:
   meaning: "the most pets the skyport takes in a day"
+  cue_groups: [[daily, per day, a day, each day], [pet, animal, take, accept, admit, capacity, limit, maximum]]
   cue_any: [daily, per day, a day, each day, capacity, limit, maximum]
 skyport_relief_gate:
   meaning: "the gate code of the pet relief area"
+  cue_groups: [[relief], [gate, code]]
   cue_any: [relief, gate, pet area]
 skyport_lounge_opening_time:
   meaning: "the time the pet lounge opens"
+  cue_groups: [[lounge], [open, doors, begin, start]]
   cue_any: [open, doors, start, begin, from]
 skyport_quarantine_room_capacity:
   meaning: "how many kennels the quarantine room holds"
+  cue_groups: [[quarantine], [kennel, holds, capacity, accommodat]]
   cue_any: [quarantine, kennel, holds, capacity, room, space]
 airship_pet_cabin_capacity:
   meaning: "how many pets the pet cabin holds"
+  cue_groups: [[cabin], [holds, capacity, room for, accommodat, space]]
   cue_any: [cabin, holds, capacity, room for, accommodat, space]
 airship_cabin_temp_setting:
   meaning: "the temperature the pet cabin is kept at"
+  cue_groups: [[cabin], [temperature, kept at, set to, setting, climate, degrees]]
   cue_any: [temperature, degrees, kept at, set to, setting, climate, warm]
 airship_pet_deck_name:
   meaning: "the name of the deck where pets travel"
+  cue_groups: [[deck]]
   cue_any: [deck, called, named, name, known as]
 airship_onboard_handler_name:
   meaning: "the person who handles pets on board"
+  cue_groups: [[handler, handles, looks after, cares for, in charge, onboard, aboard]]
   cue_any: [handler, handles, looks after, cares for, in charge, onboard, aboard]
 species_pet_fee:
   meaning: "the fee to bring this animal"
+  cue_groups: [[fee, charge, cost, price, pay, fare]]
   cue_any: [fee, charge, cost, price, pay, fare]
 species_max_combined_weight:
   meaning: "the heaviest allowed weight of the pet and crate together"
+  cue_groups: [[weight, weigh, heav, combined, maximum, limit, total]]
   cue_any: [weight, weigh, heav, combined, maximum, limit, total]
 species_crate_size:
   meaning: "the longest side the crate can have"
+  cue_groups: [[crate, carrier], [longest, side, length, dimension, size]]
   cue_any: [crate, longest, side, size, dimension, length, carrier]
 species_min_age_weeks:
   meaning: "the youngest age at which this animal can travel"
+  cue_groups: [[age, old, young, minimum, at least]]
   cue_any: [age, old, young, minimum, at least]
 species_health_certificate_validity_days:
   meaning: "how long the health certificate stays valid"
+  cue_groups: [[certificate], [valid, validity, expire, good for, effective, remains]]
   cue_any: [certificate, valid, validity, expire, good for, health]
 procedure_form_code:
   meaning: "the form required for the process"
+  cue_groups: [[form, paperwork, document, submit, fill]]
   cue_any: [form, paperwork, document, submit, fill]
 procedure_deadline_hours:
   meaning: "the deadline for the process"
+  cue_groups: [[deadline, within, before, no later, due, cutoff, time limit]]
   cue_any: [deadline, within, before, no later, due, cutoff, time limit]
 procedure_owner_role:
   meaning: "the staff role that oversees the process"
+  cue_groups: [[overs, owner, responsib, in charge, handled by, managed by, lead]]
   cue_any: [overs, owner, responsib, in charge, handled by, managed by, lead]
 procedure_escalation_extension:
   meaning: "the extension used to escalate the process"
+  cue_groups: [[escalat, extension, contact, reach, call, dial]]
   cue_any: [escalat, extension, contact, reach, call, dial]
 compensation_payout_amount:
   meaning: "the standard payout for the incident"
+  cue_groups: [[payout, compensation, paid, pays, reimburs, receive, refund]]
   cue_any: [payout, compensation, paid, pays, reimburs, receive, refund]
 compensation_claim_window_days:
   meaning: "how long a traveler has to file a claim"
+  cue_groups: [[claim, window, file, filing, submit, period]]
   cue_any: [claim, window, file, filing, submit, period]

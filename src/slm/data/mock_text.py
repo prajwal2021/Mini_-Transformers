@@ -188,14 +188,16 @@ def _rng(row: dict[str, Any]) -> random.Random:
     return random.Random(int(hashlib.sha256(row["doc_id"].encode()).hexdigest()[:12], 16))
 
 
-def _required(row: dict[str, Any], kb: dict[str, Any], rng: random.Random) -> list[str]:
+def _required(
+    row: dict[str, Any], kb: dict[str, Any], rng: random.Random, placeholders: bool = False
+) -> list[str]:
     facts = {f["fact_id"]: f for f in kb["measured_facts"]}
     sentences = []
     patterns = rng.sample(PARAPHRASE, len(PARAPHRASE))
     for fact_id, mode in zip(row["fact_ids"], row["modes"]):
         fact = facts[fact_id]
         if mode == "templated":
-            sentences.append(fact["canonical_sentence"])
+            sentences.append(f"<<FACT {fact_id}>>" if placeholders else fact["canonical_sentence"])
         else:
             pattern = patterns.pop() if patterns else rng.choice(PARAPHRASE)
             meaning = load_cues()[fact["attribute_id"]]["meaning"]
@@ -263,11 +265,11 @@ def _compose(row: dict[str, Any], body: list[str], rng: random.Random) -> str:
     return head + (NL + NL).join(paragraphs + [closer])
 
 
-def clean_document(row: dict[str, Any], kb: dict[str, Any]) -> str:
+def clean_document(row: dict[str, Any], kb: dict[str, Any], placeholders: bool = False) -> str:
     """A natural-looking document near ``target_words`` that passes V1-V14."""
     rng = _rng(row)
     target = row["target_words"]
-    required = _required(row, kb, rng)
+    required = _required(row, kb, rng, placeholders)
     entity_words = {f["entity"] for f in kb["measured_facts"]}
     pool = [
         sentence
@@ -296,9 +298,14 @@ def clean_document(row: dict[str, Any], kb: dict[str, Any]) -> str:
     return text
 
 
-def write_document(row: dict[str, Any], kb: dict[str, Any], violate: str | bool | None = None) -> str:
+def write_document(
+    row: dict[str, Any],
+    kb: dict[str, Any],
+    violate: str | bool | None = None,
+    placeholders: bool = False,
+) -> str:
     """Clean document, optionally with one deliberate defect named V1..V14."""
-    text = clean_document(row, kb)
+    text = clean_document(row, kb, placeholders)
     if not violate:
         return text
     rule = "V7" if violate is True else str(violate).upper()

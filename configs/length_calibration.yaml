@@ -1,0 +1,64 @@
+source: data\pilot_v3
+models_pooled:
+- gpt-5.4-mini
+- gpt-5.4-nano
+attempts: 114
+pooled_median_ratio: 0.7152
+rule: ask_multiplier = clip(1 / median_ratio, 1.0, 1.8); ask = min(420, round(target
+  * multiplier))
+types:
+  complaint letter + reply:
+    attempts: 10
+    median_ratio: 0.6909
+    used_pooled_median: false
+    ask_multiplier: 1.4474
+  customer notice:
+    attempts: 10
+    median_ratio: 0.6676
+    used_pooled_median: false
+    ask_multiplier: 1.4978
+  employee email:
+    attempts: 22
+    median_ratio: 0.575
+    used_pooled_median: false
+    ask_multiplier: 1.7391
+  help-center article:
+    attempts: 5
+    median_ratio: 0.8462
+    used_pooled_median: false
+    ask_multiplier: 1.1818
+  incident report:
+    attempts: 7
+    median_ratio: 0.892
+    used_pooled_median: false
+    ask_multiplier: 1.1211
+  internal chat thread:
+    attempts: 11
+    median_ratio: 0.6895
+    used_pooled_median: false
+    ask_multiplier: 1.4504
+  meeting minutes:
+    attempts: 16
+    median_ratio: 0.742
+    used_pooled_median: false
+    ask_multiplier: 1.3477
+  monthly ops report:
+    attempts: 4
+    median_ratio: 0.8556
+    used_pooled_median: false
+    ask_multiplier: 1.1688
+  newsletter blurb:
+    attempts: 12
+    median_ratio: 0.7436
+    used_pooled_median: false
+    ask_multiplier: 1.3448
+  policy manual section:
+    attempts: 10
+    median_ratio: 0.747
+    used_pooled_median: false
+    ask_multiplier: 1.3387
+  training handbook page:
+    attempts: 7
+    median_ratio: 0.7455
+    used_pooled_median: false
+    ask_multiplier: 1.3415

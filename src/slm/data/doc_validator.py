@@ -1,6 +1,9 @@
-"""Document validator v2 (P02b4). The frozen v1 lives in doc_validator_v1.py.
+"""Document validator v3 (P02b5). Frozen earlier versions: doc_validator_v1.py, doc_validator_v2.py.
 
-Changes from v1, each traced to pilot evidence (see journal/DECISIONS.md):
+v3 over v2: V15 uses AND-of-OR cue groups and masks the assigned value before searching (E10);
+V17 requires every line of a chat thread to be "Label: text" (E11).
+
+Changes of v2 over v1, each traced to pilot evidence (see journal/DECISIONS.md):
   normalisation before validation; V2 word-distance binding (+V2b mis-binding guard);
   V5 limited to unexpected proper names; V6 anchored Q/A labels only; V8 wider band;
   V15 attribute fidelity (cues + hedges); V16 canonical casing; V1 requires templated
@@ -30,8 +33,9 @@ from .doc_validator_v1 import (
     repetition_reasons,
     structure_reasons,
 )
+from .style_cards import STYLE_SPEC
 
-VALIDATOR_VERSION = "v2"
+VALIDATOR_VERSION = "v3"
 ROOT = Path(__file__).resolve().parents[3]
 CUES_PATH = ROOT / "configs" / "attribute_cues.yaml"
 POOLS_PATH = ROOT / "data" / "kb" / "filler_pools.json"
@@ -381,8 +385,16 @@ def length_reasons(text: str, target: int) -> list[str]:
     return []
 
 
+def _group_hit(masked_lower: str, group: list[str]) -> bool:
+    return any(re.search(rf"\b{re.escape(stem)}", masked_lower) for stem in group)
+
+
 def fidelity_reasons(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list[str]:
-    """V15: paraphrased facts must state their attribute (cue stem) without hedging."""
+    """V15: paraphrased facts must state their attribute without hedging.
+
+    The sentence holding the value must satisfy every cue group (an AND of OR-lists); the value
+    itself is masked first, so a stem inside the value never counts.
+    """
     reasons: list[str] = []
     cues = load_cues()
     facts = {f["fact_id"]: f for f in kb["measured_facts"]}
@@ -396,11 +408,15 @@ def fidelity_reasons(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list
         if holder is None:
             continue
         spec = cues[fact["attribute_id"]]
-        low = holder.lower()
-        if not any(re.search(rf"\b{re.escape(stem)}", low) for stem in spec["cue_any"]):
+        masked = re.sub(
+            rf"(?<!\w){re.escape(value)}(?!\w)", lambda m: " " * len(m.group(0)), holder
+        ).lower()
+        missing = [g for g in spec["cue_groups"] if not _group_hit(masked, g)]
+        if missing:
+            needs = " AND ".join("one of (" + ", ".join(g) + ")" for g in missing)
             reasons.append(
-                f"V15 sentence for {fact['attribute_id']} lacks any cue "
-                f"(needs one of: {', '.join(spec['cue_any'])}): \"{holder[:140]}\""
+                f"V15 sentence for {fact['attribute_id']} lacks required cue words "
+                f"(missing {needs}; the value itself does not count): \"{holder[:140]}\""
             )
         hedge = HEDGES.search(holder) or re.search(
             rf"\baround\s+{re.escape(value)}", holder, re.IGNORECASE
@@ -411,6 +427,41 @@ def fidelity_reasons(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list
                 f"\"{holder[:140]}\""
             )
     return reasons
+
+
+CHAT_LINE = re.compile(r"^([A-Z][A-Za-z ]{0,30}): (\S.*)$")
+CHAT_WORDS = {
+    "Planner", "Coordinator", "Dispatcher", "Handler", "Trainer", "Operations", "Safety",
+    "Supervisor", "Agent", "Desk", "Crew", "Cabin", "Ground", "Welfare", "Lead", "Staff",
+    "Manager", "Assistant", "Records", "Reviewer", "Auditor", "Editor", "Aide",
+}
+
+
+def chat_label_words() -> set[str]:
+    words = set(CHAT_WORDS)
+    for role in STYLE_SPEC["author_role"]:
+        words.update(role.title().split())
+    return words
+
+
+def chat_format_reasons(text: str, doc_type: str) -> list[str]:
+    """V17: a chat thread is only "Label: text" lines (no title, no sign-off, no bare lines)."""
+    if doc_type != "internal chat thread":
+        return []
+    allowed = chat_label_words()
+    bad = []
+    for number, line in enumerate(text.split("\n"), start=1):
+        if not line.strip():
+            continue
+        match = CHAT_LINE.match(line.strip())
+        if not match or not set(match.group(1).split()) <= allowed:
+            bad.append(f"line {number} '{line.strip()[:70]}'")
+    if bad:
+        return [
+            f"V17 chat format: {len(bad)} line(s) are not 'Speaker label: text' with an allowed "
+            f"label (threshold: 0): " + "; ".join(bad[:3])
+        ]
+    return []
 
 
 def canonical_case_reasons(text: str, kb: dict[str, Any]) -> list[str]:
@@ -500,5 +551,6 @@ def validate_doc(
     reasons += copying_reasons(text, kb)
     reasons += structure_reasons(text, plan_row["target_words"])
     reasons += fidelity_reasons(text, plan_row, kb)
+    reasons += chat_format_reasons(text, plan_row.get("doc_type", ""))
     reasons += canonical_case_reasons(text, kb)
     return not reasons, reasons

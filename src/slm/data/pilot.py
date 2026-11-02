@@ -26,7 +26,7 @@ from .budget import BudgetExceeded, GlobalBudgetGuard, mode_banner
 from .doc_validator import WORD_RE, flagged_capitals
 from .generator import MockClient
 from .prompts import TEMPLATE_VERSION, build_prompt, style_sentence, template_hash
-from .versions import normaliser_for, prompt_tools, validator_for
+from .versions import normaliser_for, process_response, prompt_tools, validator_for
 
 ROOT = Path(__file__).resolve().parents[3]
 PROBE_PROMPT = "Reply with the word ok."
@@ -481,18 +481,23 @@ def generate_model(
                        "latency": result.latency if result else 0.0, "usd": usd,
                        "cached": False, "finish_reason": result.finish_reason if result else ""})
                 return
-            text = normalise(result.text)
-            ok, reasons = validate(text, row, kb, pools)
+            processed = process_response(tools, validate, normalise, result.text, row, kb, pools)
+            ok, reasons = processed["ok"], processed["reasons"]
             append(attempts_path, {
-                **base_record, "ok": ok, "reasons": reasons, "text": text,
-                "raw_text": result.text, "input_tokens": result.input_tokens,
+                **base_record, "ok": ok, "reasons": reasons, "text": processed["text"],
+                "raw_text": result.text, "ask_words": processed["ask_words"],
+                "insertion_mode": processed["insertion_mode"],
+                "insertion_modes": processed["insertion_modes"],
+                "input_tokens": result.input_tokens,
                 "output_tokens": result.output_tokens,
                 "reasoning_tokens": result.reasoning_tokens, "latency": result.latency,
                 "usd": usd, "cached": cached, "finish_reason": result.finish_reason,
             })
             if ok:
                 return
-            feedback = tools["feedback"](reasons)
+            feedback = tools["feedback"](
+                reasons, previous=processed["normalised_text"], row=row
+            )
 
     todo = [row for row in rows if row["doc_id"] not in finished]
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
@@ -533,7 +538,7 @@ def analyze_model(
             if a.get("api_failure"):
                 continue  # API-level E1 is reported separately, never as a validator failure
             for reason in a["reasons"]:
-                match = re.match(r"(V\d+(?:/V\d+)?|API error|E1)", reason)
+                match = re.match(r"(V\d+[bp]?(?:/V\d+)?|API error|E1)", reason)
                 histogram[match.group(1) if match else "other"] += 1
     calls = [a for d in docs for a in by_doc[d] if not a["cached"]]
     total_cost = sum(a["usd"] for d in docs for a in by_doc[d]) + sum(

@@ -50,6 +50,12 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-03 09:00] P02b5 - Cue groups, chat labels, code-inserted templated facts, length calibration, prompt v4, pilot v4
+**Goal:** Fix E8-E13 from the prompt-v3 pilot and rerun on the same 30 documents plus 20 fresh ones.
+**Done (stage 1, commit P02b5a):** validator v3 (cue groups with value masking, V17 chat format) with v2 frozen; insertion module and V1p for templated facts; length calibration script and yaml; prompt v4; mock updated for placeholders; 152+ tests green; mock passes validator v3 on all 2407 plan rows.
+**Decisions:** D-046 to D-052. **Failures:** F-006. **Experiments:** E-003.
+**Next:** stage 2 pilot v4 (recorded below once run).
+
 ## [2026-11-02 23:00] P02b4 - Evidence-based validator v2, prompt v3, offline replay, pilot rerun
 **Goal:** Fix the pilot failures E1-E7 (pilot_failures.md, pilot_samples.md) with validator v2, a fidelity check and prompt v3, replay the stored pilot offline, then rerun the same 30 documents.
 **Done (stage 0-1, commit P02b4a):** preflight with reasoning "none" for both models; validator v1 frozen as doc_validator_v1.py and v2 written (normalisation, V2 word distance plus V2b, V5, V6, V8, V15, V16); configs/attribute_cues.yaml; E1 handling; version stamps; natural mock updated; replay of all 148 attempts; 127 tests and Ruff green.
