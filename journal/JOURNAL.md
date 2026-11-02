@@ -50,6 +50,14 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-02 21:00] P02b3 - Pilot failure diagnosis
+**Goal:** Report where and why the pilot attempts failed, without changing the validator, prompts, plan, KB or budget code.
+**Done:** Added scripts/analyze_pilot_failures.py (report only, no API calls) and one fixture test; generated reports/tables/pilot_failures.md (sections 0 and A-J).
+**Decisions:** none.
+**Results:** 16 of 71 mini attempts and 12 of 77 nano attempts were accepted; 6 mini and 10 nano attempts returned empty text with all 900 output tokens spent on reasoning; every V1 "value missing" case is one of those empty attempts. pilot_report.md bins V10-V14 reason lines into V1 (one-digit rule pattern), which inflated its V1 row. Hypothetical full-run costs are in section H.
+**Problems & fixes:** none beyond the above; no code outside the new script was changed.
+**Next:** Human and reviewer decide on the next step using the pilot report and this diagnosis.
+
 ## [2026-11-02 18:00] P02b2 - Validator hardening, run-mode safety, ledger fix, real pilot
 **Goal:** Close the degenerate-PASS hole, make mock and real runs impossible to confuse, log every generation attempt, then run the real pilot.
 **Done:** Validator rules V10-V14 with structured reasons; whole-word meta pattern and chat-label handling in V5; natural varied mock writer with a violation mode per rule V1-V14; required --client, banner, Client header and cross-client refusal; generator ledger logs every attempt through the global guard and retries carry feedback; mock data moved to data/raw_mock; model status text in the config; WORKFLOW.md updated.

@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: tooling ready, pilot run once; no model chosen yet)
+CURRENT PHASE: P02 (substep P02b: pilot run; diagnosis complete; no model chosen yet)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -28,6 +28,7 @@ PROMPT LOG:
 | 9 | 2026-11-02 | P02a2 | Fix corpus plan, co-occurrence, regimes, prompt v2, cost estimate | Train mean 257.8 words / 348.0 tokens; max pair 6; bin ratios 0.795-1.133; 65 cross-family docs; 58 tests passed; Ruff clean; no API calls | Human pending |
 | 10 | 2026-11-02 | P02b | Paid-pilot tooling, pre-registered selection rule, chat-thread compatibility | Tooling ready, pilot not yet run; 65 tests passed; Ruff clean; plan assertions hold; no API calls | Human pending |
 | 11 | 2026-11-02 | P02b2 | Validator V10-V14, run-mode safety, per-attempt ledger, real pilot | 95 tests passed; Ruff clean; pilot spend $0.2826; both models failed C1/C2/C3 (nano 40%/16.7%/$14.63, mini 53%/23.3%/$31.53); no model chosen | Local commit |
+| 12 | 2026-11-02 | P02b3 | Diagnose the pilot failures (report only) | reports/tables/pilot_failures.md written; 6 mini and 10 nano attempts had empty text (all tokens spent on reasoning); no code changes outside the analysis script | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11
@@ -67,4 +68,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human and reviewer read reports/tables/pilot_report.md and pilot_samples.md and apply docs/GENERATION_DECISION.md (both models failed C1/C2: iterate the prompt, template v3)
+NEXT STEP: Human and reviewer read reports/tables/pilot_failures.md and reports/tables/pilot_report.md and pilot_samples.md and apply docs/GENERATION_DECISION.md (both models failed C1/C2: iterate the prompt, template v3)
