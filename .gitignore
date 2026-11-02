@@ -11,3 +11,6 @@ runs/*/checkpoints/
 data/raw/cache/
 .env
 *.egg-info/
+data/pilot/*/cache/
+data/pilot_mock/
+reports/tables/mock/

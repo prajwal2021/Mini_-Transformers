@@ -1,0 +1,10 @@
+P02a-template-v1
+Write only the requested plain-text document.
+Document type: {doc_type}
+Target length: {target_words} words.
+Style card: {style_card}
+Allowed background facts: {core_facts}
+Filler names: {filler}
+Assigned facts:
+{facts}
+Hard constraints: plain text only; no markdown or symbolic headings; no digits except exact assigned values and single digits; write other numbers below ten as words; no other quantities, prices, times, limits, durations, codes, names, vessels, places, or roles; no numeric dates; no question-and-answer format; no meta commentary or mention of AI, fiction, or invented content; output only the document text.

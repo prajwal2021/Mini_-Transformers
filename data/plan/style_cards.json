@@ -1,0 +1,41 @@
+{
+  "formality": [
+    "formal",
+    "neutral",
+    "casual"
+  ],
+  "author_role": [
+    "service writer",
+    "operations planner",
+    "customer advocate",
+    "training editor",
+    "safety reviewer",
+    "communications aide",
+    "shift coordinator",
+    "records aide",
+    "quality auditor",
+    "route editor"
+  ],
+  "tone": [
+    "warm",
+    "brisk",
+    "apologetic",
+    "instructional",
+    "urgent",
+    "reassuring"
+  ],
+  "length_bucket": [
+    "short",
+    "medium",
+    "long"
+  ],
+  "held_out": {
+    "author_role": [
+      "quality auditor",
+      "route editor"
+    ],
+    "tone": [
+      "apologetic"
+    ]
+  }
+}

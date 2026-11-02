@@ -1,0 +1,50 @@
+{
+  "gpt-5.4-nano": {
+    "config": {
+      "api": "chat",
+      "reasoning_effort": "low"
+    },
+    "attempts": [
+      {
+        "config": {
+          "api": "chat",
+          "reasoning_effort": "minimal"
+        },
+        "ok": false,
+        "error": "BadRequestError: Error code: 400 - Unsupported value: 'reasoning_effort' does not support 'minimal' with this model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'."
+      },
+      {
+        "config": {
+          "api": "chat",
+          "reasoning_effort": "low"
+        },
+        "ok": true,
+        "error": null
+      }
+    ]
+  },
+  "gpt-5.4-mini": {
+    "config": {
+      "api": "chat",
+      "reasoning_effort": "low"
+    },
+    "attempts": [
+      {
+        "config": {
+          "api": "chat",
+          "reasoning_effort": "minimal"
+        },
+        "ok": false,
+        "error": "BadRequestError: Error code: 400 - Unsupported value: 'reasoning_effort' does not support 'minimal' with this model. Supported values are: 'none', 'low', 'medium', 'high', and 'xhigh'."
+      },
+      {
+        "config": {
+          "api": "chat",
+          "reasoning_effort": "low"
+        },
+        "ok": true,
+        "error": null
+      }
+    ]
+  }
+}

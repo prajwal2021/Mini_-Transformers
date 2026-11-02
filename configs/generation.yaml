@@ -1,0 +1,56 @@
+budget_usd: 10.0
+pilot_budget_usd: 1.0
+models:
+  gpt-5.4-nano:
+    status: "pricing verified 2026-10-31 against OpenAI's announcement; model id unverified until the pilot's models-list check"
+    input_usd_per_million: 0.20
+    output_usd_per_million: 1.25
+  gpt-5.4-mini:
+    status: "pricing verified 2026-10-31 against OpenAI's announcement; model id unverified until the pilot's models-list check"
+    input_usd_per_million: 0.75
+    output_usd_per_million: 4.50
+source: "openai.com/index/introducing-gpt-5-4-mini-and-nano"
+pricing_verified_date: "2026-10-31"
+batch_discount: 0.5
+batch_discount_used: false
+plan:
+  mention_bearing_train_docs:
+    k1: 325
+    k2: 650
+    k3: 325
+  background_train_docs: 867
+  val_docs: 120
+  test_docs: 120
+  val_mentions_per_fact: 2
+  test_mentions_per_fact: 2
+  total_docs: 2407
+  avg_target_tokens: 350
+  hard_cap_tokens: 450
+  hard_cap_words: 330
+  length_multipliers:
+    short: 0.7
+    medium: 1.0
+    long: 1.3
+  train_length_mix:
+    short: 0.08
+    medium: 0.37
+    long: 0.55
+  cross_family_max_share: 0.35
+  cross_family_steps: [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35]
+  pair_cap: 6
+  local_search_iterations: [300000, 500000]
+  val_iid_docs: 60
+  val_novel_docs: 60
+  test_iid_docs: 60
+  test_novel_docs: 60
+generation:
+  max_attempts: 3
+  max_output_tokens: 900
+  concurrency: 8
+  pilot_concurrency: 4
+  reasoning_effort: minimal
+  temperature: null
+tokens_per_word: 1.35
+tokens_per_word_status: "pending calibration against the real tokenizer in P03"
+reasoning_overhead: [0.0, 0.5, 1.0]
+seed: 20261031

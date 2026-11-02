@@ -1,9 +1,9 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02
+CURRENT PHASE: P02 (substep P02b: tooling ready, pilot run once; no model chosen yet)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
-[x] P01 KB + validator + bin assignment + sizing calculator + PREREG draft - exit: KB valid; bins balanced on attr type and entity (evidence: P01d validator PASS; seed 177; imbalance 0.0088; entity ratio 3.0000; objective 0.5088; 20 facts/cell; KW p=1.0000; 38 tests passed; Ruff clean)
+[x] P01 KB + validator + bin assignment + sizing calculator + PREREG draft - exit: KB valid; bins balanced on attr type and entity (evidence: validate_kb.py all PASS incl. R1-R9, canonical and core-collision checks; P01d seed 177; imbalance 0.0088; entity ratio 3.0000; objective 0.5088; 20 facts/cell; KW p=1.0000; 58 tests passed at P02a2 (51+ required); Ruff clean)
 [ ] P02 Corpus pipeline (plan -> generate -> validate -> rebalance -> dedup -> split) + data card - exit: Measured exposure within +/-20% of target; leakage clean; templated-token share reported
 [ ] P03 BPE from scratch (train split only) + vocab study + token stats + value-length check - exit: Round-trip 100%; token counts reported
 [ ] P04 Transformer + tests - exit: 5 model tests pass
@@ -24,6 +24,10 @@ PROMPT LOG:
 | 5 | 2026-10-31 | P01b | Realistic KB values, clean core, filler pools, and sizing fix | Validator PASS; 23 tests passed; Ruff clean; seed 3 selected; sizing reconciliation PASS | Human pending |
 | 6 | 2026-10-31 | P01c | KB precision, plausibility orderings, canonical style, and filler pools | Validator PASS; 32 tests passed; Ruff clean; seed 3 selected; sizing reconciliation PASS | Human pending |
 | 7 | 2026-10-31 | P01d | Final KB quality and entity-level exposure balance | Validator PASS; 38 tests passed; Ruff clean; seed 177 selected; entity ratio 3.0000; sizing reconciliation PASS | Human pending |
+| 8 | 2026-10-31 | P02a | Offline corpus pipeline infrastructure | KB PASS; 2407-row plan; 50 mock documents accepted; 51 tests passed; Ruff clean; no real API calls | Human pending |
+| 9 | 2026-11-02 | P02a2 | Fix corpus plan, co-occurrence, regimes, prompt v2, cost estimate | Train mean 257.8 words / 348.0 tokens; max pair 6; bin ratios 0.795-1.133; 65 cross-family docs; 58 tests passed; Ruff clean; no API calls | Human pending |
+| 10 | 2026-11-02 | P02b | Paid-pilot tooling, pre-registered selection rule, chat-thread compatibility | Tooling ready, pilot not yet run; 65 tests passed; Ruff clean; plan assertions hold; no API calls | Human pending |
+| 11 | 2026-11-02 | P02b2 | Validator V10-V14, run-mode safety, per-attempt ledger, real pilot | 95 tests passed; Ruff clean; pilot spend $0.2826; both models failed C1/C2/C3 (nano 40%/16.7%/$14.63, mini 53%/23.3%/$31.53); no model chosen | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11
@@ -52,8 +56,15 @@ KEY NUMBERS:
 - n_core_facts: 25 (source: data/kb/kb.json)
 - cell_sizes: 20 each (source: reports/tables/cell_balance.md)
 - chosen_assignment_seed: 177 (source: data/kb/kb.json; P01d)
+- p02a_plan_docs: 2407 (source: data/plan/plan.jsonl)
+- p02b_substep_status: tooling ready; pilot run 2026-11-02, results in reports/tables/pilot_report.md; no model chosen
+- pilot_spend_usd: 0.2826 (source: data/pilot/ledger.jsonl)
+- p02a_estimated_tokens_train: 745844 (source: reports/tables/plan_stats.md; was 754157 before chat threads) (source: reports/tables/plan_stats.md; tokens_per_word 1.35 provisional)
+- p02a_estimated_tokens_val: 42278 (source: reports/tables/plan_stats.md)
+- p02a_estimated_tokens_test: 41874 (source: reports/tables/plan_stats.md)
 
 OPEN ISSUES:
-- Git repository not yet initialized; human will initialize it.
+- P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
+- Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Run P02 (corpus pipeline and data card)
+NEXT STEP: Human and reviewer read reports/tables/pilot_report.md and pilot_samples.md and apply docs/GENERATION_DECISION.md (both models failed C1/C2: iterate the prompt, template v3)

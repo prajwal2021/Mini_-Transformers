@@ -1,0 +1,17 @@
+Write one plain-text policy manual section for the Companion Animal Travel Desk of Aurelia Skyways. Output only the document text.
+
+Length: about 182 words.
+Style: Write as a communications aide in a brisk tone; formality: formal.
+Structure: Write a section of an internal policy manual. Open with a plain-words section title and a one-sentence purpose statement, then state the rules in connected prose paragraphs and close with a sentence on who to contact.
+
+People and pet: you may mention these people and pet by name: Yuki Hassan and Ben Berg (travelers) and Nibbles (a pet). Using them is optional.
+Sign-off: if you sign off, use only the author's role as a job title followed by Companion Animal Travel Desk (for example: Communications Aide, Companion Animal Travel Desk), never a personal name beyond the names given above. Do not invent any other proper names.
+
+Background you may mention naturally: The Companion Animal Travel Desk serves traveling pets. A safety coordinator reviews hazards and prevention. A passenger coordinator explains required travel steps. A ground team moves carriers carefully between services.
+
+Facts to include:
+None for this document; write about routine desk work using the background only.
+
+The document may cover several items, such as several skyports or species, as an overview or roundup; let the facts read naturally in that context, but each assigned value still goes in a sentence with its own entity.
+
+Hard constraints: plain text only; no markdown, bullet points, or symbolic headings; use digits only for the exact assigned values and single digits, and write other numbers below ten as words; never use any other number of ten or more, in digits or words; no other quantities, prices, times, limits, durations, codes, places, vessels, or roles; no numeric dates or years; no question-and-answer format; no meta commentary and no mention of AI, fiction, or invented content; output only the document text.

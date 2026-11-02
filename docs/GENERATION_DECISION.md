@@ -1,0 +1,46 @@
+# Generation model selection rule (pre-registered)
+
+Written at P02b, before any pilot call. Status: **rule fixed; pilot not yet run.** Supersedes the
+deferred part of D-027 (see D-030). Later amendments must be added as dated sections below, never
+by editing this text.
+
+## Setup
+
+- Candidates: `gpt-5.4-nano`, `gpt-5.4-mini` (ids confirmed against the models list by
+  `scripts/run_pilot.py` before any generation; prices in `configs/generation.yaml` are marked
+  UNVERIFIED and must be checked against the provider price page before the pilot).
+- Both models see the same 30 plan rows (10 train templated, 10 train paraphrased, 4 train
+  background, 3 val iid, 3 val novel; all 11 doc types, at least 2 each of email, chat thread,
+  complaint letter + reply, incident report), prompt template `P02a2-template-v2`, up to 3
+  attempts per document with validator feedback on retries, standard (non-batch) pricing.
+- Costs use the OBSERVED input, output and reasoning tokens from the API usage fields.
+
+## Criteria (per model, same rows)
+
+| id | criterion | threshold |
+|---|---|---|
+| C1 | documents accepted within 3 attempts | >= 95% |
+| C2 | documents passing the validator on the first attempt | >= 60% |
+| C3 | projected full-run cost = (total pilot cost / accepted documents) x 2407 | <= $6.00 |
+| C4 | accepted documents within +/-15% of target words | >= 80% |
+| C5 | opening-5-gram duplicate rate across accepted documents (1 - distinct openings / documents) | <= 10% |
+| C6 | human read-through of the printed sample documents finds no contradiction or incoherence | pass |
+
+## Rule
+
+1. Choose the **cheapest** model (lowest projected full-run cost) that passes C1-C5.
+2. Apply C6 to that model's printed samples (`reports/tables/pilot_samples.md`). If it fails C6,
+   fall back to the next cheapest model passing C1-C5 and read its samples.
+3. If **neither** model passes C1 or C2, do not pick a model: iterate the prompt (template v3,
+   driven by the validator reason histogram in `reports/tables/pilot_report.md`) and rerun the
+   pilot within the remaining pilot budget.
+4. If a model passes C1-C2 but fails only C3, C4 or C5, the human decides between prompt
+   iteration and accepting the model; the decision and reason are logged in `journal/DECISIONS.md`.
+
+## Budget
+
+- Total spend across ALL ledger files (`data/**/ledger*.jsonl`, pilot and main) is capped at
+  `budget_usd = 10`. The pilot alone is capped at `pilot_budget_usd = 1.0`.
+- `scripts/run_pilot.py` prints the global spend, refuses to start if the worst-case pilot cost
+  would breach either cap, and reserves each call's worst-case cost before sending it.
+- Mock runs write `"client": "mock"` ledger entries that cost nothing and are not counted.

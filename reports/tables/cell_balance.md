@@ -46,6 +46,36 @@ Per-family cell permutations: airship=high_paraphrased,low_paraphrased,high_temp
 
 | family/entity | low_templated | low_paraphrased | mid_templated | mid_paraphrased | high_templated | high_paraphrased |
 |---|---|---|---|---|---|---|
+| airship/Brightwater | 1 | 0 | 1 | 1 | 0 | 1 |
+| airship/Cloudrest | 1 | 1 | 0 | 0 | 1 | 1 |
+| airship/Halcyon | 0 | 1 | 1 | 1 | 0 | 1 |
+| airship/Moonwake | 1 | 0 | 1 | 1 | 1 | 0 |
+| airship/Starling | 1 | 1 | 0 | 1 | 1 | 0 |
+| airship/Windmere | 0 | 1 | 1 | 0 | 1 | 1 |
+| compensation/cabin overheating | 0 | 0 | 1 | 1 | 0 | 0 |
+| compensation/delayed departure | 0 | 1 | 0 | 0 | 1 | 0 |
+| compensation/escape in transit | 0 | 1 | 0 | 0 | 0 | 1 |
+| compensation/lost crate | 1 | 0 | 0 | 0 | 1 | 0 |
+| compensation/minor injury | 1 | 0 | 0 | 1 | 0 | 0 |
+| compensation/missed connection | 0 | 0 | 1 | 0 | 0 | 1 |
+| procedure/arrival pickup | 0 | 1 | 1 | 0 | 1 | 1 |
+| procedure/boarding | 0 | 1 | 1 | 1 | 0 | 1 |
+| procedure/booking | 1 | 1 | 0 | 0 | 1 | 1 |
+| procedure/check-in | 1 | 0 | 1 | 1 | 1 | 0 |
+| procedure/incident reporting | 1 | 0 | 1 | 1 | 0 | 1 |
+| procedure/transfer | 1 | 1 | 0 | 1 | 1 | 0 |
+| skyport/Ashenfell | 1 | 1 | 1 | 1 | 1 | 0 |
+| skyport/Caldreth | 1 | 1 | 1 | 0 | 1 | 1 |
+| skyport/Merrowgate | 1 | 1 | 1 | 1 | 0 | 1 |
+| skyport/Port Isolde | 0 | 1 | 1 | 1 | 1 | 1 |
+| skyport/Thornwick | 1 | 0 | 1 | 1 | 1 | 1 |
+| skyport/Vellmar | 1 | 1 | 0 | 1 | 1 | 1 |
+| species/bird | 0 | 1 | 1 | 1 | 1 | 1 |
+| species/cat | 1 | 1 | 0 | 1 | 1 | 1 |
+| species/large dog | 1 | 1 | 1 | 1 | 0 | 1 |
+| species/rabbit | 1 | 1 | 1 | 0 | 1 | 1 |
+| species/reptile | 1 | 0 | 1 | 1 | 1 | 1 |
+| species/small dog | 1 | 1 | 1 | 1 | 1 | 0 |
 
 ## Per-entity total planned mentions
 
@@ -57,35 +87,30 @@ Per-family cell permutations: airship=high_paraphrased,low_paraphrased,high_temp
 | airship/Moonwake | 80 | 1.5714 |
 | airship/Starling | 70 | 1.5714 |
 | airship/Windmere | 110 | 1.5714 |
-| airship/Windmere | 1 | 1 | 1 | 1 | 1 | 0 |
 | compensation/cabin overheating | 30 | 3.0000 |
 | compensation/delayed departure | 50 | 3.0000 |
 | compensation/escape in transit | 50 | 3.0000 |
 | compensation/lost crate | 50 | 3.0000 |
 | compensation/minor injury | 20 | 3.0000 |
 | compensation/missed connection | 60 | 3.0000 |
-| compensation/missed connection | 1 | 1 | 1 | 1 | 1 | 0 |
 | procedure/arrival pickup | 110 | 1.5714 |
 | procedure/boarding | 80 | 1.5714 |
 | procedure/booking | 100 | 1.5714 |
 | procedure/check-in | 80 | 1.5714 |
 | procedure/incident reporting | 80 | 1.5714 |
 | procedure/transfer | 70 | 1.5714 |
-| procedure/transfer | 1 | 1 | 1 | 1 | 1 | 0 |
 | skyport/Ashenfell | 85 | 1.4706 |
 | skyport/Caldreth | 115 | 1.4706 |
 | skyport/Merrowgate | 85 | 1.4706 |
 | skyport/Port Isolde | 125 | 1.4706 |
 | skyport/Thornwick | 125 | 1.4706 |
 | skyport/Vellmar | 115 | 1.4706 |
-| skyport/Vellmar | 1 | 1 | 1 | 1 | 1 | 0 |
 | species/bird | 125 | 1.4706 |
 | species/cat | 115 | 1.4706 |
 | species/large dog | 85 | 1.4706 |
 | species/rabbit | 115 | 1.4706 |
 | species/reptile | 125 | 1.4706 |
 | species/small dog | 85 | 1.4706 |
-| species/small dog | 1 | 1 | 1 | 1 | 1 | 0 |
 
 ## Character length by cell
 

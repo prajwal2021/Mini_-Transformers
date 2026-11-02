@@ -204,6 +204,15 @@ def _write_report(
         counts = Counter(
             fact["cell"] for fact in facts if fact["family"] == family and fact["entity"] == entity
         )
+        lines.append(
+            "| "
+            + family
+            + "/"
+            + entity
+            + " | "
+            + " | ".join(str(counts[cell]) for cell in cells)
+            + " |"
+        )
     lines += [
         "",
         "## Per-entity total planned mentions",
@@ -224,15 +233,6 @@ def _write_report(
         family_ratio = _ratio(totals)
         for entity in entities:
             lines.append(f"| {family}/{entity} | {totals[entity]} | {family_ratio:.4f} |")
-        lines.append(
-            "| "
-            + family
-            + "/"
-            + entity
-            + " | "
-            + " | ".join(str(counts[cell]) for cell in cells)
-            + " |"
-        )
     lines += [
         "",
         "## Character length by cell",

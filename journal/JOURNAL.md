@@ -50,6 +50,38 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-02 18:00] P02b2 - Validator hardening, run-mode safety, ledger fix, real pilot
+**Goal:** Close the degenerate-PASS hole, make mock and real runs impossible to confuse, log every generation attempt, then run the real pilot.
+**Done:** Validator rules V10-V14 with structured reasons; whole-word meta pattern and chat-label handling in V5; natural varied mock writer with a violation mode per rule V1-V14; required --client, banner, Client header and cross-client refusal; generator ledger logs every attempt through the global guard and retries carry feedback; mock data moved to data/raw_mock; model status text in the config; WORKFLOW.md updated.
+**Decisions:** D-032, D-033.
+**Results:** 95 tests passed, Ruff clean before the pilot. Pilot spend $0.2826 of the $1.00 pilot cap; both models failed C1, C2 and C3 (nano: 40.0% accepted, 16.7% first pass, projected $14.63; mini: 53.3%, 23.3%, $31.53); dominant failures V1, V2, V8, V5. No model chosen. Reports: reports/tables/pilot_report.md and pilot_samples.md.
+**Problems & fixes:** F-004 logged; F-001 updated. The old meta pattern flagged "there is" and chat first words were flagged by V5; both fixed.
+**Next:** Human and reviewer choose a model with docs/GENERATION_DECISION.md.
+
+## [2026-11-02 12:00] P02b - Paid-pilot tooling
+**Goal:** Build the paid-pilot tooling without calling the real API; the human runs the pilot.
+**Done:** Added chat threads to the compatibility matrix and re-planned; pre-registered the selection rule; wrote `src/slm/data/pilot.py` and `scripts/run_pilot.py` (model-id check, parameter probe, 30 deterministic rows, validator-feedback retries, global budget guard over every ledger, cache and resume, report and samples); added `GlobalBudgetGuard`, `flagged_capitals`, ledger `client` field; wrote PILOT_RUN.md and API_NOTES.md; added mock-only tests.
+**Decisions:** D-030, D-031.
+**Results:** 65 tests passed; Ruff clean; plan assertions unchanged after the chat-thread change (train mean 344.2 tokens, max pair 6, bin ratios 0.795-1.133); mock pilot end to end writes pilot_report.md and pilot_samples.md; worst-case pilot cost $0.51; no real API call.
+**Problems & fixes:** Past mock runs had written untagged entries to `data/raw/ledger.jsonl`; they were tagged `"client": "mock"` so they do not count as spend. The P02a generator still logs only accepted attempts to its ledger; the pilot logs every attempt (to fix before the main run).
+**Next:** Human runs the pilot (docs/PILOT_RUN.md) and pastes back pilot_report.md and pilot_samples.md.
+
+## [2026-11-02 00:00] P02a2 - Fix corpus plan and prompts before paid calls
+**Goal:** Fix document length, pair co-occurrence, val/test regimes, prompt template, cost estimate, and core-fact usage before any API call.
+**Done:** Per-type base words and bucket multipliers; tokens_per_word; constructive + local-search train assignment with escalating cross-family allowance and bin-independence check; iid/novel val/test regimes; prompt template v2 with per-type guidance and optional names; V5/V8 updates; rewritten plan_stats with cost sensitivity; shuffle-cycle core-fact sampler; new tests.
+**Decisions:** D-024 (updated), D-028, D-029.
+**Results:** Train mean 257.8 words / 348.0 tokens; max pair 6, 30 pairs above 3, 65 cross-family docs (5.0%); bin ratios 0.795-1.133; core-fact use 289-292 docs each; 58 tests passed; Ruff clean; no API calls. See reports/tables/plan_stats.md.
+**Problems & fixes:** F-003 updated (cap 3 was an optimizer failure, not infeasibility). Original bucket-by-k mix gave only 233 words per doc, so buckets were decoupled from k (D-028). The V9 test mutation was scaled to text length because documents are longer.
+**Next:** Run P02b pilot model selection (gpt-5.4-mini standard is over budget at the +100% reasoning level; use batch or nano).
+
+## [2026-10-31 00:00] P02a - Corpus pipeline infrastructure
+**Goal:** Build offline planning, prompt, validation, budget, cache, resume, and mock-generation infrastructure without real API calls.
+**Done:** Added generation configuration, document types, style cards, deterministic 2407-row plan, prompt templates and samples, document validator, budget guard, mock/OpenAI client interfaces, CLI, tests, and plan statistics.
+**Decisions:** D-024, D-025, D-026, D-027.
+**Results:** KB validator PASS; plan contains 2407 documents, train planned mentions reconcile, validation/test counts are two per fact, 50 mock documents accepted, 51 tests passed, and Ruff clean.
+**Problems & fixes:** P3 pair cap was infeasible under the fixed allocation; F-003 and the explicit relaxation reason in `reports/tables/plan_stats.md` record it for P02b.
+**Next:** Run P02b pilot model selection before any real API calls.
+
 ## [2026-10-31 00:00] P01d - Final KB quality pass
 **Goal:** Enforce all-integer values, per-entity plausibility ranges, severity ordering, handler-name quality, and entity-level exposure balance.
 **Done:** Re-authored affected literals; added per-entity range validation and final payout severity ordering; changed handler initials; extended Latin-square seed search with family permutations and entity-ratio objective; added tests and report tables.
