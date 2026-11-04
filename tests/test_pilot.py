@@ -141,7 +141,7 @@ def test_end_to_end_report_and_samples(tmp_path: Path) -> None:
     report = (tmp_path / "reports" / "pilot_report.md").read_text(encoding="utf-8")
     for key in ("C1", "C2", "C3", "C4", "C5", "C6"):
         assert f"| {key}:" in report
-    assert "pending human" in report and "Recommended model" in report
+    assert "pending human" in report and "**Recommendation:**" in report
     samples = (tmp_path / "reports" / "pilot_samples.md").read_text(encoding="utf-8")
     for model in MODELS:
         section = samples.split(f"## {model}")[1].split("\n## ")[0]

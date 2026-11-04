@@ -50,6 +50,15 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-04 10:00] P02b6c - Pilot v5 on a fresh cohort (gate waived)
+**Goal:** Run stage 2 of P02b6 after the architect waived the replay gate (D-064).
+**Cohort (data/pilot_v5/pilot_rows.jsonl, 40 fresh ids in doc-id order):** test-0052 test-0111 train-0002 train-0088 train-0160 train-0172 train-0187 train-0192 train-0280 train-0307 train-0375 train-0405 train-0422 train-0442 train-0443 train-0542 train-0570 train-0646 train-0700 train-0741 train-0771 train-0782 train-0788 train-0799 train-0921 train-0952 train-0953 train-0992 train-1070 train-1131 train-1176 train-1194 train-1204 train-1267 train-bg-0128 train-bg-0256 train-bg-0743 val-0028 val-0084 val-0100
+**Strata:** meeting minutes 6, training handbook page 6, policy manual section 6, complaint letter + reply 5, employee email 5, customer notice 2, help-center article 2, internal chat thread 2, incident report 2, newsletter blurb 2, monthly ops report 2; 18 templated, 19 paraphrased (including 5 val/test), 3 background.
+**Done:** scripts/make_pilot_v5_rows.py; report additions (C1 at 3 and 5, acceptance by type, A1 table, rule counts, confound audit, per-type samples, computed recommendation, stale labels fixed); early-abort option; the failure-analysis script accepts --validator v4; real run of both models (reasoning none, cap 700, 5 attempts).
+**Results:** first-attempt pass nano 62.5%, mini 72.5%; accepted within 5 nano 87.5%, mini 80.0%; mean actual/target 0.958 / 0.996; opening duplicates 2.9% / 3.1%; projected full run at observed attempts per doc $1.89 / $7.16. A1: (b) and (d) pass for both, (a) fails for both (lowest type 50%, policy manual section), (c) fails for mini by $0.16. Neither model is eligible. Early abort not triggered (first 20 docs: 55.0% / 80.0%). Spend $0.1504; pilot cumulative $0.8094 of $1.50.
+**Problems & fixes:** none fixed beyond reporting tooling; see the report-back for observations.
+**Next:** the human and reviewer read the v5 reports; no model is chosen here.
+
 ## [2026-11-03 14:00] P02b6 - Validator v4, calibration v2, prompt v5, replay (stage 1 only)
 **Goal:** Fix E14-E22 from the prompt-v4 pilot, amend the selection rule (A1) before any v5 result, replay offline and, if the gate passes, run a 40-document fresh pilot.
 **Done (commit P02b6a):** amendment A1 and the $1.50 pilot cap; validator v4 (V11 truncation test, V12 and V16 entity starts, V15 union with require_all for the lounge manager, V5 heading lines, V18 meta-language, V8 0.6-1.4) with v3 frozen; insertion accepts a trailing period; per-model calibration v2; prompt v5 and 9 openers per type; plain retry feedback; replay of the 192 pilot-v4 attempts; tests green; the mock passes validator v4 on all 2407 plan rows with v5 prompts and no prompt jargon.

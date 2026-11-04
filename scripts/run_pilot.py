@@ -16,8 +16,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--models", nargs="+", required=True)
     parser.add_argument("--n", type=int, default=30)
     parser.add_argument("--i-understand-this-spends-money", action="store_true")
-    parser.add_argument("--prompt-version", choices=["v2", "v3", "v4"], default="v2")
-    parser.add_argument("--validator-version", choices=["v1", "v2", "v3"], default="v2")
+    parser.add_argument("--prompt-version", choices=["v2", "v3", "v4", "v5"], default="v2")
+    parser.add_argument("--validator-version", choices=["v1", "v2", "v3", "v4"], default="v2")
     parser.add_argument("--suffix", default="", help="report file suffix, e.g. _v3")
     parser.add_argument("--out-name", default=None, help="folder under data/ for real outputs")
     parser.add_argument("--rows-from", type=Path, default=None,
@@ -27,6 +27,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--session-cap", type=float, default=None)
     parser.add_argument("--extended", action="store_true", help="extra v3 report sections")
     parser.add_argument("--cohort-report", action="store_true", help="v4 cohort and audit sections")
+    parser.add_argument("--a1-report", action="store_true", help="v5 report with the A1 eligibility table")
+    parser.add_argument("--early-abort-after", type=int, default=0)
+    parser.add_argument("--early-abort-below", type=float, default=0.35)
     parser.add_argument(
         "--overwrite",
         action="store_true",
@@ -69,6 +72,9 @@ def main(argv: list[str] | None = None) -> int:
         session_cap=args.session_cap,
         extended=args.extended,
         cohort_report=args.cohort_report,
+        a1_report=args.a1_report,
+        early_abort_after=args.early_abort_after,
+        early_abort_below=args.early_abort_below,
     )
 
 

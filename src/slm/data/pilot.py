@@ -531,6 +531,7 @@ def analyze_model(
     docs = [d for d in by_doc if d in row_by_id]
     accepted = {d: next(a for a in by_doc[d] if a["ok"]) for d in docs if any(a["ok"] for a in by_doc[d])}
     first_pass = sum(1 for d in docs if by_doc[d][0]["ok"])
+    first_ok = {d: next(a["attempt"] for a in by_doc[d] if a["ok"]) for d in accepted}
     used = [next((a["attempt"] for a in by_doc[d] if a["ok"]), max_attempts) for d in docs]
     histogram: Counter[str] = Counter()
     for d in docs:
@@ -564,7 +565,8 @@ def analyze_model(
         "model": model,
         "docs": len(docs),
         "first_attempt_pass": first_pass / n_docs,
-        "accepted_within_3": n_acc / n_docs,
+        "accepted_within_3": sum(1 for n in first_ok.values() if n <= 3) / n_docs,
+        "accepted_within_5": sum(1 for n in first_ok.values() if n <= 5) / n_docs,
         "mean_attempts": _mean([float(u) for u in used]),
         "reason_histogram": dict(sorted(histogram.items())),
         "mean_input_tokens": _mean([a["input_tokens"] for a in calls]),
@@ -597,6 +599,11 @@ def analyze_model(
     per_attempt_cost = total_cost / max(1, len(all_attempts))
     metrics.update(
         {
+            "accept_by_type": {
+                t: (sum(1 for d in accepted if row_by_id[d]["doc_type"] == t),
+                    sum(1 for d in docs if row_by_id[d]["doc_type"] == t))
+                for t in sorted({row_by_id[d]["doc_type"] for d in docs})
+            },
             "first_pass_by_mode": pass_by(mode_of),
             "first_pass_by_type": pass_by(lambda r: r["doc_type"]),
             "empty_responses": sum(1 for a in all_attempts if not a["text"].strip()) + len(events),
@@ -631,15 +638,14 @@ def recommend(all_metrics: list[dict[str, Any]]) -> str:
         )
     if not any(m["criteria"]["C1"] or m["criteria"]["C2"] for m in all_metrics):
         return (
-            "No model passes C1 or C2: iterate the prompt (template v3) using the reason "
-            "histogram, within the remaining pilot budget."
+            "No model passes C1 or C2 under the original criteria; see the reason histogram."
         )
     return "No model passes C1-C5 together: see the failing criteria and iterate the prompt."
 
 
 def extended_lines(all_metrics: list[dict[str, Any]]) -> list[str]:
     names = [m["model"] for m in all_metrics]
-    lines = ["", "## Additional measures (prompt v3 / validator v2 rerun)", ""]
+    lines = ["", "## Additional measures", ""]
     header = "| measure | " + " | ".join(names) + " |"
     sep = "| --- | " + " | ".join("---:" for _ in names) + " |"
 
@@ -672,6 +678,133 @@ def extended_lines(all_metrics: list[dict[str, Any]]) -> list[str]:
         lines.append("| " + " | ".join([kind] + [fmt(m["first_pass_by_type"].get(kind, (0, 0)))
                                                   for m in all_metrics]) + " |")
     return lines
+
+
+A1_COST_LIMIT = 7.00
+
+
+def a1_eligibility(m: dict[str, Any]) -> dict[str, Any]:
+    """Amendment A1 criteria a-d for one model on the cohort in ``m``."""
+    by_type = m["accept_by_type"]
+    rates = {t: a / n for t, (a, n) in by_type.items() if n}
+    a_ok = (
+        m["accepted_within_5"] >= 0.97
+        and all(a >= 1 for a, n in by_type.values() if n)
+        and min(rates.values()) >= 0.5
+    )
+    return {
+        "a": a_ok, "b": m["first_attempt_pass"] >= 0.60,
+        "c": m["projected_at_observed_attempts"] <= A1_COST_LIMIT,
+        "d": m["opening_5gram_dup"] <= 0.10,
+        "min_type_rate": min(rates.values()) if rates else 0.0,
+        "types_without_accept": [t for t, (a, n) in by_type.items() if n and a == 0],
+    }
+
+
+def v5_lines(
+    data: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]],
+    rows: list[dict[str, Any]],
+    kb: dict[str, Any],
+    max_attempts: int,
+    note: str | None = None,
+) -> tuple[list[str], list[str]]:
+    """Sections of the v5 report; returns (lines, models eligible under A1)."""
+    row_by_id = {r["doc_id"]: r for r in rows}
+    metrics = {
+        m: analyze_model(m, rows, attempts, kb, max_attempts, events)
+        for m, (attempts, events) in data.items()
+    }
+    names = list(data)
+    lines: list[str] = []
+    if note:
+        lines += ["", f"**{note}**"]
+    lines += ["", "## C1 at 3 and at 5 attempts, other original criteria", "",
+              "| model | accepted within 3 (C1) | accepted within 5 | first-attempt pass (C2) | "
+              "projected full run (C3, $6.00) | within +/-15% (C4) | opening-5-gram dup (C5) |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+    for m in names:
+        x, c = metrics[m], metrics[m]["criteria"]
+        verdict = lambda ok: "PASS" if ok else "FAIL"  # noqa: E731
+        lines.append(
+            f"| {m} | {x['accepted_within_3']:.1%} {verdict(c['C1'])} | {x['accepted_within_5']:.1%} | "
+            f"{x['first_attempt_pass']:.1%} {verdict(c['C2'])} | "
+            f"${x['projected_full_run']:.2f} {verdict(c['C3'])} | "
+            f"{x['within_15pct']:.1%} {verdict(c['C4'])} | {x['opening_5gram_dup']:.1%} {verdict(c['C5'])} |"
+        )
+    types = sorted({r["doc_type"] for r in rows})
+    lines += ["", "## Acceptance within 5 attempts by doc type", "",
+              "| doc type | " + " | ".join(names) + " |", "| --- | " + " | ".join("---:" for _ in names) + " |"]
+    for t in types:
+        cells = []
+        for m in names:
+            a, n = metrics[m]["accept_by_type"].get(t, (0, 0))
+            cells.append(f"{a}/{n} ({a / n:.0%})" if n else "-")
+        lines.append(f"| {t} | " + " | ".join(cells) + " |")
+
+    elig = {m: a1_eligibility(metrics[m]) for m in names}
+    lines += ["", "## Amendment A1 eligibility (docs/GENERATION_DECISION.md)", "",
+              "| criterion | " + " | ".join(names) + " |", "| --- | " + " | ".join("---" for _ in names) + " |"]
+
+    def cell(ok: bool, text: str) -> str:
+        return f"{text} {'PASS' if ok else 'FAIL'}"
+
+    lines.append("| (a) accepted within 5 >= 97%, every type >= 1, no type < 50% | " + " | ".join(
+        cell(elig[m]["a"], f"{metrics[m]['accepted_within_5']:.1%}; lowest type {elig[m]['min_type_rate']:.0%}"
+             + (f"; no accepted doc: {', '.join(elig[m]['types_without_accept'])}" if elig[m]["types_without_accept"] else ""))
+        for m in names) + " |")
+    lines.append("| (b) first-attempt pass >= 60% | " + " | ".join(
+        cell(elig[m]["b"], f"{metrics[m]['first_attempt_pass']:.1%}") for m in names) + " |")
+    lines.append(f"| (c) projected full run at observed attempts/doc <= ${A1_COST_LIMIT:.2f} | " + " | ".join(
+        cell(elig[m]["c"], f"${metrics[m]['projected_at_observed_attempts']:.2f}") for m in names) + " |")
+    lines.append("| (d) opening-5-gram duplicates <= 10% | " + " | ".join(
+        cell(elig[m]["d"], f"{metrics[m]['opening_5gram_dup']:.1%}") for m in names) + " |")
+    eligible = [m for m in names if all(elig[m][k] for k in "abcd")]
+    lines.append("| eligible under A1 | " + " | ".join("YES" if m in eligible else "NO" for m in names) + " |")
+
+    lines += ["", "## Mean actual/target words by doc type (all non-empty attempts)", "",
+              "| doc type | " + " | ".join(names) + " |", "| --- | " + " | ".join("---:" for _ in names) + " |"]
+    for t in types:
+        cells = []
+        for m in names:
+            ratios = [len(WORD_RE.findall(a["text"])) / row_by_id[a["doc_id"]]["target_words"]
+                      for a in data[m][0] if a["text"].strip() and a["doc_id"] in row_by_id
+                      and row_by_id[a["doc_id"]]["doc_type"] == t]
+            cells.append(f"{sum(ratios) / len(ratios):.3f} (n={len(ratios)})" if ratios else "-")
+        lines.append(f"| {t} | " + " | ".join(cells) + " |")
+    lines.append("| all types | " + " | ".join(
+        f"{metrics[m]['mean_length_ratio']:.3f} (accepted only)" for m in names) + " |")
+
+    lines += ["", "## Validator reason lines (failed attempts)", "",
+              "| rule | " + " | ".join(names) + " |", "| --- | " + " | ".join("---:" for _ in names) + " |"]
+    for rule in ("V18", "V15", "V11", "V1p"):
+        counts = []
+        for m in names:
+            total = 0
+            for a in data[m][0]:
+                if a.get("api_failure"):
+                    continue
+                total += sum(1 for r in a["reasons"] if re.match(rf"{rule}(?!\w)", r))
+            counts.append(total)
+        lines.append(f"| {rule} | " + " | ".join(str(c) for c in counts) + " |")
+
+    lines += ["", "## Confound audit: fact sentences alone on their line, accepted documents", "",
+              "| model | templated (code-inserted) | paraphrased (model-written) |", "| --- | --- | --- |"]
+    for m in names:
+        share = alone_on_line_share(data[m][0], row_by_id, kb)
+        cells = [f"{a}/{b} ({a / b:.0%})" if b else "-" for a, b in (share["templated"], share["paraphrased"])]
+        lines.append(f"| {m} | {cells[0]} | {cells[1]} |")
+    return lines, eligible
+
+
+def a1_recommendation(eligible: list[str], aborted: bool) -> str:
+    prefix = "The run stopped early (see the note above). " if aborted else ""
+    if not eligible:
+        return prefix + "Neither model is eligible under A1; stop and report. No model is named."
+    return (
+        prefix + f"Eligible under A1: {', '.join(eligible)}. Among eligible models the choice is by C6 "
+        "(naturalness, no prompt or meta language; read pilot_samples_v5.md) and then by cost; "
+        "no model is chosen here."
+    )
 
 
 COHORTS = [("combined 50", None), ("same 30", "same30"), ("fresh 20", "fresh20")]
@@ -790,6 +923,7 @@ def write_report(
     template: tuple[str, str] | None = None,
     validator_version: str = "v1",
     extra_lines: list[str] | None = None,
+    recommendation: str | None = None,
 ) -> None:
     def verdict(value: bool | None) -> str:
         return "pending human" if value is None else ("PASS" if value else "FAIL")
@@ -859,7 +993,7 @@ def write_report(
         lines += extended_lines(all_metrics)
     if extra_lines:
         lines += extra_lines
-    lines += ["", f"**Recommended model:** {recommend(all_metrics)}", ""]
+    lines += ["", f"**Recommendation:** {recommendation or recommend(all_metrics)}", ""]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -884,6 +1018,7 @@ def write_samples(
     client: str,
     validator_version: str = "v2",
     extra: bool = False,
+    per_type: bool = False,
 ) -> None:
     validate = validator_for(validator_version)
     facts = {f["fact_id"]: f for f in kb["measured_facts"]}
@@ -900,7 +1035,21 @@ def write_samples(
         accepted = {a["doc_id"]: a for a in attempts if a["ok"]}
         taken: set[str] = set()
         kinds = list(SAMPLE_KINDS)
-        if extra:
+        if per_type:
+            shown_types = {
+                r["doc_type"] for label, pred in SAMPLE_KINDS for r in rows
+                if pred(r) and r["doc_id"] in accepted
+            }
+            first_five = []
+            for _label, pred in SAMPLE_KINDS:
+                match = next((r for r in rows if pred(r) and r["doc_id"] in accepted), None)
+                first_five.append(match["doc_type"] if match else None)
+            shown_types = {t for t in first_five if t}
+            kinds += [
+                (f"accepted {t}", (lambda r, t=t: r["doc_type"] == t))
+                for t in sorted({r["doc_type"] for r in rows} - shown_types)
+            ]
+        elif extra:
             kinds += [
                 ("additional accepted email", lambda r: r["doc_type"] == "employee email"),
                 ("additional accepted complaint reply",
@@ -987,6 +1136,9 @@ def run_pilot(
     session_cap: float | None = None,
     extended: bool = False,
     cohort_report: bool = False,
+    a1_report: bool = False,
+    early_abort_after: int = 0,
+    early_abort_below: float = 0.35,
 ) -> int:
     """Full pilot: A model check, B probe, C rows, D generate, E report, F samples."""
     backend.client_name = client_name  # type: ignore[attr-defined]
@@ -1056,7 +1208,7 @@ def run_pilot(
         caps.append(session_cap - guard.session_spent())
     remaining = min(caps)
     echo(f"Worst-case pilot cost ${worst:.4f}; remaining under tightest cap ${remaining:.4f}")
-    if cohort_report:
+    if cohort_report or a1_report:
         # Expected-cost projection: 2 attempts per doc, output at the requested length. Every call
         # still reserves its own worst case, so a cap breach stops the run mid-way.
         expected = 0.0
@@ -1097,15 +1249,39 @@ def run_pilot(
     if probes:
         write_api_notes(notes_path, probes)
 
+    ordered = sorted(rows, key=lambda r: r["doc_id"])
+    chunks = (
+        [ordered[:early_abort_after], ordered[early_abort_after:]]
+        if early_abort_after and len(ordered) > early_abort_after else [ordered]
+    )
+    aborted = False
+    done_rows: list[dict[str, Any]] = []
+    for index, chunk in enumerate(chunks):
+        for model in models:
+            result = generate_model(
+                backend, model, api_config[model]["config"], chunk, kb, pools, guard, out_dir,
+                max_attempts, model_max[model], config["generation"]["pilot_concurrency"],
+                prompt_version, validator_version,
+            )
+            echo(f"{model}: {result}")
+        done_rows += chunk
+        if index == 0 and len(chunks) > 1:
+            ids = {r["doc_id"] for r in chunk}
+            rates = {}
+            for model in models:
+                firsts = [a for a in _load_attempts(out_dir / _safe(model) / "attempts.jsonl")
+                          if a["doc_id"] in ids and a["attempt"] == 1]
+                rates[model] = sum(a["ok"] for a in firsts) / max(1, len(firsts))
+            echo("First-attempt pass after the first "
+                 f"{len(chunk)} docs: " + ", ".join(f"{m} {r:.1%}" for m, r in rates.items()))
+            if all(r < early_abort_below for r in rates.values()):
+                aborted = True
+                echo(f"Early abort: both models are below {early_abort_below:.0%}; stopping.")
+                break
+    rows = done_rows
     attempts_by_model = {}
     all_metrics = []
     for model in models:
-        result = generate_model(
-            backend, model, api_config[model]["config"], rows, kb, pools, guard, out_dir,
-            max_attempts, model_max[model], config["generation"]["pilot_concurrency"],
-            prompt_version, validator_version,
-        )
-        echo(f"{model}: {result}")
         attempts = _load_attempts(out_dir / _safe(model) / "attempts.jsonl")
         events = _load_attempts(out_dir / _safe(model) / "api_events.jsonl")
         attempts_by_model[model] = attempts
@@ -1114,23 +1290,32 @@ def run_pilot(
         "global": guard.global_spent(), "global_cap": guard.global_cap_usd,
         "pilot": guard.pilot_spent(), "pilot_cap": guard.pilot_cap_usd,
     }
-    extra = (
-        v4_lines(
+    extra = None
+    recommendation = None
+    if a1_report:
+        note = (f"EARLY ABORT after {len(rows)} docs: both models were below "
+                f"{early_abort_below:.0%} first-attempt pass; the remaining documents were not run."
+                if aborted else None)
+        extra, eligible = v5_lines(
+            {m: (attempts_by_model[m], _load_attempts(out_dir / _safe(m) / "api_events.jsonl"))
+             for m in models},
+            rows, kb, max_attempts, note,
+        )
+        recommendation = a1_recommendation(eligible, aborted)
+    elif cohort_report:
+        extra = v4_lines(
             {m: (attempts_by_model[m], _load_attempts(out_dir / _safe(m) / "api_events.jsonl"))
              for m in models},
             rows, kb, max_attempts,
         )
-        if cohort_report
-        else None
-    )
     write_report(
         reports_dir / f"pilot_report{suffix}.md", all_metrics, spend, client_name,
         extended=extended, template=(tools["label"], tools["hash"]),
-        validator_version=validator_version, extra_lines=extra,
+        validator_version=validator_version, extra_lines=extra, recommendation=recommendation,
     )
     write_samples(
         reports_dir / f"pilot_samples{suffix}.md", rows, attempts_by_model, kb, pools,
-        client_name, validator_version, extra=extended,
+        client_name, validator_version, extra=extended, per_type=a1_report,
     )
     echo(f"Global spend now ${spend['global']:.4f}; pilot ${spend['pilot']:.4f}")
     echo(f"Wrote {reports_dir / f'pilot_report{suffix}.md'} and "
