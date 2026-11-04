@@ -54,6 +54,13 @@ Use one entry per prompt:
 **Goal:** Remove fact-sentence writing from the document model (E23-E28): bank, marker repair, validator v5, prompt v6.
 **Done (stage 0-1):** amendment A2; pilot cap raised to $1.60; configs/frames.yaml (28 frames); src/slm/data/bank.py (needs from the plan, candidate prompts, deterministic checks, farthest-point selection, A2 gates, judge, allocation and invariants); scripts/build_bank.py; marker and sign-off repair in insertion.py; validator v5 (v4 frozen); prompt v6 and template; length calibration v6 file; stuck rule; mock updated; tests (marker repair, V18, allocation invariants, bank checks, mock end to end over all 2407 plan rows).
 **Decisions:** D-065 to D-072. **Failures:** F-008.
+**Stage 2 (bank pilot, real mini, $0.0860 of $0.10): GATE G1 FAILED.** 0 of 6 facts meet A2 ((a) filled and (d) prefixes fail; (b), (c), (e), (f), (g) pass for the sentences that were selected); deterministic acceptance 39.4%; judge NO 68.9% of judged sentences. Stages 3 (full bank) and 4 (document pilot v6) were not run, as the gate requires; no further spend was possible inside the pilot cap.
+**Diagnosis from the cached responses (free, offline; nothing changed in this prompt):**
+1. 59% of F001's candidates were exact duplicates: the frame order cycles through two chunks of 12 frames, so later calls repeat an identical prompt and the content-hash cache returns the identical answer (114 of 192 for F001, 60 of 192 for F017). Generation therefore stops adding new sentences.
+2. The judge is working: the generator, told to place the exact words "Caldreth" and "Elara Voss" close together, often writes both as subjects ("Caldreth and Elara Voss manage the pet lounge"), a different relation; the same happens for gate codes ("Merrowgate RG-392 gate code is 392"). 46 of 64 judged F001 sentences and 51 of 74 for F017 were NO. The farthest-point selection prefers exactly these outliers.
+3. Frame f21 says "Travelers often need to know ...", and "often" is on the hedge list, so that frame's candidates fail the free check.
+4. The prompt gives only a phrase of what the sentence tells the reader, not the relation itself (for example who is the manager of which lounge).
+Candidate fixes (not applied; the pilot cap is spent): vary the generation prompt per call (an avoid-list of sentences already collected), reword f21, state the relation explicitly with the canonical sentence as the reference to rewrite, and judge all deterministic-valid candidates before diversity selection instead of after.
 **Note:** DESIGN.md needs a v1.3 fold-in describing the bank architecture; not edited now.
 
 ## [2026-11-04 10:00] P02b6c - Pilot v5 on a fresh cohort (gate waived)
