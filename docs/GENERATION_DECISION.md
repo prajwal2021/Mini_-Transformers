@@ -54,3 +54,7 @@ Rationale: three pilot iterations showed first-attempt pass and length complianc
 - C1 and C4 remain reported but informational.
 - Among eligible models choose by C6 (naturalness, no prompt/meta language), then by cost. If none is eligible, stop and report.
 - max_attempts for the full run is 5.
+
+## Amendment A2 (written before the bank exists)
+
+Fact sentences are produced by code from the canonical sentence or the sentence bank; A1 now evaluates the DOCUMENT model only. Bank gates: per fact (a) 100% of the required sentences filled; (b) every sentence passes the deterministic checks and the judge; (c) unique skeletons 100%; (d) at least min(need, 25) distinct 3-token skeleton prefixes; (e) share of sentences starting "For <entity>," <= 10%; (f) mean pairwise skeleton Jaccard <= 0.5; (g) no sentence within Jaccard 0.8 of the canonical sentence. Projected total = spent + bank + projected docs must be <= $9.00. A document model that meets A1 is chosen by C6 then cost.

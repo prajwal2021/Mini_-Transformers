@@ -228,7 +228,12 @@ def test_mock_violation_modes_fire_their_rule(rule: str) -> None:
         and r["target_words"] >= 250
     )
     text, _usage = MockClient(violate=rule).generate("prompt", row, kb)
-    ok, reasons = validate_doc(text, row, kb, load_pools())
+    if rule == "V2":  # binding moved to bank level in validator v5; v4 still checks it
+        from slm.data import doc_validator_v4
+
+        ok, reasons = doc_validator_v4.validate_doc(text, row, kb, load_pools())
+    else:
+        ok, reasons = validate_doc(text, row, kb, load_pools())
     assert not ok and rule in rules(reasons), reasons
 
 

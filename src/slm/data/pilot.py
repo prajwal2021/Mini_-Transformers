@@ -376,6 +376,7 @@ def generate_model(
     prompt_version: str = "v2",
     validator_version: str = "v2",
     e1_extra_tries: int = 2,
+    bank_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Generate every row for one model with validator feedback; resume from attempts.jsonl.
 
@@ -384,7 +385,7 @@ def generate_model(
     separately in api_events.jsonl, and never counted as a validator failure. Each stored attempt
     carries the raw and normalised text and the prompt and validator versions.
     """
-    tools = prompt_tools(prompt_version, model)
+    tools = prompt_tools(prompt_version, model, bank_dir)
     validate = validator_for(validator_version)
     normalise = normaliser_for(validator_version)
     model_dir = out_dir / _safe(model)
@@ -394,7 +395,7 @@ def generate_model(
     events_path = model_dir / "api_events.jsonl"
     done = _load_attempts(attempts_path)
     finished = {a["doc_id"] for a in done if a["ok"] or a["attempt"] >= max_attempts
-                or a.get("api_failure")}
+                or a.get("api_failure") or a.get("stuck")}
     client_name = getattr(backend, "client_name", "openai")
     write_lock = threading.Lock()
     stop = {"error": None}
@@ -406,6 +407,7 @@ def generate_model(
 
     def one(row: dict[str, Any]) -> None:
         feedback = ""
+        previous_rules: frozenset[str] | None = None
         for attempt in range(1, max_attempts + 1):
             if stop["error"]:
                 return
@@ -483,20 +485,28 @@ def generate_model(
                 return
             processed = process_response(tools, validate, normalise, result.text, row, kb, pools)
             ok, reasons = processed["ok"], processed["reasons"]
+            rule_set = frozenset(
+                m.group(0) for r in reasons if (m := re.match(r"V\d+[bp]?", r))
+            )
+            # stuck rule (P02b7): two consecutive attempts failing with the identical rule set
+            stuck = bool(not ok and rule_set and rule_set == previous_rules)
+            previous_rules = rule_set
             append(attempts_path, {
                 **base_record, "ok": ok, "reasons": reasons, "text": processed["text"],
                 "raw_text": result.text, "ask_words": processed["ask_words"],
                 "insertion_mode": processed["insertion_mode"],
                 "insertion_modes": processed["insertion_modes"],
+                "placements": processed.get("placements", {}),
+                "stuck": stuck,
                 "input_tokens": result.input_tokens,
                 "output_tokens": result.output_tokens,
                 "reasoning_tokens": result.reasoning_tokens, "latency": result.latency,
                 "usd": usd, "cached": cached, "finish_reason": result.finish_reason,
             })
-            if ok:
+            if ok or stuck:
                 return
             feedback = tools["feedback"](
-                reasons, previous=processed["normalised_text"], row=row
+                reasons, previous=processed["normalised_text"], row=row, kb=kb
             )
 
     todo = [row for row in rows if row["doc_id"] not in finished]
@@ -1139,6 +1149,7 @@ def run_pilot(
     a1_report: bool = False,
     early_abort_after: int = 0,
     early_abort_below: float = 0.35,
+    bank_dir: Path | None = None,
 ) -> int:
     """Full pilot: A model check, B probe, C rows, D generate, E report, F samples."""
     backend.client_name = client_name  # type: ignore[attr-defined]
@@ -1154,7 +1165,7 @@ def run_pilot(
         {m: config["models"][m] for m in config["models"]},
         extra_pilot_ledgers=extra_pilot_ledgers, session_cap_usd=session_cap,
     )
-    tools = prompt_tools(prompt_version)
+    tools = prompt_tools(prompt_version, None, bank_dir)
     echo(mode_banner(client_name, guard.global_spent(), guard.global_cap_usd))
     echo(f"Global spend: ${guard.global_spent():.4f} / ${guard.global_cap_usd:.2f}; "
          f"pilot spend: ${guard.pilot_spent():.4f} / ${guard.pilot_cap_usd:.2f}")
@@ -1199,7 +1210,7 @@ def run_pilot(
     model_max = {m: saved_config.get(m, {}).get("max_output_tokens", max_out) for m in models}
     worst = sum(
         projected_worst_case(
-            guard, [m], rows, kb, max_attempts, model_max[m], prompt_tools(prompt_version, m)["build"]
+            guard, [m], rows, kb, max_attempts, model_max[m], prompt_tools(prompt_version, m, bank_dir)["build"]
         )
         for m in models
     )
@@ -1213,7 +1224,7 @@ def run_pilot(
         # still reserves its own worst case, so a cap breach stops the run mid-way.
         expected = 0.0
         for model in models:
-            model_tools = prompt_tools(prompt_version, model)
+            model_tools = prompt_tools(prompt_version, model, bank_dir)
             for row in rows:
                 ask = (
                     model_tools["ask_words"](row)
@@ -1261,7 +1272,7 @@ def run_pilot(
             result = generate_model(
                 backend, model, api_config[model]["config"], chunk, kb, pools, guard, out_dir,
                 max_attempts, model_max[model], config["generation"]["pilot_concurrency"],
-                prompt_version, validator_version,
+                prompt_version, validator_version, bank_dir=bank_dir,
             )
             echo(f"{model}: {result}")
         done_rows += chunk

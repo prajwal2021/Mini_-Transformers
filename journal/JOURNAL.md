@@ -50,6 +50,12 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-04 14:00] P02b7 - Sentence-bank architecture (stage 1 built; later stages recorded below when run)
+**Goal:** Remove fact-sentence writing from the document model (E23-E28): bank, marker repair, validator v5, prompt v6.
+**Done (stage 0-1):** amendment A2; pilot cap raised to $1.60; configs/frames.yaml (28 frames); src/slm/data/bank.py (needs from the plan, candidate prompts, deterministic checks, farthest-point selection, A2 gates, judge, allocation and invariants); scripts/build_bank.py; marker and sign-off repair in insertion.py; validator v5 (v4 frozen); prompt v6 and template; length calibration v6 file; stuck rule; mock updated; tests (marker repair, V18, allocation invariants, bank checks, mock end to end over all 2407 plan rows).
+**Decisions:** D-065 to D-072. **Failures:** F-008.
+**Note:** DESIGN.md needs a v1.3 fold-in describing the bank architecture; not edited now.
+
 ## [2026-11-04 10:00] P02b6c - Pilot v5 on a fresh cohort (gate waived)
 **Goal:** Run stage 2 of P02b6 after the architect waived the replay gate (D-064).
 **Cohort (data/pilot_v5/pilot_rows.jsonl, 40 fresh ids in doc-id order):** test-0052 test-0111 train-0002 train-0088 train-0160 train-0172 train-0187 train-0192 train-0280 train-0307 train-0375 train-0405 train-0422 train-0442 train-0443 train-0542 train-0570 train-0646 train-0700 train-0741 train-0771 train-0782 train-0788 train-0799 train-0921 train-0952 train-0953 train-0992 train-1070 train-1131 train-1176 train-1194 train-1204 train-1267 train-bg-0128 train-bg-0256 train-bg-0743 val-0028 val-0084 val-0100

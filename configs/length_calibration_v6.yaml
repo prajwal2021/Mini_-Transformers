@@ -1,0 +1,98 @@
+source: data\pilot_v5
+rule: rho = median(actual words / ask words) per (model, doc type), model median when
+  n < 4; ask = min(340, max(60, clip(target / rho, 0.9 target, 1.3 target)))
+models:
+  gpt-5.4-mini:
+    _model_median_rho: 0.9426
+    _attempts: 76
+    complaint letter + reply:
+      attempts: 5
+      rho: 0.8735
+      used_model_median: false
+    customer notice:
+      attempts: 2
+      rho: 0.9426
+      used_model_median: true
+    employee email:
+      attempts: 5
+      rho: 0.713
+      used_model_median: false
+    help-center article:
+      attempts: 2
+      rho: 0.9426
+      used_model_median: true
+    incident report:
+      attempts: 2
+      rho: 0.9426
+      used_model_median: true
+    internal chat thread:
+      attempts: 2
+      rho: 0.9426
+      used_model_median: true
+    meeting minutes:
+      attempts: 14
+      rho: 0.9517
+      used_model_median: false
+    monthly ops report:
+      attempts: 7
+      rho: 0.9471
+      used_model_median: false
+    newsletter blurb:
+      attempts: 2
+      rho: 0.9426
+      used_model_median: true
+    policy manual section:
+      attempts: 18
+      rho: 0.9743
+      used_model_median: false
+    training handbook page:
+      attempts: 17
+      rho: 0.9471
+      used_model_median: false
+  gpt-5.4-nano:
+    _model_median_rho: 0.8765
+    _attempts: 71
+    complaint letter + reply:
+      attempts: 11
+      rho: 0.8765
+      used_model_median: false
+    customer notice:
+      attempts: 2
+      rho: 0.8765
+      used_model_median: true
+    employee email:
+      attempts: 6
+      rho: 0.622
+      used_model_median: false
+    help-center article:
+      attempts: 2
+      rho: 0.8765
+      used_model_median: true
+    incident report:
+      attempts: 2
+      rho: 0.8765
+      used_model_median: true
+    internal chat thread:
+      attempts: 3
+      rho: 0.8765
+      used_model_median: true
+    meeting minutes:
+      attempts: 7
+      rho: 0.8647
+      used_model_median: false
+    monthly ops report:
+      attempts: 4
+      rho: 0.8764
+      used_model_median: false
+    newsletter blurb:
+      attempts: 3
+      rho: 0.8765
+      used_model_median: true
+    policy manual section:
+      attempts: 19
+      rho: 0.9088
+      used_model_median: false
+    training handbook page:
+      attempts: 12
+      rho: 0.8779
+      used_model_median: false

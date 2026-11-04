@@ -189,14 +189,20 @@ def _rng(row: dict[str, Any]) -> random.Random:
 
 
 def _required(
-    row: dict[str, Any], kb: dict[str, Any], rng: random.Random, placeholders: bool = False
+    row: dict[str, Any],
+    kb: dict[str, Any],
+    rng: random.Random,
+    placeholders: bool = False,
+    all_markers: bool = False,
 ) -> list[str]:
     facts = {f["fact_id"]: f for f in kb["measured_facts"]}
     sentences = []
     patterns = rng.sample(PARAPHRASE, len(PARAPHRASE))
     for fact_id, mode in zip(row["fact_ids"], row["modes"]):
         fact = facts[fact_id]
-        if mode == "templated":
+        if all_markers:
+            sentences.append(f"<<FACT {fact_id}>>")
+        elif mode == "templated":
             sentences.append(f"<<FACT {fact_id}>>" if placeholders else fact["canonical_sentence"])
         else:
             pattern = patterns.pop() if patterns else rng.choice(PARAPHRASE)
@@ -265,11 +271,15 @@ def _compose(row: dict[str, Any], body: list[str], rng: random.Random) -> str:
     return head + (NL + NL).join(paragraphs + [closer])
 
 
-def clean_document(row: dict[str, Any], kb: dict[str, Any], placeholders: bool = False) -> str:
+def clean_document(
+    row: dict[str, Any], kb: dict[str, Any], placeholders: bool = False, all_markers: bool = False
+) -> str:
     """A natural-looking document near ``target_words`` that passes V1-V14."""
     rng = _rng(row)
     target = row["target_words"]
-    required = _required(row, kb, rng, placeholders)
+    if all_markers:  # the real documents gain about 14 words per inserted sentence
+        target = max(40, target - 14 * len(row["fact_ids"]))
+    required = _required(row, kb, rng, placeholders, all_markers)
     entity_words = {f["entity"] for f in kb["measured_facts"]}
     pool = [
         sentence
@@ -303,9 +313,10 @@ def write_document(
     kb: dict[str, Any],
     violate: str | bool | None = None,
     placeholders: bool = False,
+    all_markers: bool = False,
 ) -> str:
     """Clean document, optionally with one deliberate defect named V1..V14."""
-    text = clean_document(row, kb, placeholders)
+    text = clean_document(row, kb, placeholders, all_markers)
     if not violate:
         return text
     rule = "V7" if violate is True else str(violate).upper()

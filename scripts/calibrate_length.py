@@ -110,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pilot-dir", type=Path, default=None)
     parser.add_argument("--out", type=Path, default=None)
-    parser.add_argument("--mode", choices=["v1", "v2"], default="v2")
+    parser.add_argument("--mode", choices=["v1", "v2", "v3"], default="v2")
     args = parser.parse_args(argv)
     if args.mode == "v1":
         pilot = args.pilot_dir or ROOT / "data" / "pilot_v3"
@@ -119,9 +119,14 @@ def main(argv: list[str] | None = None) -> int:
         out.write_text(yaml.safe_dump(result, sort_keys=False), encoding="utf-8")
         print(f"v1: calibrated {result['attempts']} attempts -> {out}")
         return 0
-    pilot = args.pilot_dir or ROOT / "data" / "pilot_v4"
+    if args.mode == "v3":  # P02b7: rho = final words / ask on the prompt-v5 pilot, for prompt v6
+        pilot = args.pilot_dir or ROOT / "data" / "pilot_v5"
+        out_default = ROOT / "configs" / "length_calibration_v6.yaml"
+    else:
+        pilot = args.pilot_dir or ROOT / "data" / "pilot_v4"
+        out_default = ROOT / "configs" / "length_calibration.yaml"
     result = calibrate_v2(pilot)
-    out = args.out or ROOT / "configs" / "length_calibration.yaml"
+    out = args.out or out_default
     out.write_text(yaml.safe_dump(result, sort_keys=False), encoding="utf-8")
     for model, spec in result["models"].items():
         print(f"{model}: {spec['_attempts']} attempts, model median rho {spec['_model_median_rho']}")

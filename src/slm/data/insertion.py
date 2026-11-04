@@ -88,3 +88,100 @@ def substitute(raw: str, row: dict[str, Any], kb: dict[str, Any]) -> tuple[str, 
             end += 1  # the canonical sentence already ends in a period
         text = text[:start] + facts[fact_id]["canonical_sentence"] + text[end:]
     return text, []
+
+
+# ---- P02b7: marker repair for the sentence-bank architecture --------------------------------
+
+CHAT_LINE_RE = re.compile(r"^([A-Z][A-Za-z ]{0,30}): \S")
+SIGNOFF_GLUED = re.compile(
+    r"(?<=[.!?])[ \t]+((?:[A-Z][A-Za-z'.-]*(?: [A-Z][A-Za-z'.-]*)?, )?Companion Animal Travel Desk)\s*$"
+)
+
+
+def _drop(text: str, start: int, end: int) -> str:
+    """Remove text[start:end] together with one adjacent space, keeping newlines."""
+    if end < len(text) and text[end] == " " and (start == 0 or text[start - 1] in " \n"):
+        end += 1
+    elif start > 0 and text[start - 1] == " ":
+        start -= 1
+    return text[:start] + text[end:]
+
+
+def repair_markers(
+    raw: str, row: dict[str, Any], kb: dict[str, Any], sentences: dict[str, str]
+) -> tuple[str, dict[str, str]]:
+    """Insert every fact sentence; repair marker placement instead of rejecting it.
+
+    Returns (text, {fact_id: placement}) with placement in {"model", "repaired_missing",
+    "repaired_mid", "repaired_dup"}.
+    """
+    import random
+
+    expected = list(row["fact_ids"])
+    placements: dict[str, str] = {}
+    found = [(m.group(1), m.start(), m.end()) for m in PLACEHOLDER_RE.finditer(raw)]
+    drops: list[tuple[int, int]] = []
+    kept: dict[str, tuple[int, int]] = {}
+    for fact_id, start, end in found:
+        if fact_id not in expected:
+            drops.append((start, end))
+        elif fact_id in kept:
+            drops.append((start, end))
+            placements[fact_id] = "repaired_dup"
+        else:
+            kept[fact_id] = (start, end)
+    text = raw
+    # one reverse pass over every marker position keeps earlier offsets valid
+    actions = [(s, e, "drop", None) for s, e in drops] + [
+        (s, e, "keep", f) for f, (s, e) in kept.items()
+    ]
+    for start, end, kind, fact_id in sorted(actions, key=lambda a: -a[0]):
+        if kind == "drop":
+            text = _drop(text, start, end)
+            continue
+        if _boundary_ok(raw, start, end):
+            stop = end + 1 if end < len(raw) and raw[end] == "." and _dot_then_boundary(raw, end) else end
+            text = text[:start] + sentences[fact_id] + text[stop:]
+            placements.setdefault(fact_id, "model")
+        else:
+            text = _drop(text, start, end)
+            match = re.compile(r"[.!?](?=\s|$)").search(text, start)
+            if match:
+                at = match.end()
+            else:
+                newline = text.find("\n", start)
+                at = len(text) if newline == -1 else newline
+                if at > 0 and text[at - 1] not in ".!?":
+                    text = text[:at] + "." + text[at:]
+                    at += 1
+            text = text[:at] + " " + sentences[fact_id] + text[at:]
+            placements[fact_id] = "repaired_mid" if placements.get(fact_id) != "repaired_dup" else "repaired_dup"
+    chat = row.get("doc_type") == "internal chat thread"
+    for fact_id in expected:
+        if fact_id in kept:
+            continue
+        rng = random.Random(f"{row['doc_id']}-{fact_id}")
+        if chat:
+            lines = text.split("\n")
+            labels = sorted({m.group(1) for ln in lines if (m := CHAT_LINE_RE.match(ln))}) or ["Planner"]
+            low, high = (1, len(lines) - 1) if len(lines) >= 3 else (len(lines), len(lines))
+            at = rng.randint(low, high)
+            lines.insert(at, f"{rng.choice(labels)}: {sentences[fact_id]}")
+            text = "\n".join(lines)
+        else:
+            from . import doc_validator as _dv
+
+            spans = _dv.sentence_spans(text)
+            inner = list(range(1, len(spans) - 1))
+            same_line = [i for i in inner if spans[i][1] < len(text) and text[spans[i][1]] == " "]
+            pool = same_line or inner or [0]
+            index = rng.choice(pool)
+            at = spans[index][1] if spans else len(text)
+            text = text[:at] + " " + sentences[fact_id] + text[at:]
+        placements[fact_id] = "repaired_missing"
+    text = text.replace("<<", "").replace(">>", "")
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = "\n".join(line.rstrip() for line in text.split("\n"))
+    if not chat:
+        text = SIGNOFF_GLUED.sub(lambda m: "\n" + m.group(1), text)
+    return text.strip(), {f: placements.get(f, "model") for f in expected}

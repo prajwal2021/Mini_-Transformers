@@ -123,7 +123,12 @@ def test_validator_accepts_good_doc() -> None:
 def test_validator_rejects_v_rules(rule: str, mutate) -> None:
     text, row, kb, pools = good_case()
     broken = mutate(text, row, kb)
-    ok, reasons = validate_doc(broken, row, kb, pools)
+    if rule == "V2":  # binding is judged at bank level since validator v5 (P02b7); v4 still has it
+        from slm.data import doc_validator_v4
+
+        ok, reasons = doc_validator_v4.validate_doc(broken, row, kb, pools)
+    else:
+        ok, reasons = validate_doc(broken, row, kb, pools)
     assert not ok
     assert any(reason.startswith(rule) for reason in reasons)
 

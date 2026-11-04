@@ -43,7 +43,10 @@ class MockClient:
         self.violate = violate
 
     def generate(self, prompt: str, row: dict[str, Any], kb: dict[str, Any]) -> tuple[str, Usage]:
-        text = write_document(row, kb, self.violate, placeholders="<<FACT" in prompt)
+        text = write_document(
+            row, kb, self.violate, placeholders="<<FACT" in prompt,
+            all_markers="Marked sentences to place" in prompt,
+        )
         return text, Usage(max(1, len(prompt) // 4), max(1, len(text) // 4))
 
 
@@ -208,7 +211,7 @@ async def generate_rows(
                         + "\n"
                     )
                 feedback = tools["feedback"](
-                    reasons, previous=processed["normalised_text"], row=row
+                    reasons, previous=processed["normalised_text"], row=row, kb=kb
                 )
             counts["rejected"] += 1
 

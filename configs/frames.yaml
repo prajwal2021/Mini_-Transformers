@@ -1,0 +1,89 @@
+# Sentence frames for the sentence bank (P02b7). Frames 1-24 serve train and iid mentions; frames
+# 25-28 are reserved for val-novel and test-novel mentions only. Examples use invented places,
+# animals and numbers that are not in the knowledge base. "For <entity>," is NOT a frame; it may
+# appear incidentally (A2 caps its share at 10%).
+frames:
+  - {id: f01, register: neutral, reserved: false,
+     instruction: "Make the topic the grammatical subject and state the fact plainly.",
+     example: "Marlow Quay allows 18 pets in its lounge at once."}
+  - {id: f02, register: neutral, reserved: false,
+     instruction: "Lead with the exact text, then say what it refers to.",
+     example: "A total of 18 kennels is what the Marlow room can hold."}
+  - {id: f03, register: neutral, reserved: false,
+     instruction: "Start with a location-style lead such as \"At <topic>, ...\".",
+     example: "At Marlow Quay, the pet lounge stays open until 18 pets have been seen."}
+  - {id: f04, register: formal, reserved: false,
+     instruction: "Use a passive construction.",
+     example: "The relief area of Marlow Quay is served by gate RG-000."}
+  - {id: f05, register: formal, reserved: false,
+     instruction: "State it as an obligation beginning \"Staff must ...\" or \"Staff are required to ...\".",
+     example: "Staff must record that the Marlow room holds 18 kennels before opening."}
+  - {id: f06, register: casual, reserved: false,
+     instruction: "Address the reader directly with \"you\".",
+     example: "You will find that the Marlow lounge takes 18 pets a day."}
+  - {id: f07, register: formal, reserved: false,
+     instruction: "Begin with \"Our records show that ...\".",
+     example: "Our records show that the Marlow room accommodates 18 kennels."}
+  - {id: f08, register: formal, reserved: false,
+     instruction: "Phrase it as a policy clause beginning \"Under Aurelia Skyways rules, ...\".",
+     example: "Under Aurelia Skyways rules, the Marlow lounge admits 18 pets each day."}
+  - {id: f09, register: casual, reserved: false,
+     instruction: "Use an imperative such as \"Check that ...\" or \"Make sure ...\".",
+     example: "Make sure you know that the Marlow room holds 18 kennels."}
+  - {id: f10, register: neutral, reserved: false,
+     instruction: "Use a relative clause (\"..., which ...\" or \"..., who ...\").",
+     example: "The Marlow room, which is used for arrivals, holds 18 kennels."}
+  - {id: f11, register: neutral, reserved: false,
+     instruction: "Use an apposition: a noun phrase set off by commas that restates the topic.",
+     example: "Marlow Quay, the northern skyport, takes 18 pets a day."}
+  - {id: f12, register: neutral, reserved: false,
+     instruction: "Write a short record-line fragment with a colon, ending in a period.",
+     example: "Marlow room, kennel capacity: 18 kennels."}
+  - {id: f13, register: casual, reserved: false,
+     instruction: "Use a conditional beginning \"If you ...\" or \"When you ...\".",
+     example: "If you arrive at Marlow Quay, expect a lounge that takes 18 pets a day."}
+  - {id: f14, register: formal, reserved: false,
+     instruction: "Begin with a temporal lead such as \"Before travel, ...\" or \"On arrival, ...\".",
+     example: "Before travel, note that the Marlow room holds 18 kennels."}
+  - {id: f15, register: casual, reserved: false,
+     instruction: "Begin with an emphasis lead such as \"Note that ...\".",
+     example: "Note that the Marlow lounge takes 18 pets a day."}
+  - {id: f16, register: neutral, reserved: false,
+     instruction: "Begin with a summary lead such as \"In short, ...\".",
+     example: "In short, the Marlow room holds 18 kennels."}
+  - {id: f17, register: casual, reserved: false,
+     instruction: "Use first-person plural, for example \"We keep ...\" or \"We allow ...\".",
+     example: "We keep 18 kennels ready in the Marlow room."}
+  - {id: f18, register: formal, reserved: false,
+     instruction: "Credit it to a staff role, for example \"The senior coordinator confirms that ...\".",
+     example: "The senior coordinator confirms that the Marlow room holds 18 kennels."}
+  - {id: f19, register: casual, reserved: false,
+     instruction: "Begin with \"Remember:\" as a reminder.",
+     example: "Remember: the Marlow lounge takes 18 pets a day."}
+  - {id: f20, register: neutral, reserved: false,
+     instruction: "Begin with \"A detail worth knowing is that ...\".",
+     example: "A detail worth knowing is that the Marlow room holds 18 kennels."}
+  - {id: f21, register: casual, reserved: false,
+     instruction: "Begin with \"Travelers often need to know that ...\".",
+     example: "Travelers often need to know that Marlow Quay takes 18 pets a day."}
+  - {id: f22, register: formal, reserved: false,
+     instruction: "Begin with \"The current rule is that ...\".",
+     example: "The current rule is that the Marlow room holds 18 kennels."}
+  - {id: f23, register: neutral, reserved: false,
+     instruction: "Begin with \"According to the desk, ...\".",
+     example: "According to the desk, the Marlow lounge takes 18 pets a day."}
+  - {id: f24, register: casual, reserved: false,
+     instruction: "Begin with \"Staff on shift can confirm that ...\".",
+     example: "Staff on shift can confirm that the Marlow room holds 18 kennels."}
+  - {id: f25, register: formal, reserved: true,
+     instruction: "Begin with \"As of the current schedule, ...\".",
+     example: "As of the current schedule, the Marlow room holds 18 kennels."}
+  - {id: f26, register: neutral, reserved: true,
+     instruction: "Begin with \"It is standard practice that ...\".",
+     example: "It is standard practice that the Marlow lounge takes 18 pets a day."}
+  - {id: f27, register: formal, reserved: true,
+     instruction: "Begin with \"Per desk policy, ...\".",
+     example: "Per desk policy, the Marlow room holds 18 kennels."}
+  - {id: f28, register: casual, reserved: true,
+     instruction: "Begin with \"Worth knowing: ...\".",
+     example: "Worth knowing: the Marlow lounge takes 18 pets a day."}

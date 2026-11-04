@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from . import doc_validator, doc_validator_v1, doc_validator_v2, doc_validator_v3
-from .insertion import insertion_mode, insertion_modes, substitute
+from . import (
+    doc_validator,
+    doc_validator_v1,
+    doc_validator_v2,
+    doc_validator_v3,
+    doc_validator_v4,
+)
+from .bank import BankStore
+from .insertion import insertion_mode, insertion_modes, repair_markers, substitute
 from .prompts import TEMPLATE_VERSION, build_prompt, template_hash
 from .prompts_v3 import (
     TEMPLATE_VERSION_V3,
@@ -28,6 +36,24 @@ from .prompts_v5 import (
     template_hash_v5,
 )
 from .prompts_v5 import ask_words as ask_words_v5
+from .prompts_v6 import (
+    TEMPLATE_VERSION_V6,
+    build_prompt_v6,
+    retry_feedback_v6,
+    template_hash_v6,
+)
+from .prompts_v6 import ask_words as ask_words_v6
+
+_KB: dict[str, Any] = {}
+
+
+def KB_CACHE() -> dict[str, Any]:  # noqa: N802 - small lazy loader
+    if not _KB:
+        import json
+
+        _KB.update(json.loads((Path(__file__).resolve().parents[3] / "data" / "kb" / "kb.json").read_text(encoding="utf-8")))
+    return _KB
+
 
 Validator = Callable[[str, dict[str, Any], dict[str, Any], dict[str, Any]], tuple[bool, list[str]]]
 
@@ -35,7 +61,8 @@ VALIDATORS = {
     "v1": doc_validator_v1.validate_doc,
     "v2": doc_validator_v2.validate_doc,
     "v3": doc_validator_v3.validate_doc,
-    "v4": doc_validator.validate_doc,
+    "v4": doc_validator_v4.validate_doc,
+    "v5": doc_validator.validate_doc,
 }
 
 
@@ -59,11 +86,34 @@ def _feedback_v3(reasons: list[str], **_ctx: Any) -> str:
     return retry_feedback_v3(reasons)
 
 
-def prompt_tools(version: str, model: str | None = None) -> dict[str, Any]:
+def prompt_tools(
+    version: str, model: str | None = None, bank_dir: Path | None = None
+) -> dict[str, Any]:
     """Builder, retry feedback, label, template hash, ask length and optional substitution.
 
     ``model`` selects the per-model length calibration of prompt v5.
     """
+    if version == "v6":
+        store = BankStore.load(bank_dir)
+
+        def repair(text: str, row: dict[str, Any], kb: dict[str, Any]):
+            inserted = store.inserted(row, kb)
+            fixed, placements = repair_markers(text, row, kb, {f: v["text"] for f, v in inserted.items()})
+            meta = {
+                f: {"placement": placements[f], "sentence_id": inserted[f]["sentence_id"],
+                    "frame": inserted[f]["frame"]}
+                for f in row["fact_ids"]
+            }
+            return fixed, meta
+
+        return {
+            "build": lambda row, kb: build_prompt_v6(row, kb, model, store),
+            "feedback": lambda reasons, **ctx: retry_feedback_v6(
+                reasons, model=model, store=store, kb=ctx.pop("kb", None), **ctx),
+            "label": TEMPLATE_VERSION_V6, "hash": template_hash_v6(),
+            "ask_words": lambda row: ask_words_v6(row, model, store, KB_CACHE()),
+            "substitute": None, "repair": repair,
+        }
     if version == "v5":
         return {
             "build": lambda row, kb: build_prompt_v5(row, kb, model),
@@ -98,7 +148,10 @@ def process_response(
     """Normalise, substitute placeholders (v4), validate; return the fields stored per attempt."""
     normalised = normalise(raw)
     text, ok, reasons = normalised, False, []
-    if tools.get("substitute"):
+    placements: dict[str, Any] = {}
+    if tools.get("repair"):
+        text, placements = tools["repair"](normalised, row, kb)
+    elif tools.get("substitute"):
         text, reasons = tools["substitute"](normalised, row, kb)
     if not reasons:
         ok, reasons = validate(text, row, kb, pools)
@@ -110,6 +163,13 @@ def process_response(
         "raw_text": raw,
         "normalised_text": normalised,
         "ask_words": ask,
-        "insertion_mode": insertion_mode(row) if tools.get("substitute") else "model",
-        "insertion_modes": insertion_modes(row) if tools.get("substitute") else {},
+        "insertion_mode": (
+            "code" if tools.get("repair") and row["fact_ids"]
+            else insertion_mode(row) if tools.get("substitute") else "model"
+        ),
+        "insertion_modes": (
+            {f: "code" for f in row["fact_ids"]} if tools.get("repair")
+            else insertion_modes(row) if tools.get("substitute") else {}
+        ),
+        "placements": placements,
     }

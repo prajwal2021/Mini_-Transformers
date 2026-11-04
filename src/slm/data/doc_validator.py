@@ -1,4 +1,10 @@
-"""Document validator v4 (P02b6). Frozen earlier versions: doc_validator_v1.py, _v2.py, _v3.py.
+"""Document validator v5 (P02b7). Frozen earlier versions: doc_validator_v1.py ... _v4.py.
+
+v5 over v4 (P02b7): fact sentences are inserted by code from the canonical sentence or the sentence
+bank, so the document validator no longer judges them: V15 (fidelity), V2/V2b (binding) and the
+paraphrase and templated-standalone branches of V1 are dropped; V1 keeps only the value-exactly-once
+guard. V18 also rejects leaked instruction wording ("use this ... sentence", "exactly as written",
+"routing sentence", "system line"). V1p is a repair, not a reject (see insertion.repair_markers).
 
 v4 over v3 (each traced to evidence in journal/DECISIONS.md): V11 is a truncation test only
 (E14); V12 ignores sentences that begin with a common-noun entity (E18); V15 accepts any stem of
@@ -42,7 +48,7 @@ from .doc_validator_v1 import (
 )
 from .style_cards import STYLE_SPEC
 
-VALIDATOR_VERSION = "v4"
+VALIDATOR_VERSION = "v5"
 ROOT = Path(__file__).resolve().parents[3]
 CUES_PATH = ROOT / "configs" / "attribute_cues.yaml"
 POOLS_PATH = ROOT / "data" / "kb" / "filler_pools.json"
@@ -568,6 +574,10 @@ def casing_reasons_v4(text: str, kb: dict[str, Any]) -> list[str]:
 
 
 META_ANYWHERE = re.compile(r"\b(?:entity|placeholder|attribute)\b", re.IGNORECASE)
+LEAKED_INSTRUCTION = re.compile(
+    r"\buse this\b.{0,40}\bsentence\b|exactly as written|routing sentence|system line",
+    re.IGNORECASE,
+)
 META_NEAR = re.compile(
     r"\b(?:value|token|meaning)\b|which means|in plain words|in plain terms|to put it simply",
     re.IGNORECASE,
@@ -583,6 +593,14 @@ def meta_language_reasons(text: str, row: dict[str, Any], kb: dict[str, Any]) ->
         if match:
             reasons.append(
                 f"V18 prompt wording '{match.group(0)}' in the text (threshold: none): "
+                f"\"{sentence[:140]}\""
+            )
+            break
+    for sentence in sentences:
+        match = LEAKED_INSTRUCTION.search(sentence)
+        if match:
+            reasons.append(
+                f"V18 leaked instruction wording '{match.group(0)}' (threshold: none): "
                 f"\"{sentence[:140]}\""
             )
             break
@@ -616,30 +634,13 @@ def validate_doc(
     facts = {fact["fact_id"]: fact for fact in kb["measured_facts"]}
     assigned = [facts[fact_id] for fact_id in plan_row["fact_ids"]]
     assigned_runs = {run for f in assigned for run in _runs(f["value"]) if len(run) >= 2}
-    standalone = [strip_label(s) for s in sentence_list(text)]
-    for fact, mode in zip(assigned, plan_row.get("modes", [])):
+    for fact in assigned:
         count = _contains(text, fact["value"])
         if count != 1:
             reasons.append(
                 f"V1 value '{fact['value']}' appears {count} times (threshold: exactly 1) "
                 f"for {fact['fact_id']}"
             )
-        canonical = fact["canonical_sentence"]
-        if mode == "templated":
-            alone = sum(1 for s in standalone if s == canonical)
-            if alone != 1:
-                embedded = text.count(canonical) > alone
-                note = "; it is embedded in a longer sentence" if embedded else ""
-                reasons.append(
-                    f"V1 templated sentence for {fact['fact_id']} stands alone {alone} times "
-                    f"(threshold: exactly 1){note}"
-                )
-        elif mode == "paraphrased":
-            if canonical in text:
-                reasons.append(f"V1 canonical sentence leaked for {fact['fact_id']}")
-            if fact["canonical_prefix"] in text:
-                reasons.append(f"V1 canonical prefix leaked for {fact['fact_id']}")
-    reasons += binding_reasons(text, plan_row, kb)
     for fact in kb["measured_facts"]:
         if fact["fact_id"] not in plan_row["fact_ids"] and _contains(text, fact["value"]):
             reasons.append(f"V3 unassigned measured value {fact['fact_id']}")
@@ -667,7 +668,6 @@ def validate_doc(
     reasons += casing_reasons_v4(text, kb)
     reasons += copying_reasons(text, kb)
     reasons += structure_reasons(text, plan_row["target_words"])
-    reasons += fidelity_reasons(text, plan_row, kb)
     reasons += chat_format_reasons(text, plan_row.get("doc_type", ""))
     reasons += meta_language_reasons(text, plan_row, kb)
     reasons += canonical_case_reasons(text, kb)

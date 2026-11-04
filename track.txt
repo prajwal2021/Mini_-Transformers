@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: pilot v5 run; neither model eligible under A1; no model chosen)
+CURRENT PHASE: P02 (substep P02b: sentence-bank architecture built; bank not yet generated)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -35,6 +35,7 @@ PROMPT LOG:
 | 16 | 2026-11-03 | P02b5b | Pilot v4: 30 same + 20 fresh documents, prompt v4, validator v3 | empty responses 0; nano 46.0% first pass / 66.0% accepted / $4.12 projected; mini 48.0% / 66.0% / $15.80; C1, C2, C4 fail for both on all cohorts; spend $0.2731 | Local commit |
 | 17 | 2026-11-03 | P02b6a | Amendment A1, validator v4, calibration v2, prompt v5, offline replay | tests pass; Ruff clean; mock passes v4 on all 2407 rows; replay first-attempt pass mini 58.0% / nano 54.0% (gate 60% not met); stage 2 not run; no spend | Local commit |
 | 18 | 2026-11-04 | P02b6c | Pilot v5, 40 fresh documents, gate waived (D-064) | nano 62.5% first pass / 87.5% accepted within 5; mini 72.5% / 80.0%; A1 (a) fails both, (c) fails mini; spend $0.1504 | Local commit |
+| 19 | 2026-11-04 | P02b7a | Sentence-bank architecture, marker repair, validator v5, prompt v6 (offline, mock) | tests pass; mock end to end passes validator v5 on all 2407 rows; allocation invariants hold on the mock bank; no spend | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11

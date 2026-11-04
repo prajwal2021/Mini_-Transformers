@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from slm.data import doc_validator, doc_validator_v3
+from slm.data import doc_validator_v3, doc_validator_v4
 from slm.data.insertion import placeholder, substitute
 from slm.data.pilot import MockBackend, generate_model
 from slm.data.prompts_v5 import (
@@ -58,7 +58,7 @@ def doc(*sentences: str, closer: str = "Please contact the desk if anything is u
 
 
 def v4(text: str, row: dict):
-    return doc_validator.validate_doc(text, row, KB, POOLS)
+    return doc_validator_v4.validate_doc(text, row, KB, POOLS)
 
 
 def rule_ids(reasons: list[str]) -> set[str]:
@@ -202,10 +202,10 @@ def test_lounge_manager_keeps_the_and_rule_but_others_use_the_union() -> None:
 
 
 def test_v8_band_and_versions() -> None:
-    assert doc_validator.word_bounds_v4(100) == (60, 140)
-    assert doc_validator.word_bounds_v4(330) == (198, 380)
-    assert doc_validator.word_bounds_v4(50) == (60, 70)
-    assert doc_validator.VALIDATOR_VERSION == "v4" and set(VALIDATORS) == {"v1", "v2", "v3", "v4"}
+    assert doc_validator_v4.word_bounds_v4(100) == (60, 140)
+    assert doc_validator_v4.word_bounds_v4(330) == (198, 380)
+    assert doc_validator_v4.word_bounds_v4(50) == (60, 70)
+    assert doc_validator_v4.VALIDATOR_VERSION == "v4" and set(VALIDATORS) == {"v1", "v2", "v3", "v4", "v5"}
     source = (ROOT / "src" / "slm" / "data" / "doc_validator_v3.py").read_text(encoding="utf-8")
     assert 'VALIDATOR_VERSION = "v3"' in source and "meta_language_reasons" not in source
 

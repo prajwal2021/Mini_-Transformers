@@ -306,10 +306,10 @@ def test_v4_template_rules_and_registry() -> None:
     assert "Never sign with a job title" in email_prompt
     assert "the senior coordinator" in email_prompt
     assert "(no job titles written with capital letters)" in build_prompt_v4(minutes, KB)
-    assert set(VALIDATORS) == {"v1", "v2", "v3", "v4"} and len(set(VALIDATORS.values())) == 4
-    assert validator_for("v4") is doc_validator.validate_doc
+    assert set(VALIDATORS) == {"v1", "v2", "v3", "v4", "v5"} and len(set(VALIDATORS.values())) == 5
+    assert validator_for("v5") is doc_validator.validate_doc
     assert prompt_tools("v4")["label"] == "P02b5-template-v4" and prompt_tools("v3")["substitute"] is None
-    assert doc_validator.VALIDATOR_VERSION == "v4" and doc_validator_v3.VALIDATOR_VERSION == "v3"
+    assert doc_validator.VALIDATOR_VERSION == "v5" and doc_validator_v3.VALIDATOR_VERSION == "v3"
     assert doc_validator_v2.VALIDATOR_VERSION == "v2"
     for name in ("doc_validator_v1.py", "doc_validator_v2.py"):
         assert "chat_format_reasons" not in (ROOT / "src" / "slm" / "data" / name).read_text(encoding="utf-8")
