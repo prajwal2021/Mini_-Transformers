@@ -33,13 +33,18 @@ def insertion_mode(row: dict[str, Any]) -> str:
     return ",".join(modes) if modes else "none"
 
 
+def _dot_then_boundary(raw: str, end: int) -> bool:
+    """A single trailing "." directly after the marker is tolerated (and dropped on insertion)."""
+    return raw[end] == "." and (end + 1 == len(raw) or raw[end + 1] in " \n")
+
+
 def _boundary_ok(raw: str, start: int, end: int) -> bool:
     before = raw[:start]
     if start == 0 or before.endswith("\n"):
         ok_before = True
     else:
         ok_before = bool(LABEL_BEFORE.search(before) or SENTENCE_END_BEFORE.search(before))
-    ok_after = end == len(raw) or raw[end] in " \n"
+    ok_after = end == len(raw) or raw[end] in " \n" or _dot_then_boundary(raw, end)
     return ok_before and ok_after
 
 
@@ -52,23 +57,23 @@ def substitute(raw: str, row: dict[str, Any], kb: dict[str, Any]) -> tuple[str, 
     for fact_id, _s, _e in found:
         if fact_id not in expected:
             reasons.append(
-                f"V1p the placeholder {placeholder(fact_id)} is not one of this document's "
-                "facts; use only the placeholders you were given"
+                f"V1p the marker {placeholder(fact_id)} is not one of this document's "
+                "facts; use only the markers you were given"
             )
     for fact_id in expected:
         hits = [(s, e) for f, s, e in found if f == fact_id]
         if not hits:
             reasons.append(
-                f"V1p the placeholder {placeholder(fact_id)} is missing; write it exactly once"
+                f"V1p the marker {placeholder(fact_id)} is missing; write it exactly once"
             )
         elif len(hits) > 1:
             reasons.append(
-                f"V1p the placeholder {placeholder(fact_id)} appears {len(hits)} times; "
+                f"V1p the marker {placeholder(fact_id)} appears {len(hits)} times; "
                 "write it exactly once"
             )
         elif not _boundary_ok(raw, *hits[0]):
             reasons.append(
-                f"V1p the placeholder {placeholder(fact_id)} is in the middle of a sentence; put "
+                f"V1p the marker {placeholder(fact_id)} is in the middle of a sentence; put "
                 "it at the start of a line, after a speaker label, or after sentence-ending "
                 "punctuation and a space, followed by a space or a new line"
             )
@@ -79,5 +84,7 @@ def substitute(raw: str, row: dict[str, Any], kb: dict[str, Any]) -> tuple[str, 
         return raw, reasons
     text = raw
     for fact_id, start, end in sorted(found, key=lambda item: -item[1]):
+        if end < len(raw) and raw[end] == "." and _dot_then_boundary(raw, end):
+            end += 1  # the canonical sentence already ends in a period
         text = text[:start] + facts[fact_id]["canonical_sentence"] + text[end:]
     return text, []

@@ -1,4 +1,10 @@
-"""Document validator v3 (P02b5). Frozen earlier versions: doc_validator_v1.py, doc_validator_v2.py.
+"""Document validator v4 (P02b6). Frozen earlier versions: doc_validator_v1.py, _v2.py, _v3.py.
+
+v4 over v3 (each traced to evidence in journal/DECISIONS.md): V11 is a truncation test only
+(E14); V12 ignores sentences that begin with a common-noun entity (E18); V15 accepts any stem of
+the union of an attribute's cue groups, with require_all kept for the lounge manager (E16); V5
+skips heading-like lines and line-initial labels (E19); V18 rejects prompt vocabulary in the
+text (E20); V8 band is 0.6-1.4 of target up to 380 words (E15).
 
 v3 over v2: V15 uses AND-of-OR cue groups and masks the assigned value before searching (E10);
 V17 requires every line of a chat thread to be "Label: text" (E11).
@@ -23,26 +29,27 @@ import yaml
 
 from .doc_validator_v1 import (
     ALLOWED_CAPITALS,
+    CLOSING_QUOTES,
     META_WORDS,
     NUMBER_WORDS,
     SPEAKER_LABEL,
     WORD_RE,
-    casing_reasons,
-    completeness_reasons,
+    _sentences,
+    _strip_signoff,
     copying_reasons,
     repetition_reasons,
     structure_reasons,
 )
 from .style_cards import STYLE_SPEC
 
-VALIDATOR_VERSION = "v3"
+VALIDATOR_VERSION = "v4"
 ROOT = Path(__file__).resolve().parents[3]
 CUES_PATH = ROOT / "configs" / "attribute_cues.yaml"
 POOLS_PATH = ROOT / "data" / "kb" / "filler_pools.json"
 
 V2_MAX_WORD_DISTANCE = 25
 V5_MAX_FLAGS = 2
-V8_LOW_FACTOR, V8_HIGH_FACTOR, V8_FLOOR, V8_CEILING = 0.7, 1.3, 60, 360
+V8_LOW_FACTOR, V8_HIGH_FACTOR, V8_FLOOR, V8_CEILING = 0.6, 1.4, 60, 380
 TITLE_MAX_WORDS = 14
 HEDGES = re.compile(
     r"\b(?:may|might|could|usually|typically|generally|approximately|roughly|sometimes|often|"
@@ -157,10 +164,14 @@ def default_pools() -> dict[str, Any]:
     return json.loads(POOLS_PATH.read_text(encoding="utf-8"))
 
 
-def word_bounds_v2(target: int) -> tuple[int, int]:
+def word_bounds_v4(target: int) -> tuple[int, int]:
+    """Throughput control, not a quality criterion: [max(60, 0.6T), min(1.4T, 380)] words."""
     low = max(V8_FLOOR, math.ceil(V8_LOW_FACTOR * target))
     high = min(math.floor(V8_HIGH_FACTOR * target), V8_CEILING)
     return low, high
+
+
+word_bounds_v2 = word_bounds_v4
 
 
 # ---- V2 / V2b: entity-value binding -------------------------------------------------------
@@ -274,6 +285,17 @@ def _title_line(lines: list[str]) -> int | None:
     return None
 
 
+def _is_heading_like(line: str) -> bool:
+    """A short line with no comma and no sentence-ending punctuation (headings, bare labels)."""
+    stripped = line.strip()
+    return bool(
+        stripped
+        and len(WORD_RE.findall(stripped)) <= 10
+        and "," not in stripped
+        and not re.search(r"[.!?][\"')]*$", stripped)
+    )
+
+
 def _allowed_proper_tokens(
     row: dict[str, Any], kb: dict[str, Any], pools: dict[str, Any]
 ) -> set[str]:
@@ -312,6 +334,7 @@ def capital_flags(
     title = _title_line(lines)
     if title is not None:
         exempt_lines.add(title)
+    exempt_lines.update(i for i, line in enumerate(lines) if _is_heading_like(line))
     flags: list[tuple[str, str]] = []
     offset = 0
     line_starts = []
@@ -379,7 +402,7 @@ def qa_reasons(text: str) -> list[str]:
 
 def length_reasons(text: str, target: int) -> list[str]:
     words = len(WORD_RE.findall(text))
-    low, high = word_bounds_v2(target)
+    low, high = word_bounds_v4(target)
     if not low <= words <= high:
         return [f"V8 word count {words} outside {low}-{high} (target {target})"]
     return []
@@ -411,7 +434,12 @@ def fidelity_reasons(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list
         masked = re.sub(
             rf"(?<!\w){re.escape(value)}(?!\w)", lambda m: " " * len(m.group(0)), holder
         ).lower()
-        missing = [g for g in spec["cue_groups"] if not _group_hit(masked, g)]
+        groups = spec["cue_groups"]
+        if spec.get("require_all"):
+            missing = [g for g in groups if not _group_hit(masked, g)]
+        else:
+            union = [stem for group in groups for stem in group]
+            missing = [] if _group_hit(masked, union) else [union]
         if missing:
             needs = " AND ".join("one of (" + ", ".join(g) + ")" for g in missing)
             reasons.append(
@@ -482,8 +510,97 @@ def canonical_case_reasons(text: str, kb: dict[str, Any]) -> list[str]:
     title = _title_line(lines)
     if title is not None:
         line = lines[title].strip()
-        if re.search(r"[A-Za-z]", line) and (line == line.lower() or line == line.upper()):
+        starts_with_entity = any(
+            re.match(rf"{re.escape(e)}(?!\w)", line) for e in _common_entities(kb)
+        )
+        if (
+            re.search(r"[A-Za-z]", line)
+            and (line == line.lower() or line == line.upper())
+            and not starts_with_entity
+        ):
             reasons.append(f"V16 title line is all lower or all upper case: '{line}'")
+    return reasons
+
+
+def _common_entities(kb: dict[str, Any]) -> list[str]:
+    return sorted({f["entity"] for f in kb["measured_facts"] if f["entity"][:1].islower()},
+                  key=len, reverse=True)
+
+
+def completeness_reasons_v4(text: str, row: dict[str, Any]) -> list[str]:
+    """V11 (v4): a truncation test only. Short complete sentences such as "The meeting ended." pass."""
+    body = _strip_signoff(text, row)
+    if not body:
+        return ["V11 completeness: empty document (threshold: non-empty)"]
+    core = body.rstrip(CLOSING_QUOTES)
+    ends_ok = body[-1] in ".?!" or (len(core) < len(body) and core[-1:] in ".?!")
+    if not ends_ok:
+        last = (WORD_RE.findall(body) or [""])[-1]
+        return [
+            f"V11 completeness: the text ends with '{last}' and no terminal . ! ? "
+            "(threshold: must end with . ! ? or a closing quote after it)"
+        ]
+    return []
+
+
+def casing_reasons_v4(text: str, kb: dict[str, Any]) -> list[str]:
+    """V12 (v4): lowercase sentence starts, ignoring sentences that begin with a common-noun entity."""
+    entities = _common_entities(kb)
+    lowercase = counted = 0
+    for sentence in _sentences(text):
+        stripped = LIST_MARKER.sub("", sentence)
+        label = SPEAKER_LABEL.match(stripped)
+        if label:
+            if label.group(1) == "Subject":
+                continue
+            stripped = stripped[label.end():]
+        counted += 1
+        if stripped[:1].islower() and not any(
+            re.match(rf"{re.escape(e)}(?!\w)", stripped) for e in entities
+        ):
+            lowercase += 1
+    if counted and lowercase / counted > 0.10:
+        return [
+            f"V12 casing: {lowercase} of {counted} sentences start lowercase "
+            f"({lowercase / counted:.0%}; threshold <= 10%)"
+        ]
+    return []
+
+
+META_ANYWHERE = re.compile(r"\b(?:entity|placeholder|attribute)\b", re.IGNORECASE)
+META_NEAR = re.compile(
+    r"\b(?:value|token|meaning)\b|which means|in plain words|in plain terms|to put it simply",
+    re.IGNORECASE,
+)
+
+
+def meta_language_reasons(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list[str]:
+    """V18: prompt vocabulary must not leak into the document."""
+    reasons: list[str] = []
+    sentences = sentence_list(text)
+    for sentence in sentences:
+        match = META_ANYWHERE.search(sentence)
+        if match:
+            reasons.append(
+                f"V18 prompt wording '{match.group(0)}' in the text (threshold: none): "
+                f"\"{sentence[:140]}\""
+            )
+            break
+    facts = {f["fact_id"]: f for f in kb["measured_facts"]}
+    flagged: set[int] = set()
+    for fact_id in row["fact_ids"]:
+        value = facts[fact_id]["value"]
+        for index, sentence in enumerate(sentences):
+            if _contains(sentence, value):
+                flagged.update({index, index + 1})
+    for index in sorted(i for i in flagged if i < len(sentences)):
+        match = META_NEAR.search(sentences[index])
+        if match:
+            reasons.append(
+                f"V18 prompt wording '{match.group(0)}' at or right after a stated fact "
+                f"(threshold: none): \"{sentences[index][:140]}\""
+            )
+            break
     return reasons
 
 
@@ -546,11 +663,12 @@ def validate_doc(
     if ratio > 0.02:
         reasons.append(f"V9 non-ASCII ratio {ratio:.1%} (threshold <= 2%)")
     reasons += repetition_reasons(text)
-    reasons += completeness_reasons(text, plan_row)
-    reasons += casing_reasons(text)
+    reasons += completeness_reasons_v4(text, plan_row)
+    reasons += casing_reasons_v4(text, kb)
     reasons += copying_reasons(text, kb)
     reasons += structure_reasons(text, plan_row["target_words"])
     reasons += fidelity_reasons(text, plan_row, kb)
     reasons += chat_format_reasons(text, plan_row.get("doc_type", ""))
+    reasons += meta_language_reasons(text, plan_row, kb)
     reasons += canonical_case_reasons(text, kb)
     return not reasons, reasons

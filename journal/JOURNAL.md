@@ -50,6 +50,14 @@ Use one entry per prompt:
 **Problems & fixes:** Initial hand-authored numeric collisions were corrected before validation; no LLM API was used.
 **Next:** Run P02 (corpus pipeline and data card).
 
+## [2026-11-03 14:00] P02b6 - Validator v4, calibration v2, prompt v5, replay (stage 1 only)
+**Goal:** Fix E14-E22 from the prompt-v4 pilot, amend the selection rule (A1) before any v5 result, replay offline and, if the gate passes, run a 40-document fresh pilot.
+**Done (commit P02b6a):** amendment A1 and the $1.50 pilot cap; validator v4 (V11 truncation test, V12 and V16 entity starts, V15 union with require_all for the lounge manager, V5 heading lines, V18 meta-language, V8 0.6-1.4) with v3 frozen; insertion accepts a trailing period; per-model calibration v2; prompt v5 and 9 openers per type; plain retry feedback; replay of the 192 pilot-v4 attempts; tests green; the mock passes validator v4 on all 2407 plan rows with v5 prompts and no prompt jargon.
+**Decisions:** D-053 to D-063. **Failures:** F-007. **Experiments:** E-005.
+**Results:** replay first-attempt pass on non-empty attempts: mini 48.0% -> 58.0%, nano 46.0% -> 54.0%. The gate needs at least 60% for one model, so it FAILED and stage 2 was not run; no API call and no spend in this prompt. Largest remaining v4 failures on the old outputs: mini V8 (overshoot), nano V18 (prompt vocabulary that prompt v5 removes) and V1.
+**Problems & fixes:** the replay cannot show the effect of prompt v5 or the per-model ask, because the stored outputs came from prompt v4.
+**Next:** the human decides whether to relax the gate or to run the 40-document pilot v5 anyway (stage 2 tooling: fresh-cohort rows script, A1 report sections and per-type samples are still to be built).
+
 ## [2026-11-03 09:00] P02b5 - Cue groups, chat labels, code-inserted templated facts, length calibration, prompt v4, pilot v4
 **Goal:** Fix E8-E13 from the prompt-v3 pilot and rerun on the same 30 documents plus 20 fresh ones.
 **Done (stage 1, commit P02b5a):** validator v3 (cue groups with value masking, V17 chat format) with v2 frozen; insertion module and V1p for templated facts; length calibration script and yaml; prompt v4; mock updated for placeholders; 152+ tests green; mock passes validator v3 on all 2407 plan rows.

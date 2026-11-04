@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from slm.data import doc_validator, doc_validator_v2
+from slm.data import doc_validator, doc_validator_v2, doc_validator_v3
 from slm.data.insertion import insertion_mode, placeholder, substitute
 from slm.data.pilot import MockBackend, generate_model
 from slm.data.prompts_v4 import ASK_CAP, ask_words, build_prompt_v4, retry_feedback_v4
@@ -52,7 +52,7 @@ def doc(*sentences: str) -> str:
 
 
 def verdict(text: str, row: dict):
-    return doc_validator.validate_doc(text, row, KB, POOLS)
+    return doc_validator_v3.validate_doc(text, row, KB, POOLS)
 
 
 def v15(reasons: list[str]) -> list[str]:
@@ -90,7 +90,7 @@ def test_v2_validator_is_unchanged_by_the_new_cue_groups() -> None:
     row = row_for(("Caldreth", "Elara Voss", "paraphrased"))
     text = doc("Caldreth is run by Elara Voss and kept calm.")
     assert not v15(doc_validator_v2.validate_doc(text, row, KB, POOLS)[1])
-    assert v15(verdict(text, row)[1])
+    assert v15(verdict(text, row)[1])  # v3 (AND groups) rejects it
 
 
 def test_every_attribute_has_groups_and_meaning_satisfies_its_own_groups() -> None:
@@ -257,7 +257,7 @@ def test_placeholder_failure_triggers_retry_with_v1p_feedback(tmp_path: Path) ->
 
 
 def test_calibration_file_matches_the_rule() -> None:
-    calibration = yaml.safe_load((ROOT / "configs" / "length_calibration.yaml").read_text(encoding="utf-8"))
+    calibration = yaml.safe_load((ROOT / "configs" / "length_calibration_v1.yaml").read_text(encoding="utf-8"))
     assert calibration["models_pooled"] == ["gpt-5.4-mini", "gpt-5.4-nano"]
     for doc_type, spec in calibration["types"].items():
         median = calibration["pooled_median_ratio"] if spec["used_pooled_median"] else spec["median_ratio"]
@@ -277,7 +277,7 @@ def test_ask_words_uses_multiplier_caps_at_420_and_keeps_original_target() -> No
     ask = ask_words(plan_row)
     assert f"about {ask} words, not fewer than {round(0.9 * ask)} words" in prompt
     # the validator band still uses the original target
-    low, high = doc_validator.word_bounds_v2(plan_row["target_words"])
+    low, high = doc_validator_v3.word_bounds_v2(plan_row["target_words"])
     assert (low, high) == (max(60, -(-7 * plan_row["target_words"] // 10)), min(int(1.3 * plan_row["target_words"]), 360))
 
 
@@ -306,10 +306,11 @@ def test_v4_template_rules_and_registry() -> None:
     assert "Never sign with a job title" in email_prompt
     assert "the senior coordinator" in email_prompt
     assert "(no job titles written with capital letters)" in build_prompt_v4(minutes, KB)
-    assert set(VALIDATORS) == {"v1", "v2", "v3"} and len(set(VALIDATORS.values())) == 3
-    assert validator_for("v3") is doc_validator.validate_doc
+    assert set(VALIDATORS) == {"v1", "v2", "v3", "v4"} and len(set(VALIDATORS.values())) == 4
+    assert validator_for("v4") is doc_validator.validate_doc
     assert prompt_tools("v4")["label"] == "P02b5-template-v4" and prompt_tools("v3")["substitute"] is None
-    assert doc_validator.VALIDATOR_VERSION == "v3" and doc_validator_v2.VALIDATOR_VERSION == "v2"
+    assert doc_validator.VALIDATOR_VERSION == "v4" and doc_validator_v3.VALIDATOR_VERSION == "v3"
+    assert doc_validator_v2.VALIDATOR_VERSION == "v2"
     for name in ("doc_validator_v1.py", "doc_validator_v2.py"):
         assert "chat_format_reasons" not in (ROOT / "src" / "slm" / "data" / name).read_text(encoding="utf-8")
     assert insertion_mode(next(r for r in PLAN if not r["fact_ids"])) == "none"
@@ -319,7 +320,7 @@ def test_gate_mock_passes_validator_v3_on_all_plan_rows_with_v4_prompts() -> Non
     from slm.data.generator import MockClient
     from slm.data.versions import normaliser_for, process_response
 
-    tools, validate, normalise = prompt_tools("v4"), validator_for("v3"), normaliser_for("v3")
+    tools, validate, normalise = prompt_tools("v4"), validator_for("v4"), normaliser_for("v4")
     failures = []
     for row in PLAN:
         raw, _ = MockClient().generate(tools["build"](row, KB), row, KB)

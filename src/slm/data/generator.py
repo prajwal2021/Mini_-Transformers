@@ -93,7 +93,7 @@ async def generate_rows(
     client_name = "mock" if isinstance(client, MockClient) else "openai"
     prompt_version = config["generation"].get("prompt_version", "v3")
     validator_version = config["generation"].get("validator_version", "v2")
-    tools = prompt_tools(prompt_version)
+    tools = prompt_tools(prompt_version, model)
     validate = validator_for(validator_version)
     normalise = normaliser_for(validator_version)
     versions = {"prompt_version": prompt_version, "validator_version": validator_version}

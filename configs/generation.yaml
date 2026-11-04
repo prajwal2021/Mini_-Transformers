@@ -1,6 +1,6 @@
 budget_usd: 10.0
-pilot_budget_usd: 1.0
-session_cap_usd: 0.50
+pilot_budget_usd: 1.5
+session_cap_usd: 0.45
 models:
   gpt-5.4-nano:
     status: "pricing verified 2026-10-31 against OpenAI's announcement; model id unverified until the pilot's models-list check"
@@ -45,7 +45,7 @@ plan:
   test_iid_docs: 60
   test_novel_docs: 60
 generation:
-  max_attempts: 3
+  max_attempts: 5
   max_output_tokens: 900
   concurrency: 8
   pilot_concurrency: 4

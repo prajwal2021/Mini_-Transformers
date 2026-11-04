@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from . import doc_validator, doc_validator_v1, doc_validator_v2
+from . import doc_validator, doc_validator_v1, doc_validator_v2, doc_validator_v3
 from .insertion import insertion_mode, insertion_modes, substitute
 from .prompts import TEMPLATE_VERSION, build_prompt, template_hash
 from .prompts_v3 import (
@@ -21,13 +21,21 @@ from .prompts_v4 import (
     retry_feedback_v4,
     template_hash_v4,
 )
+from .prompts_v5 import (
+    TEMPLATE_VERSION_V5,
+    build_prompt_v5,
+    retry_feedback_v5,
+    template_hash_v5,
+)
+from .prompts_v5 import ask_words as ask_words_v5
 
 Validator = Callable[[str, dict[str, Any], dict[str, Any], dict[str, Any]], tuple[bool, list[str]]]
 
 VALIDATORS = {
     "v1": doc_validator_v1.validate_doc,
     "v2": doc_validator_v2.validate_doc,
-    "v3": doc_validator.validate_doc,
+    "v3": doc_validator_v3.validate_doc,
+    "v4": doc_validator.validate_doc,
 }
 
 
@@ -51,8 +59,18 @@ def _feedback_v3(reasons: list[str], **_ctx: Any) -> str:
     return retry_feedback_v3(reasons)
 
 
-def prompt_tools(version: str) -> dict[str, Any]:
-    """Builder, retry feedback, label, template hash, ask length and optional substitution."""
+def prompt_tools(version: str, model: str | None = None) -> dict[str, Any]:
+    """Builder, retry feedback, label, template hash, ask length and optional substitution.
+
+    ``model`` selects the per-model length calibration of prompt v5.
+    """
+    if version == "v5":
+        return {
+            "build": lambda row, kb: build_prompt_v5(row, kb, model),
+            "feedback": lambda reasons, **ctx: retry_feedback_v5(reasons, model=model, **ctx),
+            "label": TEMPLATE_VERSION_V5, "hash": template_hash_v5(),
+            "ask_words": lambda row: ask_words_v5(row, model), "substitute": substitute,
+        }
     if version == "v4":
         return {"build": build_prompt_v4, "feedback": retry_feedback_v4,
                 "label": TEMPLATE_VERSION_V4, "hash": template_hash_v4(),

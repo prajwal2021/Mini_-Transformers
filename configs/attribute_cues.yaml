@@ -1,7 +1,7 @@
 # Attribute cues for validator rule V15 (attribute fidelity) and the prompt templates.
 # meaning: short plain phrase shown to the generator.
-# cue_groups (validator v3): an AND of OR-lists. The sentence holding the value must satisfy every
-#   group, i.e. contain at least one stem from each list. Stems are lowercase and match at word
+# cue_groups (validators v3, v4): lists of OR-lists. v3 requires every group (AND). v4 passes when any stem
+#   of the union matches, except for attributes with require_all: true, which keep the v3 AND rule. Stems are lowercase and match at word
 #   starts (so "age" matches "aged" but not "package"). The assigned value is masked in the
 #   sentence before searching, so a stem inside the value never counts.
 # cue_any (validator v2, frozen): the legacy single OR-list, kept so v2 stays replayable.
@@ -9,6 +9,7 @@
 skyport_lounge_manager:
   meaning: "the person who manages the pet lounge"
   cue_groups: [[lounge], [manag, run, in charge, lead, oversee, supervis, head]]
+  require_all: true
   cue_any: [manag, run, in charge, lead, oversee, supervis, head]
 skyport_daily_pet_cap:
   meaning: "the most pets the skyport takes in a day"

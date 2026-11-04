@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: pilot v4 run; no model chosen)
+CURRENT PHASE: P02 (substep P02b: validator v4 and prompt v5 built; replay gate not met; pilot v5 not run)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -33,6 +33,7 @@ PROMPT LOG:
 | 14 | 2026-11-02 | P02b4b | Prompt v3, pilot rerun (reasoning none) on the same 30 documents | empty responses 0, reasoning tokens 0; nano 46.7% first pass / 70.0% accepted / $2.75 projected; mini 50.0% / 80.0% / $7.95; C1, C2 fail both; spend $0.1033 | Local commit |
 | 15 | 2026-11-03 | P02b5a | Cue groups, V17 chat labels, code-inserted templated facts, length calibration, prompt v4 | 152+ tests passed; Ruff clean; mock passes validator v3 on all 2407 plan rows | Local commit |
 | 16 | 2026-11-03 | P02b5b | Pilot v4: 30 same + 20 fresh documents, prompt v4, validator v3 | empty responses 0; nano 46.0% first pass / 66.0% accepted / $4.12 projected; mini 48.0% / 66.0% / $15.80; C1, C2, C4 fail for both on all cohorts; spend $0.2731 | Local commit |
+| 17 | 2026-11-03 | P02b6a | Amendment A1, validator v4, calibration v2, prompt v5, offline replay | tests pass; Ruff clean; mock passes v4 on all 2407 rows; replay first-attempt pass mini 58.0% / nano 54.0% (gate 60% not met); stage 2 not run; no spend | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11
@@ -72,4 +73,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human and reviewer read reports/tables/pilot_report_v4.md, pilot_samples_v4.md and pilot_failures_v4.md; both models still fail C1, C2 and C4; pilot budget remaining $0.341
+NEXT STEP: Human decides whether to relax the stage-1 replay gate (mini 58.0%, nano 54.0% against 60%) and run the 40-document pilot v5; pilot budget remaining $0.841 of $1.50

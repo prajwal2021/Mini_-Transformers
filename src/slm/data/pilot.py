@@ -384,7 +384,7 @@ def generate_model(
     separately in api_events.jsonl, and never counted as a validator failure. Each stored attempt
     carries the raw and normalised text and the prompt and validator versions.
     """
-    tools = prompt_tools(prompt_version)
+    tools = prompt_tools(prompt_version, model)
     validate = validator_for(validator_version)
     normalise = normaliser_for(validator_version)
     model_dir = out_dir / _safe(model)
@@ -1046,7 +1046,9 @@ def run_pilot(
     saved_config = load_json(out_dir / "api_config.json") if use_saved_api_config else {}
     model_max = {m: saved_config.get(m, {}).get("max_output_tokens", max_out) for m in models}
     worst = sum(
-        projected_worst_case(guard, [m], rows, kb, max_attempts, model_max[m], tools["build"])
+        projected_worst_case(
+            guard, [m], rows, kb, max_attempts, model_max[m], prompt_tools(prompt_version, m)["build"]
+        )
         for m in models
     )
     caps = [guard.global_cap_usd - guard.global_spent(), guard.pilot_cap_usd - guard.pilot_spent()]
@@ -1059,10 +1061,15 @@ def run_pilot(
         # still reserves its own worst case, so a cap breach stops the run mid-way.
         expected = 0.0
         for model in models:
+            model_tools = prompt_tools(prompt_version, model)
             for row in rows:
-                ask = tools["ask_words"](row) if tools.get("ask_words") else row["target_words"]
+                ask = (
+                    model_tools["ask_words"](row)
+                    if model_tools.get("ask_words") else row["target_words"]
+                )
                 expected += 2 * guard.cost(
-                    model, len(tools["build"](row, kb)) // 4, min(model_max[model], round(ask * 1.35))
+                    model, len(model_tools["build"](row, kb)) // 4,
+                    min(model_max[model], round(ask * 1.35)),
                 )
         echo(f"Expected pilot cost ${expected:.4f} (2 attempts per doc, output at the ask length)")
         if expected > remaining:

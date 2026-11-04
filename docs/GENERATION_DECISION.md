@@ -44,3 +44,13 @@ by editing this text.
 - `scripts/run_pilot.py` prints the global spend, refuses to start if the worst-case pilot cost
   would breach either cap, and reserves each call's worst-case cost before sending it.
 - Mock runs write `"client": "mock"` ledger entries that cost nothing and are not counted.
+
+## Amendment A1 (written before the v5 pilot)
+
+Rationale: three pilot iterations showed first-attempt pass and length compliance are driven by prompt/validator calibration, not by model capability; unresolved docs must be completed anyway because per-cell exposure counts are exact; an extra attempt costs about $0.001-0.004.
+
+- C1-C6 stay computed and reported.
+- Eligibility for the full run: (a) accepted within 5 attempts >= 97% on the fresh cohort, every doc type has >= 1 accepted doc, and no doc type is below 50% acceptance within 5; (b) first-attempt pass >= 60% on the fresh cohort (C2 unchanged); (c) projected full-run cost at observed attempts/doc <= $7.00 (budget-derived: $10 total, under $1 spent so far, at least $2 contingency for audits and reruns; replaces C3's $6.00); (d) C5 <= 10%.
+- C1 and C4 remain reported but informational.
+- Among eligible models choose by C6 (naturalness, no prompt/meta language), then by cost. If none is eligible, stop and report.
+- max_attempts for the full run is 5.

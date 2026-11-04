@@ -127,7 +127,7 @@ def test_run_pilot_v3_options_use_separate_outputs(tmp_path: Path) -> None:
         MockBackend(), ["gpt-5.4-nano", "gpt-5.4-mini"], 30, out, tmp_path, tmp_path / "reports",
         tmp_path / "API_NOTES.md", "mock", echo=lines.append, suffix="_v3", rows_from=source,
         prompt_version="v3", validator_version="v2", use_saved_api_config=True,
-        extra_pilot_ledgers=[tmp_path / "old" / "ledger.jsonl"], session_cap=0.5, extended=True,
+        extra_pilot_ledgers=[tmp_path / "old" / "ledger.jsonl"], session_cap=5.0, extended=True,
     )
     assert code == 0 and lines[0] == "MODE: MOCK (no spend)"
     report = (tmp_path / "reports" / "pilot_report_v3.md").read_text(encoding="utf-8")

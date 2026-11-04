@@ -158,7 +158,13 @@ def test_v11_incomplete_endings() -> None:
     reasons = check("V11", cut)
     assert "threshold" in reasons[0]
     check("V11", NATURAL.rstrip(".") + " and the")
-    check("V11", NATURAL + " Done now.")
+    # P02b6 (E14): a short complete final sentence is no longer a V11 failure; v3 still rejects it.
+    kb = load_kb()
+    from slm.data import doc_validator_v3
+
+    short_end = NATURAL + " Done now."
+    assert "V11" in rules(doc_validator_v3.validate_doc(short_end, natural_row(kb), kb, load_pools())[1])
+    assert "V11" not in rules(validate_doc(short_end, natural_row(kb), kb, load_pools())[1])
     kb = load_kb()
     quoted = NATURAL.rstrip(".") + '."'
     assert "V11" not in rules(validate_doc(quoted, natural_row(kb), kb, load_pools())[1])
