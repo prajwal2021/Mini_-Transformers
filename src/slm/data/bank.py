@@ -218,34 +218,53 @@ def parse_candidates(text: str) -> list[tuple[str, str]]:
     return out
 
 
+JUDGE_REASONS = ("same", "different relation", "added fact", "hedged", "wrong attribute")
+
+
 def judge_prompt(pairs: list[tuple[str, str]]) -> str:
     body = "\n".join(f"{i}. Reference: {ref}\n   Candidate: {cand}" for i, (ref, cand) in enumerate(pairs))
     return (
         "You compare sentences from a pet-travel desk. Decide for each numbered pair whether the "
         "candidate sentence states the same fact as the reference sentence.\n"
-        "Answer YES when the candidate says the same thing in different words: a different opening, "
-        "a different word order, a passive form, or a synonym such as manages, runs, is in charge of "
-        "or is the manager of all count as the same.\n"
-        "Answer NO when the candidate states a different relation (a different role or duty, for "
-        "example escalating to someone instead of being overseen by someone), a different person or "
-        "number, makes two people or places joint subjects, hedges, or adds a new fact.\n"
-        'Reply with JSON only: {"results": [{"i": 0, "answer": "YES"}, ...]} with one entry per '
-        "pair, judging each pair on its own.\n\n"
+        "Answer YES (reason \"same\") when the candidate says the same thing. These do NOT make a "
+        "candidate different: a different opening or word order, a passive form, a synonym "
+        "(manages, runs, is in charge of, is the manager of), a framing lead that only says how the "
+        'statement is presented (for example "Per desk policy,", "As of the current schedule,", '
+        '"It is standard practice that", "Worth knowing:", "Note that"), and a noun-phrase '
+        'restatement such as "Caldreth pet lounge manager: Elara Voss."\n'
+        "Answer NO when the candidate: states a different relation (for example escalating to "
+        'someone instead of being overseen by someone; reason "different relation"); adds an '
+        "entity, role, place, number or property that is not in the reference sentence (for example "
+        '"..., which serves pets" or "..., a senior handler"; reason "added fact"); hedges '
+        'by any softening word or phrase such as may, might, up to, roughly, about, around, '
+        "generally, usually, typically, normally, can, should, or approximately, even when the number "
+        'or name is unchanged (reason "hedged"); also NO when it adds any appositive, relative '
+        'clause or descriptive phrase about an entity, such as "Vellmar, the northern skyport," '
+        '(reason "added fact"); or states a different attribute with the same words (reason '
+        '"wrong attribute"); or makes two names joint subjects (reason "different relation").\n'
+        'Reply with JSON only: {"results": [{"i": 0, "answer": "YES", "reason": "same"}, ...]} with '
+        "one entry per pair, judging each pair on its own.\n\n"
         f"Pairs:\n{body}"
     )
 
 
-def parse_judge(text: str, n: int) -> list[str]:
+def parse_judge_full(text: str, n: int) -> list[tuple[str, str]]:
+    """(answer, reason) per pair; a missing or unreadable entry counts as NO."""
+    out = [("NO", "unreadable")] * n
     match = re.search(r"\{.*\}", text, re.DOTALL)
-    answers = ["NO"] * n
     if match:
         try:
             for item in json.loads(match.group(0)).get("results", []):
                 if 0 <= int(item["i"]) < n:
-                    answers[int(item["i"])] = "YES" if str(item["answer"]).strip().upper() == "YES" else "NO"
+                    answer = "YES" if str(item["answer"]).strip().upper() == "YES" else "NO"
+                    out[int(item["i"])] = (answer, str(item.get("reason", "")).strip().lower())
         except (ValueError, KeyError, TypeError):
             pass
-    return answers
+    return out
+
+
+def parse_judge(text: str, n: int) -> list[str]:
+    return [answer for answer, _reason in parse_judge_full(text, n)]
 
 
 # ---- selection and gates -------------------------------------------------------------------
@@ -318,6 +337,10 @@ def gate_metrics(
 # ---- model access --------------------------------------------------------------------------
 
 
+class GenerationBlocked(RuntimeError):
+    """Raised for a generation call that is not cached while the runner is cache-only."""
+
+
 class Runner:
     """Cached, budget-guarded model calls for the bank."""
 
@@ -330,13 +353,16 @@ class Runner:
         self.usd: Counter[str] = Counter()
         self.calls: Counter[str] = Counter()
         self.by_tag: Counter[str] = Counter()
+        self.cache_only_gen = False
 
     def call(self, kind: str, prompt: str, tag: str) -> str:
         key = hashlib.sha256((self.model + kind + prompt).encode("utf-8")).hexdigest()
         path = self.cache_dir / f"{key}.json"
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))["text"]
-        max_tokens = 800 if kind == "gen" else 600
+        if kind == "gen" and self.cache_only_gen:
+            raise GenerationBlocked(tag)
+        max_tokens = 800 if kind == "gen" else 700
         reserved = self.guard.reserve(self.model, len(prompt) // 4, max_tokens)
         result = self.backend.call(self.model, prompt, self.config, max_tokens)
         usd = self.guard.cost(self.model, result.input_tokens, result.output_tokens)
@@ -378,7 +404,8 @@ class MockBankBackend:
         if prompt.startswith("You compare"):
             n = len(re.findall(r"^\d+\. Reference:", prompt, re.MULTILINE))
             items = [
-                {"i": i, "answer": "NO" if self.judge_no_every and i % self.judge_no_every == 0 else "YES"}
+                {"i": i, "answer": "NO" if self.judge_no_every and i % self.judge_no_every == 0 else "YES",
+                 "reason": "added fact" if self.judge_no_every and i % self.judge_no_every == 0 else "same"}
                 for i in range(n)
             ]
             return CallResult(json.dumps({"results": items}), len(prompt) // 4, 10 * n, 0, 0.0)
@@ -467,21 +494,24 @@ def build_fact(
     judged_yes: set[str] = set()
     judged_no: set[str] = set()
     judged_total = 0
-
+    judge_log: list[dict[str, str]] = []
+    
     def judge_pending() -> None:
         nonlocal judged_total
         pending = [c for r in (False, True) for c in pool[r]
                    if c.text not in judged_yes and c.text not in judged_no]
         for start in range(0, len(pending), JUDGE_BATCH):
             batch = pending[start : start + JUDGE_BATCH]
-            answers = parse_judge(
+            answers = parse_judge_full(
                 runner.call("judge", judge_prompt([(fact["canonical_sentence"], c.text) for c in batch]),
                             fact["fact_id"]),
                 len(batch),
             )
-            for cand, answer in zip(batch, answers):
+            for cand, (answer, reason) in zip(batch, answers):
                 judged_total += 1
                 (judged_yes if answer == "YES" else judged_no).add(cand.text)
+                judge_log.append({"text": cand.text, "frame": cand.frame, "answer": answer,
+                                  "reason": reason})
 
     while True:
         judge_pending()
@@ -497,9 +527,12 @@ def build_fact(
             break
         rounds_used += 1
         stats["refill_rounds"] += 1
-        generate_plain(max(CALL_FRAMES, math.ceil((0.6 if not complete else 0.5) * need_plain)))
-        if need_res:
-            run_call(reserved_frames)
+        try:
+            generate_plain(max(CALL_FRAMES, math.ceil((0.6 if not complete else 0.5) * need_plain)))
+            if need_res:
+                run_call(reserved_frames)
+        except GenerationBlocked:
+            break
     gates = gate_metrics(selected, need_plain + need_res, fact)
     return {
         "fact_id": fact["fact_id"], "need_plain": need_plain, "need_novel": need_res,
@@ -510,6 +543,7 @@ def build_fact(
         "judge_no_of_valid": len(judged_no) / stats["det_valid"] if stats["det_valid"] else 0.0,
         "refill_rounds": stats["refill_rounds"], "gates": gates,
         "top_reject_reasons": dict(rejected_reasons.most_common(4)),
+        "judge_log": judge_log,
         "sentences": [
             {"text": c.text, "frame": c.frame, "register": c.register, "reserved": c.reserved,
              "skeleton": c.skel, "judge": c.judge}

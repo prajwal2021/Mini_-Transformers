@@ -58,3 +58,7 @@ Rationale: three pilot iterations showed first-attempt pass and length complianc
 ## Amendment A2 (written before the bank exists)
 
 Fact sentences are produced by code from the canonical sentence or the sentence bank; A1 now evaluates the DOCUMENT model only. Bank gates: per fact (a) 100% of the required sentences filled; (b) every sentence passes the deterministic checks and the judge; (c) unique skeletons 100%; (d) at least min(need, 25) distinct 3-token skeleton prefixes; (e) share of sentences starting "For <entity>," <= 10%; (f) mean pairwise skeleton Jaccard <= 0.5; (g) no sentence within Jaccard 0.8 of the canonical sentence. Projected total = spent + bank + projected docs must be <= $9.00. A document model that meets A1 is chosen by C6 then cost.
+
+## Amendment A2b (post-hoc, written after bank-pilot run 3)
+
+Reason: the judge NO rate measures generation efficiency, not fidelity. G1 passes when (1) A2 (a)-(g) hold for all six pilot facts and (2) the judge passes a hand-labelled precision set: zero false YES on at least 25 negatives and at least 90% of at least 15 positives accepted (framing leads such as "Per desk policy", "As of the current schedule" and noun-phrase restatements count as the same fact). The judge NO rate is reported together with the projected full-bank judge cost, not gated. A sample of 40 judge-YES sentences and all judge-NOs of F002 and F004 are printed for human review. This amendment is post-hoc (it follows run 3, where the NO rate was 18.8%); it replaces the 10% NO-rate condition of the G1 gate in the P02b7 plan.

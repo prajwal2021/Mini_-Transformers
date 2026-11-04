@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: sentence-bank architecture built; bank pilot run 3: 5 of 6 facts meet A2, G1 failed on judge NO rate 18.8%; bank and pilot v6 not run)
+CURRENT PHASE: P02 (substep P02b: judge v3 validated on 40 labelled pairs; re-judge: 5 of 6 facts meet A2, F008 45 of 49; G1 not met; bank and pilot v6 not run)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -78,4 +78,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human decides whether to loosen the judge for framing leads and raise generation volume for small needs (cannot be tested offline) and sets a cap for another pilot; the full bank waits for G1
+NEXT STEP: Human decides how to close F008 (another refill, higher generation volume for busy facts, or accept) and whether to start the full bank
