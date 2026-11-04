@@ -32,7 +32,7 @@ MAX_ENTITY_VALUE_DISTANCE = 12
 OVERGENERATE = 1.8
 REFILL_ROUNDS = 3
 CALL_FRAMES = 12
-JUDGE_BATCH = 25
+JUDGE_BATCH = 10
 BANNED = re.compile(
     r"\b(?:meaning|entity|attribute|token|placeholder|value)\b|which means|in plain", re.IGNORECASE
 )
@@ -174,13 +174,26 @@ def check_candidate(
 # ---- prompts -------------------------------------------------------------------------------
 
 
-def candidate_prompt(fact: dict[str, Any], frames: list[dict[str, Any]]) -> str:
+def candidate_prompt(
+    fact: dict[str, Any], frames: list[dict[str, Any]], avoid: list[str] | None = None
+) -> str:
     phrase = TELLS_READER[fact["attribute_id"]]
     styles = "\n".join(
         f"{f['id']} ({f['register']}): {f['instruction']} Example: {f['example']}" for f in frames
     )
+    earlier = ""
+    if avoid:
+        earlier = (
+            "\nSentences already written (do not repeat or closely imitate their wording):\n"
+            + "\n".join(f"- {text}" for text in avoid)
+            + "\n"
+        )
     return (
         "You write short sentences for a pet-travel desk.\n"
+        f"Reference sentence: {fact['canonical_sentence']}\n"
+        "Every sentence you write must say the same thing as the reference sentence, in the given "
+        f'style, without copying its wording. The exact text "{fact["value"]}" must play the same role '
+        f'as in the reference sentence; never make it a joint subject together with "{fact["entity"]}".\n'
         "For each style listed below, write exactly one sentence in that style. Every sentence must:\n"
         f'- contain the exact words "{fact["entity"]}" and the exact text "{fact["value"]}", '
         "close together (within 12 words);\n"
@@ -189,7 +202,8 @@ def candidate_prompt(fact: dict[str, Any], frames: list[dict[str, Any]]) -> str:
         "- use no hedging words (may, might, could, usually, typically, generally, approximately, "
         "roughly, sometimes, often, normally, around);\n"
         "- add no other numbers, prices, times, codes or names, and never add a definition or a gloss.\n"
-        f'Do not begin any sentence with "For {fact["entity"]},".\n\n'
+        f'Do not begin any sentence with "For {fact["entity"]},".\n'
+        f"{earlier}\n"
         f"Styles (use the id before each line):\n{styles}\n\n"
         f"Output exactly {len(frames)} lines, each written as id|sentence, and nothing else."
     )
@@ -205,13 +219,18 @@ def parse_candidates(text: str) -> list[tuple[str, str]]:
 
 
 def judge_prompt(pairs: list[tuple[str, str]]) -> str:
-    body = "\n".join(f"{i}. Reference: {ref} | Candidate: {cand}" for i, (ref, cand) in enumerate(pairs))
+    body = "\n".join(f"{i}. Reference: {ref}\n   Candidate: {cand}" for i, (ref, cand) in enumerate(pairs))
     return (
-        "You compare sentences from a pet-travel desk. For each pair answer YES only if the "
-        "candidate states the same relation between the same subject and the same exact text as "
-        "the reference sentence. Answer NO if it states a different relation (for example "
-        "escalating to someone instead of being overseen by someone), adds a fact, or hedges.\n"
-        'Reply with JSON only: {"results": [{"i": 0, "answer": "YES"}, ...]} with one entry per pair.\n\n'
+        "You compare sentences from a pet-travel desk. Decide for each numbered pair whether the "
+        "candidate sentence states the same fact as the reference sentence.\n"
+        "Answer YES when the candidate says the same thing in different words: a different opening, "
+        "a different word order, a passive form, or a synonym such as manages, runs, is in charge of "
+        "or is the manager of all count as the same.\n"
+        "Answer NO when the candidate states a different relation (a different role or duty, for "
+        "example escalating to someone instead of being overseen by someone), a different person or "
+        "number, makes two people or places joint subjects, hedges, or adds a new fact.\n"
+        'Reply with JSON only: {"results": [{"i": 0, "answer": "YES"}, ...]} with one entry per '
+        "pair, judging each pair on its own.\n\n"
         f"Pairs:\n{body}"
     )
 
@@ -403,7 +422,8 @@ def build_fact(
     cursor = 0
 
     def run_call(chunk: list[dict[str, Any]]) -> None:
-        text = runner.call("gen", candidate_prompt(fact, chunk), fact["fact_id"])
+        recent = [c.text for r in (False, True) for c in pool[r]][-8:]
+        text = runner.call("gen", candidate_prompt(fact, chunk, recent), fact["fact_id"])
         for frame_id, sentence in parse_candidates(text):
             if frame_id not in frame_by_id:
                 continue
@@ -447,24 +467,27 @@ def build_fact(
     judged_yes: set[str] = set()
     judged_no: set[str] = set()
     judged_total = 0
+
+    def judge_pending() -> None:
+        nonlocal judged_total
+        pending = [c for r in (False, True) for c in pool[r]
+                   if c.text not in judged_yes and c.text not in judged_no]
+        for start in range(0, len(pending), JUDGE_BATCH):
+            batch = pending[start : start + JUDGE_BATCH]
+            answers = parse_judge(
+                runner.call("judge", judge_prompt([(fact["canonical_sentence"], c.text) for c in batch]),
+                            fact["fact_id"]),
+                len(batch),
+            )
+            for cand, answer in zip(batch, answers):
+                judged_total += 1
+                (judged_yes if answer == "YES" else judged_no).add(cand.text)
+
     while True:
-        while True:  # select, judge, drop NO answers and reselect until every pick is judged YES
-            usable = {r: [c for c in pool[r] if c.text not in judged_no] for r in (False, True)}
-            sel_plain = select_diverse(usable[False], need_plain, int(0.10 * (need_plain + need_res)))
-            sel_res = select_diverse(usable[True], need_res, 0)
-            todo = [c for c in sel_plain + sel_res if c.text not in judged_yes]
-            if not todo:
-                break
-            for start in range(0, len(todo), JUDGE_BATCH):
-                batch = todo[start : start + JUDGE_BATCH]
-                answers = parse_judge(
-                    runner.call("judge", judge_prompt([(fact["canonical_sentence"], c.text) for c in batch]),
-                                fact["fact_id"]),
-                    len(batch),
-                )
-                for cand, answer in zip(batch, answers):
-                    judged_total += 1
-                    (judged_yes if answer == "YES" else judged_no).add(cand.text)
+        judge_pending()
+        usable = {r: [c for c in pool[r] if c.text in judged_yes] for r in (False, True)}
+        sel_plain = select_diverse(usable[False], need_plain, int(0.10 * (need_plain + need_res)))
+        sel_res = select_diverse(usable[True], need_res, 0)
         selected = sel_plain + sel_res
         for c in selected:
             c.judge = "YES"

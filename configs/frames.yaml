@@ -64,8 +64,8 @@ frames:
      instruction: "Begin with \"A detail worth knowing is that ...\".",
      example: "A detail worth knowing is that the Marlow room holds 18 kennels."}
   - {id: f21, register: casual, reserved: false,
-     instruction: "Begin with \"Travelers often need to know that ...\".",
-     example: "Travelers often need to know that Marlow Quay takes 18 pets a day."}
+     instruction: "Begin with \"Travelers should know that ...\".",
+     example: "Travelers should know that Marlow Quay takes 18 pets a day."}
   - {id: f22, register: formal, reserved: false,
      instruction: "Begin with \"The current rule is that ...\".",
      example: "The current rule is that the Marlow room holds 18 kennels."}

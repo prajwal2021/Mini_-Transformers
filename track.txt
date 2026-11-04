@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: sentence-bank architecture built; bank pilot gate G1 failed; bank and pilot v6 not run)
+CURRENT PHASE: P02 (substep P02b: sentence-bank architecture built; bank pilot G1 still open after two runs; bank and pilot v6 not run)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -37,6 +37,7 @@ PROMPT LOG:
 | 18 | 2026-11-04 | P02b6c | Pilot v5, 40 fresh documents, gate waived (D-064) | nano 62.5% first pass / 87.5% accepted within 5; mini 72.5% / 80.0%; A1 (a) fails both, (c) fails mini; spend $0.1504 | Local commit |
 | 19 | 2026-11-04 | P02b7a | Sentence-bank architecture, marker repair, validator v5, prompt v6 (offline, mock) | tests pass; mock end to end passes validator v5 on all 2407 rows; allocation invariants hold on the mock bank; no spend | Local commit |
 | 20 | 2026-11-04 | P02b7b | Bank pilot (6 facts, real mini, cap $0.10) | GATE G1 FAILED: 0 of 6 facts meet A2; judge NO 68.9%; deterministic acceptance 39.4%; spend $0.0860; stages 3-4 not run | Local commit |
+| 21 | 2026-11-04 | P02b7c | Bank fixes (avoid-list, reference sentence, f21, judge-all-then-select), pilot rerun, judge test | rerun stopped by the pilot cap after 2 facts ($0.0962); judge prompt fixed after a 13-pair test ($0.0042); third run blocked pending a new cap | Local commit |
 
 ENVIRONMENT:
 - OS: Windows 11
@@ -67,7 +68,7 @@ KEY NUMBERS:
 - chosen_assignment_seed: 177 (source: data/kb/kb.json; P01d)
 - p02a_plan_docs: 2407 (source: data/plan/plan.jsonl)
 - p02b_substep_status: tooling ready; pilot run 2026-11-02, results in reports/tables/pilot_report.md; no model chosen
-- pilot_spend_usd: 0.8094 cumulative for document pilots (cap 1.60); bank pilot spend 0.0860 separately (data/bank_pilot/ledger.jsonl); global 0.8954 of 10
+- pilot_spend_usd: 0.8094 cumulative for document pilots (cap 1.60); bank pilots 0.1864 (data/bank_pilot, bank_pilot2, bank_diag); global 0.9995 of 10
 - p02a_estimated_tokens_train: 745844 (source: reports/tables/plan_stats.md; was 754157 before chat threads) (source: reports/tables/plan_stats.md; tokens_per_word 1.35 provisional)
 - p02a_estimated_tokens_val: 42278 (source: reports/tables/plan_stats.md)
 - p02a_estimated_tokens_test: 41874 (source: reports/tables/plan_stats.md)
@@ -76,4 +77,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human decides on the four bank-generation fixes listed in the P02b7 journal entry (the bank pilot cap is spent; a re-run needs a new cap); stages 3 and 4 wait for gate G1
+NEXT STEP: Human sets a cap for a third bank pilot run (about $0.15 for six facts with the new judge prompt) and confirms stages 3 and 4 may follow
