@@ -35,7 +35,14 @@ PROBE_REQUIRED = (
     "baseline_logprob",
 )
 # optional fact-level covariates / exposure; aliases follow the eval stream's proposal
-PROBE_OPTIONAL = ("train_mentions", "value_len", "entity_freq")
+PROBE_OPTIONAL = ("train_mentions", "value_len", "entity_freq", "stored_tokennorm")
+REALIZED_REQUIRED = (
+    "fact_id",
+    "n_distinct",
+    "n_reused",
+    "core_uniqueness",
+    "mean_pairwise_jaccard",
+)
 PROBE_ALIASES = {"value_len_tokens": "value_len", "entity_mentions": "entity_freq"}
 
 QA_REQUIRED = (
@@ -133,6 +140,23 @@ def validate_probe_table(df: pd.DataFrame) -> list[str]:
     if test["probe_frame"].nunique() < 2:
         warnings.append("only one probe_frame present: H2 cannot be tested")
     return warnings
+
+
+def validate_realized_diversity(rd: pd.DataFrame, facts: set[str] | None = None) -> None:
+    """Validate data/bank/realized_diversity.csv (one row per fact)."""
+    _missing(rd, REALIZED_REQUIRED)
+    if rd["fact_id"].duplicated().any():
+        raise SchemaError("realized_diversity: duplicate fact_id")
+    for col in ("core_uniqueness", "mean_pairwise_jaccard"):
+        if ((rd[col] < 0) | (rd[col] > 1)).any():
+            raise SchemaError(f"realized_diversity: {col} must be in [0, 1]")
+    for col in ("n_distinct", "n_reused"):
+        if (rd[col] < 0).any():
+            raise SchemaError(f"realized_diversity: {col} must be >= 0")
+    if facts is not None:
+        missing = facts - set(rd["fact_id"])
+        if missing:
+            raise SchemaError(f"realized_diversity: {len(missing)} analysed facts have no row")
 
 
 def normalize_qa_table(df: pd.DataFrame) -> pd.DataFrame:

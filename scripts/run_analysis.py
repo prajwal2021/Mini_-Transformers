@@ -22,10 +22,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="reports", help="output root (tables/ and figures/)")
     ap.add_argument("--checkpoint", default="final", help='primary checkpoint step or "final"')
     ap.add_argument("--no-mixed", action="store_true", help="skip the mixed-model sensitivity fit")
+    ap.add_argument("--real", action="store_true",
+                    help="inputs are real results: turn the SIMULATED banner off (default: on)")
     args = ap.parse_args(argv)
     ck = args.checkpoint if args.checkpoint == "final" else int(args.checkpoint)
     written = run_analysis(
-        args.input, args.out, ck, qa_path=args.qa_input, mixed_sensitivity=not args.no_mixed
+        args.input, args.out, ck, qa_path=args.qa_input, mixed_sensitivity=not args.no_mixed,
+        real=args.real,
     )
     for name, path in written.items():
         print(f"{name}: {path}")

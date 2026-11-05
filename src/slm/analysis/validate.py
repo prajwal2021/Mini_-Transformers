@@ -1,4 +1,4 @@
-"""Validation on simulated data: recovery, null false positives and power for H1-H4."""
+"""Validation on simulated data: recovery, false positives and power for H1-H3, H4 secondary."""
 
 from __future__ import annotations
 
@@ -11,9 +11,22 @@ import statsmodels.formula.api as smf
 
 from .descriptive import to_markdown
 from .extraction import run_extraction
-from .family import HYPOTHESES, assemble_family
-from .models import ALPHA, PROBE_FAMILY, add_codes, build_formula, fit_gee
-from .simulate import SimParams, planted_conditional, simulate_probe_table, simulate_qa_table
+from .family import CONFIRMATORY, HYPOTHESES, assemble_family
+from .models import (
+    ALPHA,
+    PROBE_FAMILY,
+    add_codes,
+    add_realized_diversity,
+    build_formula,
+    fit_gee,
+)
+from .simulate import (
+    SimParams,
+    planted_conditional,
+    simulate_probe_table,
+    simulate_qa_table,
+    simulate_realized_diversity,
+)
 
 N_PERM_REP = 2000
 N_BOOT_REP = 500
@@ -64,7 +77,8 @@ def one_replicate(args: tuple[SimParams, int, bool]) -> list[dict]:
                 "estimate": r["estimate"],
                 "ci_low": r["ci_low"],
                 "ci_high": r["ci_high"],
-                "p_raw": r["p_raw"],
+                # H4 is secondary: its p-value is descriptive and only used to check calibration
+                "p_raw": r["p_raw"] if np.isfinite(r["p_raw"]) else r["p_descriptive"],
                 "p_holm": r["p_holm"],
                 "direction_ok": bool(r["direction_ok"]),
                 "converged": gee.converged,
@@ -121,12 +135,12 @@ def null_summary(reps: pd.DataFrame) -> pd.DataFrame:
                 else float("nan"),
             }
         )
-    fam = reps[reps["hypothesis"].isin(HYPOTHESES)]
+    fam = reps[reps["hypothesis"].isin(CONFIRMATORY)]
     any_raw = fam.groupby("rep")["p_raw"].min() < ALPHA
     any_holm = fam.groupby("rep")["p_holm"].min() <= ALPHA
     rows.append(
         {
-            "test": "any of H1-H4 (family-wise)",
+            "test": "any of H1-H3 (family-wise)",
             "rejection_raw": float(any_raw.mean()),
             "rejection_holm": float(any_holm.mean()),
         }
@@ -173,7 +187,71 @@ def power_summary(reps: pd.DataFrame, n_facts_per_cell: int) -> pd.DataFrame:
                 "e2_facts": 6 * n_e2,
                 "hypothesis": h,
                 "power_raw": float(((s["p_raw"] < ALPHA) & s["direction_ok"]).mean()),
-                "power_holm": float(((s["p_holm"] <= ALPHA) & s["direction_ok"]).mean()),
+                "power_holm": float(((s["p_holm"] <= ALPHA) & s["direction_ok"]).mean())
+                if h in CONFIRMATORY
+                else float("nan"),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def manip_replicate(args: tuple[SimParams, int]) -> dict:
+    """One replicate of the weak-manipulation study: nominal vs realized-diversity H2."""
+    p, seed = args
+    probe = simulate_probe_table(p, seed=seed, final_only=True)
+    test = add_codes(probe[probe["split"] == "test"])
+    nominal = fit_gee(test).family.set_index("hypothesis").loc["H2"]
+    rd = simulate_realized_diversity(p, seed)
+    prz = add_realized_diversity(test, rd)
+    realized = fit_gee(prz, diversity="realized").family.set_index("hypothesis").loc["H2"]
+    f = prz.groupby("fact_id")[["div_bin", "rdiv_z"]].first()
+    gap = float(
+        f.loc[f["div_bin"] == "paraphrased", "rdiv_z"].mean()
+        - f.loc[f["div_bin"] == "templated", "rdiv_z"].mean()
+    )
+    return {
+        "nominal_est": float(nominal["estimate"]),
+        "nominal_sig": bool(nominal["p_raw"] < ALPHA and nominal["estimate"] > 0),
+        "realized_est": float(realized["estimate"]),
+        "realized_sig": bool(realized["p_raw"] < ALPHA and realized["estimate"] > 0),
+        "gap": gap,
+    }
+
+
+def manipulation_study(
+    p: SimParams,
+    strengths: tuple[float, ...] = (1.0, 0.6, 0.3),
+    n_rep: int = 200,
+    seed0: int = 200_000,
+    workers: int = 1,
+) -> pd.DataFrame:
+    """How H2 changes when the nominal div_bin only weakly tracks realized diversity.
+
+    `realized x full-contrast` = per-SD coefficient times the realized-diversity gap between
+    the two conditions at full manipulation strength (strength 1.0), i.e. the effect of a
+    full-strength diversity contrast measured on the realized scale.
+    """
+    runs = {}
+    for rho in strengths:
+        q = p.with_effects(manipulation_strength=rho)
+        jobs = [(q, seed0 + r) for r in range(n_rep)]
+        if workers > 1:
+            with ProcessPoolExecutor(max_workers=workers) as pool:
+                res = list(pool.map(manip_replicate, jobs, chunksize=max(1, n_rep // 16)))
+        else:
+            res = [manip_replicate(j) for j in jobs]
+        runs[rho] = pd.DataFrame(res)
+    full_gap = float(runs[max(strengths)]["gap"].mean())
+    rows = []
+    for rho, d in runs.items():
+        rows.append(
+            {
+                "manipulation_strength": rho,
+                "nominal_H2_mean": float(d["nominal_est"].mean()),
+                "nominal_H2_power": float(d["nominal_sig"].mean()),
+                "realized_H2_per_SD": float(d["realized_est"].mean()),
+                "realized_x_full_contrast": float(d["realized_est"].mean() * full_gap),
+                "realized_H2_power": float(d["realized_sig"].mean()),
             }
         )
     return pd.DataFrame(rows)
@@ -193,6 +271,7 @@ def build_report(
     n_power: int = 300,
     sizes: tuple[int, ...] = (10, 20, 30),
     workers: int = 1,
+    n_manip: int = 200,
 ) -> tuple[str, dict]:
     """Run all validation scenarios; return (markdown, raw tables for the report-back)."""
     ptruth = probe_truth(p)
@@ -229,23 +308,30 @@ def build_report(
         power_parts.append(power_summary(reps, k))
     power = pd.concat(power_parts, ignore_index=True)
     at_plan = power[power["facts_per_cell"] == p.n_facts_per_cell].copy()
-    at_plan["verdict"] = at_plan["power_holm"].map(verdict)
+    at_plan["verdict"] = [
+        verdict(w) if h in CONFIRMATORY else "secondary (effect and CI only)"
+        for h, w in zip(at_plan["hypothesis"], at_plan["power_holm"])
+    ]
+    manip = manipulation_study(p, n_rep=n_manip, workers=workers)
     nonconv = int((~planned["converged"]).sum())
 
     lines = [
-        "# Analysis validation on simulated data (A02)",
+        "# Analysis validation on simulated data (A03)",
         "",
         "Generated by `scripts/validate_analysis.py` (all seeds fixed; simulated data only, no "
         "real result). H1/H2: logistic GEE with fact clusters (bias-reduced covariance, "
         "t(G-p)); H3/H4: DESIGN's Fisher exact and McNemar tests on facts (plus a stratified "
-        "permutation test for the between-condition H4 contrast). Holm across H1-H4 at "
-        "alpha 0.05; \"power\" counts a rejection only when the effect has the predicted sign.",
+        "permutation test for the between-condition H4 contrast). H1-H3 are confirmatory with "
+        "Holm (m = 3) at alpha 0.05; H4 is secondary (effect and CI only; its p-value below is "
+        "descriptive, used to check calibration). \"Power\" counts a rejection only when the "
+        "effect has the predicted sign.",
         "",
         "## Simulation settings",
         "",
         f"- Planned size: {p.n_facts_per_cell} facts per freq x div cell x 6 = "
         f"{6 * p.n_facts_per_cell} facts; {p.n_seeds} seeds; test probes per fact x seed: 1 "
-        "canonical + 3 novel; SFT fact split 40/10/50 (E2 = 10 facts per cell = 60 facts); "
+        "canonical + 2 novel; fact-level rule: majority (>= 2 of 3); SFT fact split 40/10/50 "
+        "(E2 = 10 facts per cell = 60 facts); "
         f"{p.n_questions} questions per fact and eval set.",
         f"- Planted probe log-odds (conditional): freq {p.b_freq}, diversity {p.b_div}, frame "
         f"(novel - canonical) {p.b_frame}, diversity x frame {p.b_div_frame}, freq x diversity "
@@ -289,7 +375,8 @@ def build_report(
         "## Power at the planned sample sizes",
         "",
         "Share of replicates in which the effect is rejected at alpha 0.05 with the predicted "
-        "sign, raw and after Holm across H1-H4. Planned size = 20 facts per cell (120 facts; "
+        "sign, raw and after Holm across H1-H3 (H4 raw only, descriptive). Planned size = 20 "
+        "facts per cell (120 facts; "
         "E2 = 60 facts).",
         "",
         to_markdown(power, "{:.3f}"),
@@ -314,8 +401,23 @@ def build_report(
         "the gain large; a different aggregation changes the estimand and the power.",
         "- Bootstrap CIs for H3/H4 (60 facts, percentile) under-cover somewhat (see the "
         "ci_coverage columns); treat them as approximate.",
+        "- H4 is pre-registered as secondary because its power at 60 E2 facts is low; the H4 "
+        "rows are reported for effect size and CI.",
+        "",
+        "## Weak manipulation: how H2 changes",
+        "",
+        f"{n_manip} replicates per row. The nominal div_bin tracks realized diversity with "
+        "correlation `manipulation_strength` (1 = perfectly). The storage effect is driven by "
+        "realized diversity, so a weak manipulation shrinks the nominal H2 estimate and its "
+        "power toward the null; the realized-diversity covariate recovers the effect. "
+        "`realized_x_full_contrast` converts the per-SD coefficient with the realized gap "
+        "between conditions at strength 1.0. Population truth of H2 at full strength: "
+        f"{ptruth['H2']:.3f}.",
+        "",
+        to_markdown(manip, "{:.3f}"),
         "",
     ]
-    raw = {"recovery": rec, "components": comp_tab, "null_all": null_all, "null_div": null_div,
+    raw = {"manipulation": manip, "recovery": rec, "components": comp_tab,
+           "null_all": null_all, "null_div": null_div,
            "power": power, "verdict": at_plan}
     return "\n".join(lines), raw

@@ -7,9 +7,13 @@ The unit of analysis is the FACT. Facts are the independent units (the same fact
 several seeds and question templates, so item-level Fisher/McNemar would be anticonservative).
 Per fact (E2 only):
 
-    stored   = share of seeds with stored_pretrain = 1 is > 0.5
-    correct_m = share of the fact's E2 items (seeds x questions) with exact_match = 1 is > 0.5,
-                for the SFT model and for the base comparator (same items)
+    stored    = stored on >= 2 of 3 test probes within a seed (the producer's `stored_pretrain`),
+                and so in a majority of seeds
+    correct_m = correct on >= 2 of the 3 E2 phrasings within a seed, and in a majority of
+                seeds, for the SFT model and for the base comparator (same items)
+
+(PREREG v3 section 4: "majority" = more than half at both levels; `any` / `all` rules are the
+sensitivity analyses, see aggregation.py.)
 
 H3a  McNemar (exact binomial on discordant facts), base vs SFT       -> gain = P_sft - P_base
 H3b  Fisher exact on the 2x2 stored x correct_sft                     -> P(c|stored) - P(c|not)
@@ -27,10 +31,10 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from .aggregation import PRIMARY_RULE, apply_rule
 from .schema import DIV_BINS, FREQ_BINS, normalize_qa_table, validate_qa_table
 
-COMPARATOR = "base_2shot"  # fixed 2-shot base, same prompt format as SFT (placeholder; PREREG)
-MAJORITY = 0.5  # a fact is "stored"/"correct" when the share of its seeds/items is > MAJORITY
+COMPARATOR = "base_2shot"  # fixed 2-shot base, same prompt format as SFT (PREREG v3)
 N_PERM = 5000
 N_BOOT = 1000
 SEED = 20261106
@@ -46,14 +50,31 @@ class ExtractionResult:
     warnings: list[str]
 
 
-def fact_level(qa: pd.DataFrame, eval_set: str = "E2", comparator: str = COMPARATOR):
-    """One row per fact: stored, correct_sft, correct_base (booleans as 0/1) + cell labels."""
+def fact_level(
+    qa: pd.DataFrame,
+    eval_set: str = "E2",
+    comparator: str = COMPARATOR,
+    rule: str = PRIMARY_RULE,
+    stored: pd.DataFrame | None = None,
+):
+    """One row per fact: stored, correct_sft, correct_base (0/1) + cell labels.
+
+    `rule` is applied twice: to the items within a seed, then to the seeds within a fact.
+    `stored` (fact_id, seed, stored_pretrain) replaces the table's own `stored_pretrain`
+    column, e.g. when the probe-level rule is varied (sensitivity analysis).
+    """
     sub = qa[(qa["eval_set"] == eval_set) & qa["model"].isin([comparator, "sft"])]
-    seeds = sub.drop_duplicates(["fact_id", "seed"]).groupby("fact_id")["stored_pretrain"].mean()
-    rates = sub.groupby(["fact_id", "model"])["exact_match"].mean().unstack("model")
-    out = pd.DataFrame({"stored": (seeds > MAJORITY).astype(int)})
-    out["correct_sft"] = (rates["sft"] > MAJORITY).astype(int)
-    out["correct_base"] = (rates[comparator] > MAJORITY).astype(int)
+    fs = sub.drop_duplicates(["fact_id", "seed"])[["fact_id", "seed", "stored_pretrain"]]
+    if stored is not None:
+        fs = stored[stored["fact_id"].isin(fs["fact_id"])]
+    stored_fact = apply_rule(fs.groupby("fact_id")["stored_pretrain"].mean(), rule)
+    share_items = sub.groupby(["fact_id", "seed", "model"])["exact_match"].mean()
+    seed_correct = apply_rule(share_items, rule)
+    fact_correct = apply_rule(seed_correct.groupby(["fact_id", "model"]).mean(), rule)
+    wide = fact_correct.unstack("model")
+    out = pd.DataFrame({"stored": stored_fact})
+    out["correct_sft"] = wide["sft"]
+    out["correct_base"] = wide[comparator]
     cells = sub.groupby("fact_id")[["freq_bin", "div_bin"]].first()
     return out.join(cells).dropna().reset_index()
 
@@ -137,11 +158,13 @@ def run_extraction(
     ci: bool = True,
     comparator: str = COMPARATOR,
     validate: bool = True,
+    rule: str = PRIMARY_RULE,
+    stored: pd.DataFrame | None = None,
 ) -> ExtractionResult:
     """Run H3a, H3b, H4 (and the per-diversity tables) on a QA table."""
     qa = normalize_qa_table(qa)
     notes = validate_qa_table(qa) if validate else []
-    facts = fact_level(qa, comparator=comparator)
+    facts = fact_level(qa, comparator=comparator, rule=rule, stored=stored)
     rng = np.random.default_rng(seed)
     base, sft = facts["correct_base"].to_numpy(), facts["correct_sft"].to_numpy()
     stored = facts["stored"].to_numpy()
@@ -186,7 +209,7 @@ def run_extraction(
              "scale": "risk diff (gain)", "predicted_sign": 1, "estimate": gain,
              "ci_low": cis.get("gain", nan2)[0], "ci_high": cis.get("gain", nan2)[1],
              "p_raw": max(p_a, p_b), "direction_ok": h3_dir},
-            {"hypothesis": "H4", "label": "extraction gain larger for paraphrased facts",
+            {"hypothesis": "H4", "label": "extraction gain larger for paraphrased (secondary)",
              "scale": "risk diff (gain diff)", "predicted_sign": 1, "estimate": diff,
              "ci_low": cis.get("gain_diff", nan2)[0], "ci_high": cis.get("gain_diff", nan2)[1],
              "p_raw": p4, "direction_ok": bool(diff > 0)},

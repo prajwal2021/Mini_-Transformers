@@ -144,6 +144,20 @@ def acquisition_table(df: pd.DataFrame) -> pd.DataFrame:
     return out.sort_values(["freq_bin", "div_bin"]).reset_index(drop=True)
 
 
+def eval_accuracy(qa: pd.DataFrame, b: int = 1000, seed: int = BOOT_SEED) -> pd.DataFrame:
+    """Exact-match accuracy per eval set x model (mean of per-fact accuracy; fact bootstrap)."""
+    rng = np.random.default_rng(seed)
+    rows = []
+    for (es, model), g in qa.groupby(["eval_set", "model"]):
+        per_fact = g.groupby("fact_id")["exact_match"].mean().to_numpy()
+        idx = rng.integers(0, len(per_fact), (b, len(per_fact)))
+        lo, hi = np.percentile(per_fact[idx].mean(axis=1), [2.5, 97.5])
+        rows.append({"eval_set": es, "model": model, "n_facts": len(per_fact),
+                     "accuracy": float(per_fact.mean()), "ci_low": float(lo),
+                     "ci_high": float(hi)})
+    return pd.DataFrame(rows)
+
+
 def to_markdown(df: pd.DataFrame, floatfmt: str = "{:.3f}") -> str:
     """Minimal GitHub markdown table (avoids a tabulate dependency)."""
     cols = list(df.columns)

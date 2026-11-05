@@ -40,9 +40,9 @@ def test_qa_table_follows_design_split(qa):
 
 
 def test_qa_stored_pretrain_matches_probe_table(qa, probe):
-    t = probe[probe["split"] == "test"].groupby(["fact_id", "seed"])["stored"].mean().ge(0.5)
+    t = probe[probe["split"] == "test"].groupby(["fact_id", "seed"])["stored"].mean().gt(0.5)
     chk = qa.drop_duplicates(["fact_id", "seed"]).set_index(["fact_id", "seed"])["stored_pretrain"]
-    assert (t.loc[chk.index].astype(int) == chk).all()
+    assert (t.loc[chk.index].astype(int) == chk).all()  # stored on >= 2 of 3 test probes
 
 
 def test_simulator_is_seeded(probe):
@@ -121,9 +121,9 @@ def test_fact_level_uses_majority_over_seeds_and_items(qa):
     f = fact_level(qa)
     assert len(f) == 60 and set(f.columns) >= {"stored", "correct_sft", "correct_base"}
     one = f.iloc[0]
-    rows = qa[(qa["fact_id"] == one["fact_id"]) & (qa["eval_set"] == "E2")]
-    sft_rate = rows[rows["model"] == "sft"]["exact_match"].mean()
-    assert one["correct_sft"] == int(sft_rate > 0.5)
+    rows = qa[(qa["fact_id"] == one["fact_id"]) & (qa["eval_set"] == "E2") & (qa["model"] == "sft")]
+    per_seed = rows.groupby("seed")["exact_match"].mean() > 0.5  # >= 2 of 3 phrasings per seed
+    assert one["correct_sft"] == int(per_seed.mean() > 0.5)  # and a majority of seeds
 
 
 def test_run_extraction_detects_planted_effects_and_is_deterministic():
@@ -167,9 +167,9 @@ def test_family_holm_and_provisional_flag():
         }
     )
     fam = assemble_family(gee)
-    assert fam["provisional"].all()
+    assert fam["provisional"].all()  # H3 missing -> its p is taken as 1
     h1 = fam.set_index("hypothesis").loc["H1"]
-    assert h1["p_holm"] == pytest.approx(0.004) and h1["status"] == "supported"
+    assert h1["p_holm"] == pytest.approx(0.003) and h1["status"] == "supported"
     ext = pd.DataFrame(
         {
             "hypothesis": ["H3", "H4"],
@@ -185,7 +185,11 @@ def test_family_holm_and_provisional_flag():
     )
     full = assemble_family(gee, ext).set_index("hypothesis")
     assert not full["provisional"].any()
-    # Holm over {0.001, 0.01, 0.04, 0.2}: 0.004, 0.03, 0.08, 0.2
-    assert full.loc["H3", "p_holm"] == pytest.approx(0.03)
-    assert full.loc["H4", "p_holm"] == pytest.approx(0.08) and not full.loc["H4", "reject_holm"]
-    assert full.loc["H4", "status"].startswith("not supported")
+    # Holm over the confirmatory {H1 0.001, H2 0.2, H3 0.01}: 0.003, 0.2, 0.02
+    assert full.loc["H3", "p_holm"] == pytest.approx(0.02)
+    assert full.loc["H2", "p_holm"] == pytest.approx(0.2) and not full.loc["H2", "reject_holm"]
+    # H4 is secondary: effect and CI only, no p-value claim and no Holm adjustment
+    h4 = full.loc["H4"]
+    assert np.isnan(h4["p_raw"]) and np.isnan(h4["p_holm"]) and not h4["reject_holm"]
+    assert h4["p_descriptive"] == pytest.approx(0.04)
+    assert h4["status"].startswith("secondary")

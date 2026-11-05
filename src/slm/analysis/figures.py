@@ -34,7 +34,24 @@ def _style(ax) -> None:
     ax.tick_params(colors=MUTED, labelcolor=INK)
 
 
-def _save(fig, out_dir: Path, name: str) -> list[Path]:
+BANNER_TEXT = "SIMULATED DATA - NOT RESULTS"
+
+
+def add_banner(fig) -> None:
+    """Visible simulated-data marks: a red strip at the top and a faint diagonal watermark."""
+    fig.text(0.5, 0.995, BANNER_TEXT, ha="center", va="top", fontsize=9, color="white",
+             fontweight="bold", bbox={"facecolor": "#B00020", "edgecolor": "none", "pad": 3})
+    fig.text(0.5, 0.5, "SIMULATED", ha="center", va="center", rotation=28, fontsize=64,
+             color="#B00020", alpha=0.10, fontweight="bold", zorder=0)
+
+
+def has_banner(fig) -> bool:
+    return any(BANNER_TEXT in t.get_text() for t in fig.texts)
+
+
+def _save(fig, out_dir: Path, name: str, banner: bool = True) -> list[Path]:
+    if banner:
+        add_banner(fig)
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = []
     for ext, meta in (("png", _PNG_META), ("pdf", _PDF_META)):
@@ -45,7 +62,9 @@ def _save(fig, out_dir: Path, name: str) -> list[Path]:
     return paths
 
 
-def plot_stored_by_cell(cells: pd.DataFrame, out_dir: Path, checkpoint: int) -> list[Path]:
+def plot_stored_by_cell(
+    cells: pd.DataFrame, out_dir: Path, checkpoint: int, banner: bool = True
+) -> list[Path]:
     fig, axes = plt.subplots(1, len(FRAMES), figsize=(8, 3.6), sharey=True)
     x = np.arange(len(FREQ_BINS))
     for ax, rg in zip(axes, FRAMES):
@@ -77,10 +96,10 @@ def plot_stored_by_cell(cells: pd.DataFrame, out_dir: Path, checkpoint: int) -> 
         color=INK,
     )
     fig.tight_layout()
-    return _save(fig, out_dir, FIG_STORED)
+    return _save(fig, out_dir, FIG_STORED, banner)
 
 
-def plot_learning_curves(curves: pd.DataFrame, out_dir: Path) -> list[Path]:
+def plot_learning_curves(curves: pd.DataFrame, out_dir: Path, banner: bool = True) -> list[Path]:
     fig, axes = plt.subplots(
         len(FRAMES), len(FREQ_BINS), figsize=(9, 5.4), sharex=True, sharey=True
     )
@@ -111,4 +130,49 @@ def plot_learning_curves(curves: pd.DataFrame, out_dir: Path) -> list[Path]:
         color=INK,
     )
     fig.tight_layout()
-    return _save(fig, out_dir, FIG_CURVES)
+    return _save(fig, out_dir, FIG_CURVES, banner)
+
+
+FIG_LOSS = "loss_curves"
+FIG_EVAL = "eval_before_after"
+MODEL_COLORS = {"base_0shot": "#999999", "base_2shot": "#0072B2", "sft": "#D55E00"}
+
+
+def plot_loss_curves(loss: pd.DataFrame, out_dir: Path, banner: bool = True) -> list[Path]:
+    """Train and validation loss against step, one line per seed (loss_curves.csv)."""
+    fig, axes = plt.subplots(1, 2, figsize=(8, 3.2), sharey=True)
+    for ax, split in zip(axes, ("train", "val")):
+        sub = loss[loss["split"] == split]
+        for seed, g in sub.groupby("seed"):
+            g = g.sort_values("step")
+            ax.plot(g["step"], g["loss"], linewidth=1.6, label=f"seed {seed}")
+        ax.set_xscale("log")
+        ax.set_xlabel("step")
+        ax.set_title(f"{split} loss", fontsize=10, color=INK)
+        _style(ax)
+    axes[0].set_ylabel("cross-entropy (nats)")
+    axes[1].legend(frameon=False, fontsize=8)
+    fig.tight_layout()
+    return _save(fig, out_dir, FIG_LOSS, banner)
+
+
+def plot_eval_bars(acc: pd.DataFrame, out_dir: Path, banner: bool = True) -> list[Path]:
+    """E0/E1/E2 accuracy for base (0-shot, 2-shot) and SFT with fact-bootstrap CIs."""
+    sets = ["E0", "E1", "E2"]
+    models = [m for m in MODEL_COLORS if m in set(acc["model"])]
+    fig, ax = plt.subplots(figsize=(6.5, 3.2))
+    width = 0.8 / max(len(models), 1)
+    for k, m in enumerate(models):
+        sub = acc[acc["model"] == m].set_index("eval_set").reindex(sets)
+        xs = np.arange(len(sets)) + (k - (len(models) - 1) / 2) * width
+        ax.bar(xs, sub["accuracy"], width=width * 0.9, color=MODEL_COLORS[m], label=m)
+        ax.errorbar(xs, sub["accuracy"],
+                    yerr=[sub["accuracy"] - sub["ci_low"], sub["ci_high"] - sub["accuracy"]],
+                    fmt="none", ecolor=INK, capsize=3, linewidth=1)
+    ax.set_xticks(np.arange(len(sets)), sets)
+    ax.set_ylim(0, 1)
+    ax.set_ylabel("exact-match accuracy")
+    ax.legend(frameon=False, fontsize=8, ncol=3, loc="upper left")
+    _style(ax)
+    fig.tight_layout()
+    return _save(fig, out_dir, FIG_EVAL, banner)

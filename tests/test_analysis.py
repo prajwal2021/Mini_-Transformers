@@ -43,8 +43,8 @@ def test_simulator_is_seeded_and_matches_contract(table):
     assert "regime" not in table.columns
     assert validate_probe_table(table) == []
     p = SimParams()
-    # 6 cells x 20 facts x 3 seeds x (4 test + 2 val variants) x checkpoints
-    assert len(table) == 120 * p.n_seeds * 6 * len(checkpoint_steps(p))
+    # 6 cells x 20 facts x 3 seeds x (3 test + 2 val variants) x checkpoints
+    assert len(table) == 120 * p.n_seeds * 5 * len(checkpoint_steps(p))
     assert set(table["probe_frame"]) == {"canonical", "novel"}
     nested = table.groupby("prompt_variant")["probe_frame"].nunique()
     assert (nested == 1).all()
@@ -134,7 +134,7 @@ def test_gee_recovers_signs_and_h2_is_the_interaction():
 def test_template_dummies_are_not_collinear_with_frame(table):
     sub, _, _ = prepare_primary(table)
     pv = [c for c in sub.columns if c.startswith("pv_")]
-    assert len(pv) == 2  # 3 novel variants -> 2 dummies; the single canonical variant -> none
+    assert len(pv) == 1  # 2 novel variants -> 1 dummy; the single canonical variant -> none
     design = sub[["frame_c", *pv]].assign(const=1.0).to_numpy()
     assert np.linalg.matrix_rank(design) == design.shape[1]
 
@@ -203,6 +203,8 @@ def test_run_analysis_end_to_end_is_deterministic(table, tmp_path):
     fam = pd.read_csv(out1 / "tables/analysis_family.csv")
     assert list(fam["hypothesis"]) == ["H1", "H2", "H3", "H4"]
     assert not fam["provisional"].any()
+    h4 = fam.set_index("hypothesis").loc["H4"]
+    assert np.isnan(h4["p_holm"]) and h4["status"].startswith("secondary")
 
 
 def test_run_analysis_without_qa_is_provisional(table, tmp_path):
@@ -216,7 +218,7 @@ def test_run_analysis_without_qa_is_provisional(table, tmp_path):
 def test_null_replicates_run_and_summarise():
     reps = run_replicates(SimParams().null(), 6, seed0=7)
     summ = null_summary(reps).set_index("test")
-    fw = summ.loc["any of H1-H4 (family-wise)"]
+    fw = summ.loc["any of H1-H3 (family-wise)"]
     assert fw["rejection_holm"] <= fw["rejection_raw"]
     assert {"H1", "H2", "H3", "H4"} <= set(summ.index)
 
@@ -225,6 +227,6 @@ def test_null_replicates_run_and_summarise():
 def test_null_false_positive_rate_is_controlled():
     reps = run_replicates(SimParams().null(), 200, seed0=50_000)
     summ = null_summary(reps).set_index("test")
-    assert summ.loc["any of H1-H4 (family-wise)", "rejection_holm"] <= 0.10
+    assert summ.loc["any of H1-H3 (family-wise)", "rejection_holm"] <= 0.10
     for h in ("H1", "H2", "H3", "H4"):
         assert summ.loc[h, "rejection_raw"] <= 0.12

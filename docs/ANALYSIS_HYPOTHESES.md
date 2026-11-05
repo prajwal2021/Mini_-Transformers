@@ -19,8 +19,10 @@ cells: **SFT-train 40% / SFT-val 10% / held-out 50%** (E2 gets ~10 facts per cel
 (E1: SFT-train facts, unseen test templates; **E2**: held-out facts, unseen test templates; E0
 (sanity): SFT-train facts, train templates), section 2.1 ("Analysis uses **measured** exposure").
 
-**Multiple comparisons.** DESIGN states no correction. docs/PREREG.md v0 (and v1) state "Apply
-Holm correction across H1-H4"; that is the family: Holm over the four tests H1, H2, H3, H4.
+**Multiple comparisons (PREREG v3).** DESIGN states no correction. PREREG v0 stated "Apply Holm
+correction across H1-H4". PREREG v3 keeps H1, H2, H3 confirmatory with Holm (m = 3) and makes
+**H4 secondary** (effect and CI only, no significance claim), a deviation from DESIGN logged for
+the DESIGN v1.3 fold-in (PREREG section 0, D1).
 
 ## H1: storage rate rises with log exposure
 
@@ -50,11 +52,11 @@ Holm correction across H1-H4"; that is the family: Holm over the four tests H1, 
 |---|---|
 | Outcome | fact-level QA correctness on E2 (held-out facts) for base and SFT; fact-level `stored` |
 | Predictors | model (base vs SFT, same items); `stored` status |
-| Unit | fact (E2 facts, about 60). A fact is stored if stored in > half of its seeds; correct if > half of its seeds x questions are exact matches |
+| Unit | fact (E2 facts, about 60). A fact is stored if stored on >= 2 of 3 test probes in a majority of seeds; correct if exact match on >= 2 of 3 E2 phrasings in a majority of seeds (`any` and `all` are the sensitivity rules) |
 | Tests | H3a: McNemar (exact) base vs SFT on the same facts; H3b: Fisher exact on the 2x2 stored x correct(SFT). H3 is an intersection-union test: both must reject, p = max(p_a, p_b); both effects positive |
 | Effects | gain = acc(SFT) - acc(base); risk difference P(correct \| stored) - P(correct \| not stored); stratified fact-bootstrap 95% CIs |
 | Columns | QA table: `fact_id, seed, eval_set, question_id, model, exact_match, stored_pretrain, freq_bin, div_bin, sft_split` |
-| Status | confirmatory (see power) |
+| Status | confirmatory (Holm power 0.97 at 120 facts) |
 
 ## H4: extraction gain larger for paraphrased facts
 
@@ -65,7 +67,7 @@ Holm correction across H1-H4"; that is the family: Holm over the four tests H1, 
 | Unit | fact |
 | Tests | permutation test of mean gain (paraphrased) - mean gain (templated), permuting `div_bin` within `freq_bin`, 5000 permutations, fixed seed, two-sided p, predicted sign +; per-condition McNemar and 2x2 tables as DESIGN lists |
 | Columns | QA table as H3 |
-| Status | confirmatory (see power) |
+| Status | **secondary**: effect and CI, no significance claim (power 0.33 at 60 E2 facts) |
 
 ## Exploratory (not corrected)
 
@@ -75,26 +77,28 @@ char-normalised ranking.
 
 ## Ambiguities in DESIGN.md (flagged, with the choice made)
 
-1. **No multiplicity rule in DESIGN.** Holm over H1-H4 is taken from PREREG v0. Confirm.
+1. **No multiplicity rule in DESIGN.** PREREG v3 uses Holm over H1-H3 (m = 3) and makes H4
+   secondary (no significance claim): a logged deviation (PREREG section 0, D1, D2).
 2. **Exposure.** "log(exposure)" with exposure = measured string-match count x epochs (PREREG).
    Until P03 counts exist the bin code stands in; the code becomes log3(train_mentions).
 3. **H2 is a compound claim** (paraphrased better on novel; templated better only on canonical).
    Only the diversity x frame interaction is confirmatory; the "templated better on canonical"
    clause is judged from the simple-effect CIs, descriptively.
-4. **Canonical frame has 1 test probe, novel 3** (EVAL_COLUMNS: `test-canon`, `test-n1..3`);
-   DESIGN says "3 test templates". Rows are unbalanced across frames; fact clustering handles it.
+4. **Canonical frame has 1 test probe, novel 2** in the simulator (3 test probes per fact, as in
+   PREREG v3); the eval stream documents `test-canon`, `test-n1..3`, and DESIGN says "3 test
+   templates". Rows are unbalanced across frames; fact clustering handles it. Confirm the count.
 5. **(1 | template), (1 | seed)** are random in DESIGN. Three seeds cannot estimate a variance, and
    templates are nested in frames, so both are fixed effects here (GEE, A-D001/A-D003).
 6. **H3 "much greater than" / "bounded by"** have no thresholds. Tested as direction + CI only;
    the margin is a placeholder (PREREG). "base" is ambiguous (zero- vs 2-shot): base_2shot is the
    comparator, base_0shot is reported.
-7. **Fact-level `stored` and `correct`** (aggregation over seeds, probes, items) are not defined
-   in DESIGN. Majority rules are used; the eval stream proposes "stored on >= 2 of 3 test probes";
-   the producer must fix one rule before the freeze. With the majority rule the base is near the
-   floor (a fact is base-correct only if most of its items are), which inflates H3a gains.
-8. **Which checkpoint conditions H3.** The SFT starts from the released (val-selected) checkpoint;
-   the primary storage analysis uses the final checkpoint. `stored_pretrain` must come from the
-   checkpoint that was fine-tuned.
+7. **Fact-level `stored` and `correct`** are not defined in DESIGN. PREREG v3 fixes them: stored
+   on >= 2 of 3 test probes, correct on >= 2 of 3 E2 phrasings, each in a majority of seeds;
+   `any` and `all` are sensitivity analyses. Under this rule the 2-shot base is near the floor
+   (a fact is base-correct only if most of its items are), which inflates H3a gains.
+8. **One checkpoint (PREREG v3, D4).** The final checkpoint of each seed after a fixed epoch count
+   chosen on validation loss is analysed, fine-tuned and the source of `stored_pretrain`; this
+   replaces DESIGN section 5 val-probe selection rule.
 9. **H4 between-condition test** is not named in DESIGN (it names Fisher and McNemar only); a
    permutation test on per-fact gains is used. H4 as written includes the part of the gain that is
    mediated by higher storage of paraphrased facts.

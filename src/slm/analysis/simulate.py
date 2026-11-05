@@ -25,10 +25,12 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import pandas as pd
 
+from .aggregation import PRIMARY_RULE, stored_by_fact_seed
 from .schema import DIV_BINS, FRAMES, FREQ_BINS, MAX_RANK
 
 ATTR_IDS = ("time", "count", "person", "code")
-TEST_VARIANTS = ("test-canon", "test-n1", "test-n2", "test-n3")
+TEST_VARIANTS = ("test-canon", "test-n1", "test-n2")  # 3 test probes per fact (PREREG v3)
+BIN_MENTIONS = {"low": 5, "mid": 15, "high": 45}
 VAL_VARIANTS = ("val-canon", "val-n1")
 FRAME_C = {"canonical": -0.5, "novel": 0.5}
 
@@ -79,6 +81,11 @@ class SimParams:
     e1_offset: float = 1.5
     sd_fact_qa: float = 0.7
     sd_fact_seed_qa: float = 0.5
+    # measurement: SD of log measured mentions around the design bin (0 = exactly 5/15/45),
+    # and how well the nominal div_bin tracks realized diversity (1 = perfectly)
+    exposure_noise_sd: float = 0.0
+    manipulation_strength: float = 1.0
+    tokennorm_flip: float = 0.08  # share of rows where the token-normalised outcome differs
 
     def with_effects(self, **kw) -> SimParams:
         return SimParams(**{**asdict(self), **kw})
@@ -137,7 +144,43 @@ def _facts(p: SimParams, rng: np.random.Generator) -> pd.DataFrame:
     facts["value_len"] = rng.integers(2, 9, len(facts))
     facts["entity_freq"] = np.round(rng.normal(4.0, 0.8, len(facts)), 3)
     facts["u_fact"] = rng.normal(0.0, p.sd_fact, len(facts))
+    # extra draws only when the feature is on, so default tables are unchanged by them
+    base = facts["freq_bin"].map(BIN_MENTIONS).to_numpy(dtype=float)
+    if p.exposure_noise_sd > 0:
+        base = base * np.exp(rng.normal(0.0, p.exposure_noise_sd, len(facts)))
+    facts["train_mentions"] = np.maximum(np.round(base), 1).astype(int)
+    facts["exposure_c"] = np.log(facts["train_mentions"]) / np.log(3.0) - np.log(15.0) / np.log(3.0)
+    if p.manipulation_strength < 1.0:
+        rho = p.manipulation_strength
+        eps = rng.normal(0.0, 1.0, len(facts))
+        facts["div_latent"] = rho * facts["div_c"] + np.sqrt(1 - rho**2) * 0.5 * eps
+    else:
+        facts["div_latent"] = facts["div_c"]
     return facts
+
+
+def simulate_realized_diversity(p: SimParams, seed: int = 0) -> pd.DataFrame:
+    """Simulated data/bank/realized_diversity.csv for the facts of `simulate_probe_table(seed)`.
+
+    The columns are a monotone, noisy function of the latent realized diversity that drives
+    storage in the simulation. Schema: docs/ANALYSIS_INPUT.md section 3.
+    """
+    facts = _facts(p, np.random.default_rng(seed))
+    rng = np.random.default_rng(seed + 13)
+    d = facts["div_latent"].to_numpy() + 0.5  # 0 = verbatim, 1 = fully varied
+    n_mentions = facts["train_mentions"].to_numpy()
+    n_distinct = np.clip(np.round(1 + (n_mentions - 1) * np.clip(d, 0, 1)), 1, n_mentions)
+    jac = np.clip(0.95 - 0.7 * d + rng.normal(0.0, 0.04, len(facts)), 0.02, 1.0)
+    core = np.clip(0.05 + 0.9 * d + rng.normal(0.0, 0.05, len(facts)), 0.0, 1.0)
+    return pd.DataFrame(
+        {
+            "fact_id": facts["fact_id"],
+            "n_distinct": n_distinct.astype(int),
+            "n_reused": (n_mentions - n_distinct).astype(int),
+            "core_uniqueness": np.round(core, 4),
+            "mean_pairwise_jaccard": np.round(jac, 4),
+        }
+    )
 
 
 def simulate_probe_table(
@@ -169,15 +212,15 @@ def simulate_probe_table(
     attr_idx = facts["attribute_id"].map({a: i for i, a in enumerate(ATTR_IDS)}).to_numpy()
     fact_part = (
         p.intercept
-        + p.b_freq * facts["freq_c"]
-        + p.b_div * facts["div_c"]
-        + p.b_freq_div * facts["freq_c"] * facts["div_c"]
+        + p.b_freq * facts["exposure_c"]
+        + p.b_div * facts["div_latent"]
+        + p.b_freq_div * facts["exposure_c"] * facts["div_latent"]
         + p.b_value_len * z_len
         + p.b_entity_freq * z_ent
         + np.array(p.b_attr)[attr_idx]
         + facts["u_fact"]
     ).to_numpy()
-    frame_slope = p.b_frame + p.b_div_frame * facts["div_c"].to_numpy()  # per fact
+    frame_slope = p.b_frame + p.b_div_frame * facts["div_latent"].to_numpy()  # per fact
 
     # axes: fact, seed, variant -> final-checkpoint logit
     eta = (
@@ -221,17 +264,18 @@ def simulate_probe_table(
     df["baseline_logprob"] = baseline
     df["true_logprob"] = np.round(baseline + binding, 4)
     df["stored"] = ((df["rank"] == 1) & (df["binding_score"] > 0)).astype(int)
-    for col in ("attribute_id", "value_len", "entity_freq"):
+    for col in ("attribute_id", "value_len", "entity_freq", "train_mentions"):
         df[col] = facts[col].to_numpy()[fi]
+    flip = rng.random(n) < p.tokennorm_flip  # drawn last: earlier streams are unchanged
+    df["stored_tokennorm"] = np.where(flip, 1 - df["stored"], df["stored"]).astype(int)
     order = ["checkpoint", "fact_id", "seed", "prompt_variant"]
     return df.sort_values(order).reset_index(drop=True)
 
 
-def fact_seed_stored(probe: pd.DataFrame) -> pd.DataFrame:
-    """Per fact x seed `stored_pretrain`: stored in at least half of the test probes, final ckpt."""
+def fact_seed_stored(probe: pd.DataFrame, rule: str = PRIMARY_RULE) -> pd.DataFrame:
+    """Per fact x seed `stored_pretrain` from the test probes at the final checkpoint."""
     test = probe[(probe["split"] == "test") & (probe["checkpoint"] == probe["checkpoint"].max())]
-    out = test.groupby(["fact_id", "seed"])["stored"].mean().ge(0.5).astype(int)
-    return out.rename("stored_pretrain").reset_index()
+    return stored_by_fact_seed(test, rule)
 
 
 def assign_sft_split(facts: pd.DataFrame, rng: np.random.Generator) -> pd.Series:

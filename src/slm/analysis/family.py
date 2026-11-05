@@ -1,9 +1,10 @@
-"""The confirmatory family H1-H4: Holm correction and decision labels.
+"""The confirmatory family H1-H3 (Holm, m = 3) and the secondary H4 (PREREG v3).
 
-DESIGN.md names the four hypotheses but states no correction; docs/PREREG.md (v0, kept in v1)
-applies Holm across H1-H4, so that is the family. If H3/H4 are not available (no QA table) the
-missing p-values are treated as 1, which is the conservative bound for H1/H2 and is labelled
-provisional.
+DESIGN.md names H1-H4 but states no correction; docs/PREREG.md applies Holm. PREREG v3 keeps
+H1, H2, H3 confirmatory (m = 3) and pre-registers H4 as SECONDARY: effect size and CI are
+reported with no significance claim (power 0.36 at 120 facts, KB split frozen). If H3 is
+missing (no QA table) its p-value is treated as 1, which is the conservative bound for H1 and
+H2 and is labelled provisional.
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ import pandas as pd
 from .models import ALPHA, holm
 
 HYPOTHESES = ("H1", "H2", "H3", "H4")
+CONFIRMATORY = ("H1", "H2", "H3")
+SECONDARY = ("H4",)
 # PLACEHOLDER equivalence margins; to be set at the PREREG freeze (never claim "no effect"
 # unless the whole 95% CI lies inside the margin)
 MARGIN_LOG_ODDS = float(np.log(1.25))
@@ -32,19 +35,28 @@ def assemble_family(
     fam["hypothesis"] = pd.Categorical(fam["hypothesis"], HYPOTHESES, ordered=True)
     fam = fam.sort_values("hypothesis").reset_index(drop=True)
     fam["hypothesis"] = fam["hypothesis"].astype(str)
-    p_full = {h: 1.0 for h in HYPOTHESES}
-    p_full.update(dict(zip(fam["hypothesis"], fam["p_raw"])))
-    adj, rej = holm([p_full[h] for h in HYPOTHESES])
-    adj_map = dict(zip(HYPOTHESES, adj))
-    rej_map = dict(zip(HYPOTHESES, rej))
-    fam["p_holm"] = [adj_map[h] for h in fam["hypothesis"]]
-    fam["reject_holm"] = [bool(rej_map[h]) for h in fam["hypothesis"]]
+
+    p_full = {h: 1.0 for h in CONFIRMATORY}
+    for h, p in zip(fam["hypothesis"], fam["p_raw"]):
+        if h in CONFIRMATORY:
+            p_full[h] = p
+    adj, rej = holm([p_full[h] for h in CONFIRMATORY])
+    adj_map = dict(zip(CONFIRMATORY, adj))
+    rej_map = dict(zip(CONFIRMATORY, rej))
+    secondary = fam["hypothesis"].isin(SECONDARY)
+    fam["p_descriptive"] = np.where(secondary, fam["p_raw"], np.nan)
+    fam.loc[secondary, "p_raw"] = np.nan  # no significance claim for secondary hypotheses
+    fam["p_holm"] = [adj_map.get(h, np.nan) for h in fam["hypothesis"]]
+    fam["reject_holm"] = [bool(rej_map.get(h, False)) for h in fam["hypothesis"]]
     fam["status"] = [_status(r) for _, r in fam.iterrows()]
-    fam["provisional"] = len(fam) < len(HYPOTHESES)
+    present = set(fam["hypothesis"]) & set(CONFIRMATORY)
+    fam["provisional"] = len(present) < len(CONFIRMATORY)
     return fam
 
 
 def _status(row: pd.Series) -> str:
+    if row["hypothesis"] in SECONDARY:
+        return "secondary: effect and CI only"
     if row["reject_holm"]:
         return "supported" if row["direction_ok"] else "reversed"
     margin = MARGIN_LOG_ODDS if row["scale"] == "log-odds" else MARGIN_RISK_DIFF
@@ -54,4 +66,4 @@ def _status(row: pd.Series) -> str:
     return "not supported; inconclusive"
 
 
-__all__ = ["ALPHA", "HYPOTHESES", "assemble_family"]
+__all__ = ["ALPHA", "CONFIRMATORY", "HYPOTHESES", "SECONDARY", "assemble_family"]

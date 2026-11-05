@@ -36,6 +36,7 @@ from .schema import (
     PROBE_OPTIONAL,
     normalize_probe_table,
     validate_probe_table,
+    validate_realized_diversity,
 )
 
 # hypothesis id -> (coefficient name, predicted sign, label); H3/H4 live in extraction.py
@@ -72,10 +73,33 @@ def primary_checkpoint(df: pd.DataFrame, checkpoint: int | str = "final") -> int
     return int(max(common))
 
 
-def add_codes(df: pd.DataFrame) -> pd.DataFrame:
-    """Add model columns: freq_c, div_c, frame_c, standardised covariates, template dummies."""
+def final_by_seed(df: pd.DataFrame) -> pd.Series:
+    """Final (largest) checkpoint of each seed."""
+    return df.groupby("seed")["checkpoint"].max()
+
+
+def add_realized_diversity(df: pd.DataFrame, rd: pd.DataFrame) -> pd.DataFrame:
+    """Join realized diversity: rdiv_z = z(1 - mean_pairwise_jaccard), standardised over facts."""
+    validate_realized_diversity(rd, set(df["fact_id"]))
+    per_fact = (1.0 - rd.set_index("fact_id")["mean_pairwise_jaccard"]).loc[
+        sorted(set(df["fact_id"]))
+    ]
+    z = (per_fact - per_fact.mean()) / (per_fact.std(ddof=0) or 1.0)
     out = df.copy()
-    if "train_mentions" in out:
+    out["rdiv_z"] = out["fact_id"].map(z).astype(float)
+    return out
+
+
+def add_codes(df: pd.DataFrame, exposure: str = "auto") -> pd.DataFrame:
+    """Add model columns: freq_c, div_c, frame_c, standardised covariates, template dummies.
+
+    exposure: "auto" (log3 of `train_mentions` if present, else bin codes), "bins", "measured".
+    """
+    out = df.copy()
+    use_measured = "train_mentions" in out and exposure in ("auto", "measured")
+    if exposure == "measured" and "train_mentions" not in out:
+        raise ValueError("exposure='measured' needs a train_mentions column")
+    if use_measured:
         per_fact = out.groupby("fact_id")["train_mentions"].first()
         logm = np.log(per_fact.clip(lower=1)) / np.log(3.0)
         out["freq_c"] = out["fact_id"].map(logm - logm.mean()).astype(float)
@@ -98,18 +122,35 @@ def add_codes(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def build_formula(df: pd.DataFrame, covariates: bool = True) -> str:
-    terms = ["freq_c * div_c * frame_c"]
+DIVERSITY_MODES = ("nominal", "realized", "both")
+
+
+def build_formula(
+    df: pd.DataFrame,
+    covariates: bool = True,
+    outcome: str = "stored",
+    variant_terms: bool = True,
+    diversity: str = "nominal",
+) -> str:
+    if diversity not in DIVERSITY_MODES:
+        raise ValueError(f"diversity must be one of {DIVERSITY_MODES}")
+    core = {
+        "nominal": "freq_c * div_c * frame_c",
+        "realized": "freq_c * rdiv_z * frame_c",
+        "both": "freq_c * div_c * frame_c + rdiv_z + rdiv_z:frame_c",
+    }[diversity]
+    terms = [core]
     if df["seed"].nunique() > 1:
         terms.append("C(seed)")
-    terms += [c for c in df.columns if c.startswith("pv_")]
+    if variant_terms:
+        terms += [c for c in df.columns if c.startswith("pv_")]
     if covariates:
         for col in ("value_len_z", "entity_freq_z"):
             if col in df and df[col].nunique() > 1:
                 terms.append(col)
         if "attribute_id" in df and df["attribute_id"].nunique() > 1:
             terms.append("C(attribute_id)")
-    return "stored ~ " + " + ".join(terms)
+    return f"{outcome} ~ " + " + ".join(terms)
 
 
 def holm(pvalues: list[float] | np.ndarray, alpha: float = ALPHA) -> tuple[np.ndarray, np.ndarray]:
@@ -128,11 +169,15 @@ def fit_gee(
     covariates: bool = True,
     covariance: str = "bias_reduced",
     cov_struct: str = "exchangeable",
+    outcome: str = "stored",
+    variant_terms: bool = True,
+    diversity: str = "nominal",
 ) -> GeeResult:
     """Fit the logistic GEE on a single-checkpoint, test-split table."""
     if "freq_c" not in df:
         df = add_codes(df)
-    formula = build_formula(df, covariates)
+    formula = build_formula(df, covariates, outcome, variant_terms, diversity)
+    h2_term = "rdiv_z:frame_c" if diversity == "realized" else "div_c:frame_c"
     notes: list[str] = []
     cs = (
         sm.cov_struct.Exchangeable()
@@ -171,6 +216,7 @@ def fit_gee(
 
     rows = []
     for hid, (term, sign, label) in PROBE_FAMILY.items():
+        term = h2_term if hid == "H2" else term
         r = table.loc[table["term"] == term].iloc[0]
         rows.append(
             {
@@ -188,7 +234,7 @@ def fit_gee(
 
     cov = res.cov_params()
     srows = []
-    for frame, f in FRAME_CODE.items():
+    for frame, f in FRAME_CODE.items() if diversity != "realized" else []:
         est = res.params["div_c"] + f * res.params["div_c:frame_c"]
         var = (
             cov.loc["div_c", "div_c"]
@@ -206,19 +252,90 @@ def fit_gee(
         )
     label = f"{cov_struct}/{covariance}+t"
     return GeeResult(
-        table, family, pd.DataFrame(srows), len(df), n_clusters, converged, label, formula, notes
+        table,
+        family,
+        pd.DataFrame(srows, columns=["frame", "div_effect_log_odds", "ci_low", "ci_high"]),
+        len(df),
+        n_clusters,
+        converged,
+        label,
+        formula,
+        notes,
     )
 
 
+SEPARATION_BOUND = 8.0  # |coefficient| or SE above this on the log-odds scale = separation
+
+
+def check_separation(df: pd.DataFrame, outcome: str = "stored") -> pd.DataFrame:
+    """Design cells (freq x div x frame) whose outcome is all 0 or all 1 (separation risk)."""
+    cells = df.groupby(["freq_bin", "div_bin", "probe_frame"])[outcome].agg(["mean", "size"])
+    return cells[(cells["mean"] <= 0.0) | (cells["mean"] >= 1.0)].reset_index()
+
+
+def _fit_ok(res: GeeResult) -> bool:
+    t = res.table
+    finite = np.isfinite(t[["estimate", "se"]].to_numpy()).all()
+    return bool(
+        res.converged
+        and finite
+        and (t["estimate"].abs() < SEPARATION_BOUND).all()
+        and (t["se"] < SEPARATION_BOUND).all()
+    )
+
+
+def fit_gee_robust(
+    df: pd.DataFrame, covariates: bool = True, **kwargs
+) -> tuple[GeeResult | None, list[str]]:
+    """The pre-registered fallback ladder: primary fit; then independence working correlation;
+    then no optional covariates. Returns (result or None, log). A fit that fails to converge, is
+    non-finite or shows separation (|coef| or SE > 8) counts as failed. The order never depends
+    on p-values. None = non-informative (the affected tests are reported as such)."""
+    log: list[str] = []
+    ladder = [
+        ("primary", dict(covariates=covariates)),
+        ("independence", dict(covariates=covariates, cov_struct="independence")),
+        ("no covariates", dict(covariates=False, cov_struct="independence")),
+    ]
+    sep = check_separation(df, kwargs.get("outcome", "stored"))
+    if len(sep):
+        log.append(f"{len(sep)} design cell(s) with outcome all 0 or all 1 (separation risk)")
+    for name, extra in ladder:
+        try:
+            res = fit_gee(df, **{**kwargs, **extra})
+        except Exception as exc:  # singular design, etc.
+            log.append(f"{name}: failed ({type(exc).__name__})")
+            continue
+        if _fit_ok(res):
+            if name != "primary":
+                log.append(f"fallback used: {name}")
+            return res, log
+        log.append(f"{name}: not usable (non-convergence, non-finite or separation)")
+    log.append("all fits failed: H1/H2 are non-informative")
+    return None, log
+
+
 def prepare_primary(
-    df: pd.DataFrame, checkpoint: int | str = "final"
+    df: pd.DataFrame, checkpoint: int | str = "final", exposure: str = "auto"
 ) -> tuple[pd.DataFrame, int, list[str]]:
-    """Normalize + validate the probe table; return (coded primary-checkpoint test rows, ckpt)."""
+    """Normalize + validate the probe table; return (coded primary rows, checkpoint, warnings).
+
+    "final" = the final checkpoint of each seed (PREREG v3); the returned checkpoint is the
+    largest of them. An explicit step selects that checkpoint in every seed.
+    """
     df = normalize_probe_table(df)
     warns = validate_probe_table(df)
     test = df[df["split"] == "test"]
-    ck = primary_checkpoint(test, checkpoint)
-    return add_codes(test[test["checkpoint"] == ck]), ck, warns
+    if checkpoint == "final":
+        finals = final_by_seed(test)
+        sub = test[test["checkpoint"] == test["seed"].map(finals)]
+        ck = int(finals.max())
+        if finals.nunique() > 1:
+            warns.append(f"final checkpoints differ across seeds: {finals.to_dict()}")
+    else:
+        ck = int(checkpoint)
+        sub = test[test["checkpoint"] == ck]
+    return add_codes(sub, exposure), ck, warns
 
 
 def fit_primary(df: pd.DataFrame, checkpoint: int | str = "final", covariates: bool = True):
@@ -228,7 +345,12 @@ def fit_primary(df: pd.DataFrame, checkpoint: int | str = "final", covariates: b
     return fit_gee(sub, covariates=has_cov), ck
 
 
-def fit_bayes_mixed(df: pd.DataFrame, covariates: bool = True) -> pd.DataFrame:
+def fit_bayes_mixed(
+    df: pd.DataFrame,
+    covariates: bool = True,
+    variant_terms: bool = True,
+    outcome: str = "stored",
+) -> pd.DataFrame:
     """Sensitivity only: conditional logit with fact and fact-by-seed random intercepts (VB).
 
     Posterior SDs of the variational approximation are known to be too small, so this is
@@ -238,7 +360,7 @@ def fit_bayes_mixed(df: pd.DataFrame, covariates: bool = True) -> pd.DataFrame:
 
     if "freq_c" not in df:
         df = add_codes(df)
-    formula = build_formula(df, covariates)
+    formula = build_formula(df, covariates, outcome, variant_terms)
     df = df.assign(fact_seed=df["fact_id"].astype(str) + "/" + df["seed"].astype(str))
     model = BinomialBayesMixedGLM.from_formula(
         formula,
