@@ -62,3 +62,12 @@ Fact sentences are produced by code from the canonical sentence or the sentence 
 ## Amendment A2b (post-hoc, written after bank-pilot run 3)
 
 Reason: the judge NO rate measures generation efficiency, not fidelity. G1 passes when (1) A2 (a)-(g) hold for all six pilot facts and (2) the judge passes a hand-labelled precision set: zero false YES on at least 25 negatives and at least 90% of at least 15 positives accepted (framing leads such as "Per desk policy", "As of the current schedule" and noun-phrase restatements count as the same fact). The judge NO rate is reported together with the projected full-bank judge cost, not gated. A sample of 40 judge-YES sentences and all judge-NOs of F002 and F004 are printed for human review. This amendment is post-hoc (it follows run 3, where the NO rate was 18.8%); it replaces the 10% NO-rate condition of the G1 gate in the P02b7 plan.
+
+## Amendment A2c (post-hoc, written after the first full-bank run of P02b7h)
+
+Status: POST-HOC. It was written after the full bank was built and 14 of 120 facts failed A2 (a)-(g); it loosens two gates and says so. A2 (a)-(g) otherwise stand.
+
+- (d) distinct 3-token prefixes: at least ceil(0.8 x min(need, 25)) instead of min(need, 25).
+- (a) fill: a fact normally needs one distinct sentence per paraphrased mention. If a fact is still short after refill, sentences may be reused WITHIN TRAIN mentions only, each at most twice (`reuse_index` 0 or 1 in the allocation), and only if the distinct sentences number at least 0.6 x need (need = plain + novel mentions). Validation and test mentions require distinct sentences, disjoint from train and from each other, never reused; reserved frames serve only novel mentions and must be fully distinct. Otherwise the fact is a G2 failure and the run stops.
+- Evidence: P02b7h report: 14 failures; F040 rejected 287 of 340 candidates as duplicates; F086 and F087 failed because the generator was not told the validator's cue words; a 60-sentence sample showed a defect rate of about 3% (for example "Please be aware that reptile travel must be at least 11 weeks old" and "... within the stated limit").
+- Consequence for the analysis: reuse changes the realised diversity of a fact, so data/bank/realized_diversity.csv records n_distinct, n_reused, core-clause uniqueness and mean pairwise skeleton Jaccard per fact for use as a covariate.

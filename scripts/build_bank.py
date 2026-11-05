@@ -181,6 +181,25 @@ def core_and_attribute_sections(results: list[dict], costs: Counter, facts: dict
     return lines
 
 
+def backup_sentences(backup: Path, fact_id: str) -> list[dict]:
+    return json.loads((backup / f"{fact_id}.json").read_text(encoding="utf-8"))["sentences"]
+
+
+def write_realized_diversity(path: Path, results: list[dict], facts: dict, mentions: dict) -> None:
+    """Per fact: distinct and reused sentences, core-clause uniqueness, mean skeleton Jaccard (covariate)."""
+    lines = ["fact_id,attribute_id,mentions,n_distinct,n_reused,core_unique_share,mean_pair_skeleton_jaccard,"
+             "mean_pair_core_jaccard,prefixes"]
+    for r in results:
+        fact = facts[r["fact_id"]]
+        core = core_stats(r, fact)
+        g = r["gates"]
+        m = mentions[r["fact_id"]]
+        lines.append(",".join(str(x) for x in (
+            r["fact_id"], fact["attribute_id"], m["train"] + m["iid"] + m["novel"], g["n_distinct"], g["n_reused"],
+            f"{core['unique']:.4f}", f"{g['mean_pair_jaccard']:.4f}", f"{core['mean_jaccard']:.4f}", g["prefixes"])))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def failing_details(results: list[dict], facts: dict) -> list[str]:
     lines = []
     for r in results:
@@ -206,6 +225,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--doc-projection", type=float, default=7.16)
     parser.add_argument("--seed", type=int, default=20261031)
     parser.add_argument("--no-refill-pass", action="store_true")
+    parser.add_argument("--refill-short", action="store_true",
+                        help="P02b7i: refill only the saved facts short on (a), 2 new rounds, new prompts only")
     parser.add_argument("--i-understand-this-spends-money", action="store_true")
     args = parser.parse_args(argv)
     if args.client == "openai" and not args.i_understand_this_spends_money:
@@ -278,13 +299,49 @@ def main(argv: list[str] | None = None) -> int:
             refill_cost = sum(runner.usd.values()) - before
             print(f"refill pass cost ${refill_cost:.4f}")
 
+    mentions = bank.mention_counts(plan)
+    if args.refill_short and args.stage == "full" and stopped is None:
+        short = [f for f in wanted if f in results and results[f]["gates"]["filled"] < results[f]["gates"]["need"]]
+        backup = out_dir / "facts_p02b7h"
+        if not backup.exists():
+            backup.mkdir()
+            for f in wanted:
+                (backup / f"{f}.json").write_text((facts_dir / f"{f}.json").read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"short-fact refill (2 new rounds, new prompts only) for {len(short)} facts: {', '.join(short)}")
+        runner.require_new_gen = True
+        before = sum(runner.usd.values())
+        for fact_id in short:
+            try:
+                result = bank.build_fact(facts[fact_id], needs[fact_id], kb, frames, runner, args.seed,
+                                         prior=results[fact_id], max_rounds=2)
+            except BudgetExceeded as exc:
+                stopped = str(exc)
+                break
+            results[fact_id] = result
+            (facts_dir / f"{fact_id}.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+            g = result["gates"]
+            print(f"{fact_id}: filled {g['filled']}/{g['need']} (was {len(backup_sentences(backup, fact_id))}), "
+                  f"cost so far ${sum(runner.usd.values()) - before:.4f}")
+        refill_cost = sum(runner.usd.values()) - before
+        refilled = short
+        runner.require_new_gen = False
+        print(f"short-fact refill cost ${refill_cost:.4f}; new generation calls {runner.new_gen_calls}")
+    if args.stage == "full":  # A2c gates: (d) amended, (a) with controlled reuse inside train
+        for fact_id in list(results):
+            results[fact_id] = dict(results[fact_id], gates=bank.amended_gates(results[fact_id], mentions[fact_id]))
     ordered = [results[f] for f in wanted if f in results]
     costs = ledger_costs(out_dir / "ledger.jsonl")
     totals = {"cost": sum(costs.values()) if not mock else sum(runner.usd.values()),
               "gen": runner.usd["gen"], "judge": runner.usd["judge"]}
     still_failing = [f for f in wanted if f in errors or f not in results or not results[f]["gates"]["all"]]
-    extra = ["", "## G2 summary", "",
-             f"Facts meeting A2 (a)-(g): {len(wanted) - len(still_failing)}/{len(wanted)}; "
+    reused = [(r["fact_id"], r["gates"]["need"] - r["gates"]["n_distinct"], r["gates"]["n_reused"])
+              for r in ordered if r["gates"].get("n_reused")]
+    extra = ["", "## G2 summary (amended A2c)", "",
+             f"Facts using controlled reuse in train: {len(reused)}; reused mentions in total: "
+             f"{sum(n for _f, _s, n in reused)}. " + "; ".join(
+                 f"{f}: shortfall {sf}, reused {n}" for f, sf, n in reused),
+             "",
+             f"Facts meeting A2 (a)-(g) as amended: {len(wanted) - len(still_failing)}/{len(wanted)}; "
              f"facts that went through the refill pass: {len(refilled)} ({', '.join(refilled) or 'none'}); "
              f"refill pass cost ${refill_cost:.4f}; errors: {errors or 'none'}"]
     if still_failing:
@@ -296,6 +353,7 @@ def main(argv: list[str] | None = None) -> int:
                      spent_before, facts, extra)
     if args.stage == "full" and stopped is None and not still_failing:
         rows = bank.write_bank_files(out_dir, ordered)
+        write_realized_diversity(out_dir / "realized_diversity.csv", ordered, facts, mentions)
         by_fact: dict[str, list[dict]] = {r["fact_id"]: r["sentences"] for r in ordered}
         allocation = bank.allocate(plan, by_fact, args.seed)
         problems = bank.check_allocation(plan, [dict(r, reserved=r["reserved"]) for r in rows], allocation)

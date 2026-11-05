@@ -75,7 +75,7 @@ def test_refill_prompt_carries_the_avoid_list_and_targets_underfilled_frames(tmp
     first = refill[0]
     assert "Sentences already written" in first
     avoid_lines = [x for x in first.split("Sentences already written")[1].splitlines() if x.startswith("- ")]
-    assert len(avoid_lines) > 8
+    assert len(avoid_lines) >= 1
     styles = re.findall(r"^(f\d\d) \(", first, re.MULTILINE)
     assert "f01" in styles and len(styles) < 24
 

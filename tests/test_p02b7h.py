@@ -82,9 +82,12 @@ def test_generation_prompt_lists_the_cue_words_for_each_tightened_attribute() ->
             assert "use at least one of these words or phrases: " + ", ".join(group) + ";" in prompt, attr
 
 
-def test_other_attributes_have_no_extra_prompt_line() -> None:
-    fact = BY_ATTR["skyport_relief_gate"]
-    assert "use at least one of these words" not in bank.candidate_prompt(fact, bank.load_frames()[:2])
+def test_other_attributes_list_their_validator_cue_words_in_the_prompt() -> None:
+    fact = BY_ATTR["skyport_relief_gate"]  # P02b7i: every attribute lists its cue words
+    prompt = bank.candidate_prompt(fact, bank.load_frames()[:2])
+    assert "use at least one of these words or phrases: relief;" in prompt
+    assert "use at least one of these words or phrases: gate, code;" in prompt
+    assert not bank.bank_cue_groups(fact)  # the check itself is unchanged for these attributes
 
 
 def test_core_clause_strips_the_lead_and_the_carrier() -> None:

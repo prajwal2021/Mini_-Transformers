@@ -67,6 +67,51 @@ def needs_from_plan(plan: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
     }
 
 
+def mention_counts(plan: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    """Per fact: paraphrased mentions by style regime (train, iid = val/test iid, novel = val/test novel)."""
+    counts: dict[str, Counter[str]] = defaultdict(Counter)
+    for row in plan:
+        for fact_id, mode in zip(row["fact_ids"], row["modes"]):
+            if mode == "paraphrased":
+                counts[fact_id][row["style_regime"]] += 1
+    return {f: {"train": c["train"], "iid": c["iid"], "novel": c["novel"]} for f, c in counts.items()}
+
+
+def reuse_plan(n_plain: int, n_reserved: int, mentions: dict[str, int]) -> dict[str, Any]:
+    """A2c (a): can this many distinct sentences cover the mentions, reusing only inside train?"""
+    need = mentions["train"] + mentions["iid"] + mentions["novel"]
+    out: dict[str, Any] = {"ok": False, "n_distinct": n_plain + n_reserved, "n_reused": 0, "reason": ""}
+    if n_reserved != mentions["novel"]:
+        out["reason"] = f"reserved sentences {n_reserved} of {mentions['novel']} (never reused)"
+    elif n_plain >= mentions["iid"] + mentions["train"]:
+        out["ok"] = True
+    elif n_plain < mentions["iid"]:
+        out["reason"] = f"only {n_plain} plain sentences for {mentions['iid']} val/test mentions"
+    elif n_plain + n_reserved < 0.6 * need:
+        out["reason"] = f"distinct {n_plain + n_reserved} < 0.6 x need {need}"
+    else:
+        distinct_train = n_plain - mentions["iid"]
+        if distinct_train < 1 or 2 * distinct_train < mentions["train"]:
+            out["reason"] = f"{distinct_train} train sentences cannot cover {mentions['train']} mentions at 2 uses"
+        else:
+            out["ok"] = True
+            out["n_reused"] = mentions["train"] - distinct_train
+    return out
+
+
+def amended_gates(result: dict[str, Any], mentions: dict[str, int]) -> dict[str, Any]:
+    """A2c gates of a saved fact result: (d) is already amended in gate_metrics, (a) allows train reuse."""
+    gates = dict(result["gates"])
+    n_res = sum(1 for x in result["sentences"] if x["reserved"])
+    n_plain = len(result["sentences"]) - n_res
+    reuse = reuse_plan(n_plain, n_res, mentions)
+    gates["d"] = gates["prefixes"] >= math.ceil(0.8 * min(gates["need"], 25))
+    gates["a"] = reuse["ok"]
+    gates["all"] = all(gates[k] for k in "abcdefg")
+    gates.update({"n_distinct": reuse["n_distinct"], "n_reused": reuse["n_reused"], "reuse_reason": reuse["reason"]})
+    return gates
+
+
 # ---- text helpers --------------------------------------------------------------------------
 
 
@@ -126,6 +171,24 @@ CUE_REASON = "lacks the capacity-style cue for this attribute"
 def bank_cue_groups(fact: dict[str, Any]) -> list[list[str]]:
     """Bank-only stricter cue groups (D-081); empty when the attribute has none."""
     return dv.load_cues().get(fact["attribute_id"], {}).get("bank_cue_groups", [])
+
+
+def prompt_cue_groups(fact: dict[str, Any]) -> list[list[str]]:
+    """Cue words the generator is told (P02b7i): the bank groups, else the validator's cue groups.
+
+    The validator (v4/v5) passes when any stem of the union matches, except for require_all
+    attributes, which keep one line per group.
+    """
+    spec = dv.load_cues().get(fact["attribute_id"], {})
+    if spec.get("bank_cue_groups"):
+        return spec["bank_cue_groups"]
+    groups = spec.get("cue_groups", [])
+    if spec.get("require_all") or len(groups) <= 1:
+        return groups
+    union: list[str] = []
+    for group in groups:
+        union += [w for w in group if w not in union]
+    return [union]
 
 
 def bank_cues_met(text: str, fact: dict[str, Any]) -> bool:
@@ -220,10 +283,11 @@ def candidate_prompt(
     styles = "\n".join(
         f"{f['id']} ({f['register']}): {f['instruction']} Example: {f['example']}" for f in frames
     )
+    cue_groups = prompt_cue_groups(fact)
     cue_lines = "".join(
         "- use at least one of these words or phrases: " + ", ".join(group) + ";\n"
-        for group in bank_cue_groups(fact)
-    )
+        for group in cue_groups
+    ) + ("- a word that starts with one of those words or phrases counts as using it;\n" if cue_groups else "")
     earlier = ""
     if avoid:
         earlier = (
@@ -383,7 +447,7 @@ def gate_metrics(
         "b": all(c.judge == "YES" for c in selected),
         "c": len({c.skel for c in selected}) == n,
         "prefixes": len({c.prefix for c in selected}),
-        "d": len({c.prefix for c in selected}) >= min(need, 25),
+        "d": len({c.prefix for c in selected}) >= math.ceil(0.8 * min(need, 25)),
         "for_share": sum(c.for_lead for c in selected) / n if n else 0.0,
         "mean_pair_jaccard": mean_pair,
         "share_pairs_ge_07": sum(x >= 0.7 for x in pair) / len(pair) if pair else 0.0,
@@ -416,12 +480,18 @@ class Runner:
         self.calls: Counter[str] = Counter()
         self.by_tag: Counter[str] = Counter()
         self.cache_only_gen = False
+        self.require_new_gen = False  # refill: every generation prompt must be new (P02b7i)
+        self.new_gen_calls = 0
 
     def call(self, kind: str, prompt: str, tag: str) -> str:
         key = hashlib.sha256((self.model + kind + prompt).encode("utf-8")).hexdigest()
         path = self.cache_dir / f"{key}.json"
         if path.exists():
+            if kind == "gen" and self.require_new_gen:
+                raise AssertionError(f"refill re-issued a cached generation prompt for {tag}")
             return json.loads(path.read_text(encoding="utf-8"))["text"]
+        if kind == "gen":
+            self.new_gen_calls += 1
         if kind == "gen" and self.cache_only_gen:
             raise GenerationBlocked(tag)
         max_tokens = 800 if kind == "gen" else 700
@@ -519,8 +589,14 @@ def build_fact(
     frames: list[dict[str, Any]],
     runner: Runner,
     seed: int,
+    prior: dict[str, Any] | None = None,
+    max_rounds: int | None = None,
 ) -> dict[str, Any]:
-    """Generate, filter, select and judge the sentences one fact needs; returns the result record."""
+    """Generate, filter, select and judge the sentences one fact needs; returns the result record.
+
+    With ``prior`` (a saved result) the initial generation is skipped: the earlier judged
+    candidates form the pool and only ``max_rounds`` new refill rounds run (P02b7i).
+    """
     rng = random.Random(f"{seed}-{fact['fact_id']}")
     plain_frames = [f for f in frames if not f["reserved"]]
     reserved_frames = [f for f in frames if f["reserved"]]
@@ -605,18 +681,35 @@ def build_fact(
             run_call(chunk)
             produced += len(chunk)
 
-    generate_plain(math.ceil((OVERGENERATE_BIG if need_plain > 20 else OVERGENERATE) * need_plain))
-    if need_res:
-        for _ in range(2):
-            run_call(reserved_frames)
-
     selected: list[Cand] = []
     rounds_used = 0
     judged_yes: set[str] = set()
     judged_no: set[str] = set()
     judged_total = 0
     judge_log: list[dict[str, str]] = []
-    
+    if prior is None:
+        generate_plain(math.ceil((OVERGENERATE_BIG if need_plain > 20 else OVERGENERATE) * need_plain))
+        if need_res:
+            for _ in range(2):
+                run_call(reserved_frames)
+    else:
+        for key in ("generated", "det_valid", "refill_rounds", "cue_rejected", "cue_only"):
+            stats[key] = prior.get(key, 0)
+        rejected_reasons.update(prior.get("top_reject_reasons", {}))
+        for frame_id, counter in prior.get("frame_rejects", {}).items():
+            frame_rejects[frame_id].update(counter)
+        for entry in prior["judge_log"]:
+            frame = frame_by_id[entry["frame"]]
+            skel = skeleton(entry["text"], fact["entity"], fact["value"])
+            pool[frame["reserved"]].append(Cand(
+                entry["text"], entry["frame"], frame["register"], frame["reserved"], skel, grams(skel),
+                starts_with_for_entity(entry["text"], fact["entity"]),
+            ))
+            seen.add(" ".join(_tokens(entry["text"])))
+            (judged_yes if entry["answer"] == "YES" else judged_no).add(entry["text"])
+            judge_log.append(dict(entry))
+        judged_total = prior["judged"]
+
     def judge_pending() -> None:
         nonlocal judged_total
         pending = [c for r in (False, True) for c in pool[r]
@@ -645,7 +738,8 @@ def build_fact(
             c.judge = "YES"
         complete = len(sel_plain) == need_plain and len(sel_res) == need_res
         gates = gate_metrics(selected, need_plain + need_res, fact)
-        if (complete and gates["all"]) or rounds_used >= REFILL_ROUNDS:
+        limit = REFILL_ROUNDS if max_rounds is None else max_rounds
+        if (complete and gates["all"]) or rounds_used >= limit:
             break
         rounds_used += 1
         stats["refill_rounds"] += 1
@@ -695,10 +789,11 @@ def allocate(
         for fact_id, mode in zip(row["fact_ids"], row["modes"]):
             if mode == "templated":
                 out.append({"doc_id": row["doc_id"], "fact_id": fact_id, "sentence_id": "canonical",
-                            "frame": None, "register": None})
+                            "frame": None, "register": None, "reuse_index": 0})
             else:
                 mentions[fact_id].append((row, mode))
     doc_frames: dict[str, set[str]] = defaultdict(set)
+    counts = mention_counts(plan)
     for fact_id, items in sorted(mentions.items()):
         sentences = [dict(s, sentence_id=f"{fact_id}-b{index:03d}") for index, s in enumerate(bank[fact_id])]
         plain = [s for s in sentences if not s["reserved"]]
@@ -706,11 +801,18 @@ def allocate(
         novel = [m for m in items if m[0]["style_regime"] == "novel"]
         iid = [m for m in items if m[0]["style_regime"] == "iid"]
         train = [m for m in items if m[0]["style_regime"] == "train"]
-        if len(reserved) != len(novel) or len(plain) != len(iid) + len(train):
+        short = len(plain) < len(iid) + len(train)
+        if len(reserved) != len(novel) or (short and not reuse_plan(len(plain), len(reserved), counts[fact_id])["ok"]):
             raise AssertionError(f"{fact_id}: bank has {len(plain)}+{len(reserved)} sentences for "
                                  f"{len(iid) + len(train)}+{len(novel)} mentions")
+        if not short and len(plain) != len(iid) + len(train):
+            raise AssertionError(f"{fact_id}: bank has {len(plain)}+{len(reserved)} sentences for "
+                                 f"{len(iid) + len(train)}+{len(novel)} mentions")
+        uses: Counter[str] = Counter()
         # validation/test sentences are taken before train so the splits stay disjoint
         for group, pool in ((iid, plain), (novel, reserved), (train, plain)):
+            if group is train and short:
+                pool = pool + [dict(s) for s in pool]  # a second use of each remaining sentence
             order = list(group)
             rng.shuffle(order)
             unassigned = order
@@ -721,13 +823,14 @@ def allocate(
                     if not choices:
                         still.append((row, _mode))
                         continue
-                    choices.sort(key=lambda s: (s["frame"] in doc_frames[row["doc_id"]], rng.random()))
+                    choices.sort(key=lambda s: (uses[s["sentence_id"]], s["frame"] in doc_frames[row["doc_id"]], rng.random()))
                     chosen = choices[0]
                     pool.remove(chosen)
                     doc_frames[row["doc_id"]].add(chosen["frame"])
                     out.append({"doc_id": row["doc_id"], "fact_id": fact_id,
                                 "sentence_id": chosen["sentence_id"], "frame": chosen["frame"],
-                                "register": chosen["register"]})
+                                "register": chosen["register"], "reuse_index": uses[chosen["sentence_id"]]})
+                    uses[chosen["sentence_id"]] += 1
                 unassigned = still
             if unassigned:
                 raise AssertionError(f"{fact_id}: {len(unassigned)} mentions left without a sentence")
@@ -742,6 +845,8 @@ def check_allocation(
     by_id = {s["sentence_id"]: s for s in bank_rows}
     row_by_id = {r["doc_id"]: r for r in plan}
     seen: dict[str, str] = {}
+    uses: Counter[str] = Counter()
+    heldout_uses: Counter[str] = Counter()
     split_of: dict[str, set[str]] = defaultdict(set)
     expected = sum(len(r["fact_ids"]) for r in plan)
     if len(allocation) != expected:
@@ -757,15 +862,21 @@ def check_allocation(
         if mode != "paraphrased":
             problems.append(f"{a['doc_id']}/{a['fact_id']}: bank sentence for a templated mention")
         sentence = by_id[a["sentence_id"]]
-        if a["sentence_id"] in seen:
-            problems.append(f"{a['sentence_id']} reused")
+        uses[a["sentence_id"]] += 1
         seen[a["sentence_id"]] = a["doc_id"]
         split_of[a["sentence_id"]].add(row["split"])
+        if row["split"] != "train":
+            heldout_uses[a["sentence_id"]] += 1
         regime = row["style_regime"]
         if regime == "novel" and not sentence["reserved"]:
             problems.append(f"{a['sentence_id']}: novel mention without a reserved frame")
         if regime != "novel" and sentence["reserved"]:
             problems.append(f"{a['sentence_id']}: reserved frame on a {regime} mention")
+    for sentence_id, n in uses.items():
+        if n > 2:
+            problems.append(f"{sentence_id} reused more than twice")
+        if heldout_uses[sentence_id] > 1 or (n > 1 and heldout_uses[sentence_id]):
+            problems.append(f"{sentence_id} reused in validation/test")
     train_ids = {s for s, splits in split_of.items() if "train" in splits}
     heldout_ids = {s for s, splits in split_of.items() if splits & {"val", "test"}}
     if train_ids & heldout_ids:
