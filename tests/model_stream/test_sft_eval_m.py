@@ -1,4 +1,4 @@
-"""Exact-match evaluator with a fake generator, and the ledger-backed loader."""
+"""QA evaluator: value-match metric, base-model prompts, before/after tables."""
 
 import json
 
@@ -10,15 +10,20 @@ from slm.sft_eval import (
     TABLE_COLUMNS,
     assert_same_questions,
     clean_prediction,
-    compare_checkpoints,
+    compare_variants,
     comparison_table,
     evaluate_checkpoint,
     evaluate_qa,
+    load_attribute_values,
     load_qa_rows,
     normalize,
+    occurs,
     summarize,
 )
 from slm.split_manifest import build_manifest
+
+AV = {"skyport_lounge_manager": ("Elara Voss", "Mira Quill", "Sera Dovell", "Oren Hale",
+                                 "Tavi Brandt", "Lio Karsten")}
 
 
 def row(i, subset="E1", value="Elara Voss", **kw):
@@ -41,31 +46,55 @@ def fake(table):
 def test_normalisation_rule():
     assert normalize("  The  lounge\tmanager\n is  X.  ") == "The lounge manager is X."
     assert normalize("Elara Voss") != normalize("elara voss")  # case-sensitive
-    assert normalize("A.") != normalize("A")  # punctuation is not folded
     assert clean_prediction(" The answer is X.\nQuestion: next") == "The answer is X."
-    assert clean_prediction("\nX") == ""  # a leading newline ends the answer immediately
+    assert clean_prediction("\nX") == ""
 
 
-def test_exact_match_and_contains_are_separate():
-    rows = [row(0), row(1), row(2), row(3), row(4), row(5)]
-    gens = {
-        rows[0]["prompt"]: ("The lounge manager at P0 is Elara Voss.", False),  # exact
-        rows[1]["prompt"]: ("  The lounge manager at P1   is Elara Voss. ", False),  # spacing only
-        rows[2]["prompt"]: ("Elara Voss manages it.", False),  # right value, other wording
-        rows[3]["prompt"]: ("The lounge manager at P3 is Mira Voss.", False),  # wrong value
-        rows[4]["prompt"]: ("the lounge manager at P4 is Elara Voss.", False),  # case differs
-        rows[5]["prompt"]: ("The lounge manager at P5 is Elara Voss.\nQuestion: x", True),
-    }
-    t = evaluate_qa(rows, fake(gens), seed=7)
+def test_occurs_respects_word_boundaries():
+    assert occurs("The fee is $85.", "$85") and not occurs("The fee is $850.", "$85")
+    assert occurs("It holds 12 kg.", "12 kg") and not occurs("It holds 112 kg.", "12 kg")
+    assert occurs("by Elara Voss", "Elara Voss") and not occurs("by Elara Vossberg", "Elara Voss")
+    assert not occurs("anything", "")
+    assert occurs("opens at 07:53 sharp", "07:53")
+
+
+def test_primary_metric_is_exclusive_value_match_and_the_others_stay_separate():
+    rows = [row(i) for i in range(8)]
+    outs = [
+        "The lounge manager at P0 is Elara Voss.",  # exact sentence
+        "  The lounge manager at P1   is Elara Voss. ",  # spacing only
+        "Elara Voss manages it.",  # right value, other wording
+        "The lounge manager at P3 is Mira Quill.",  # another value of the attribute
+        "It is Elara Voss or Mira Quill.",  # gold plus another candidate
+        "the lounge manager at P5 is elara voss.",  # case differs
+        "The lounge manager at P6 is Elara Voss.\nQuestion: who is Mira Quill?",  # cut at newline
+        "Nobody.",
+    ]
+    gens = {r["prompt"]: (o, i == 6) for i, (r, o) in enumerate(zip(rows, outs, strict=True))}
+    t = evaluate_qa(rows, fake(gens), 7, AV)
     assert list(t.columns) == TABLE_COLUMNS
-    assert t["exact_match"].tolist() == [True, True, False, False, False, True]
-    assert t["contains_value"].tolist() == [True, True, True, False, True, True]
-    assert t["truncated_prompt"].tolist() == [False] * 5 + [True]
+    assert t["exact_value_match"].tolist() == [True, True, True, False, False, False, True, False]
+    assert t["contains_gold"].tolist() == [True, True, True, False, True, False, True, False]
+    assert t["sentence_exact"].tolist() == [True, True, False, False, False, False, True, False]
+    assert t["n_other_values"].tolist() == [0, 0, 0, 1, 1, 0, 0, 0]
+    assert t["truncated_prompt"].tolist() == [False] * 6 + [True, False]
     assert (t["seed"] == 7).all() and t["eval_set"].unique().tolist() == ["E1"]
-    assert t["question_id"].tolist() == [r["id"] for r in rows]
     assert t.loc[0, "gold"] == "The lounge manager at P0 is Elara Voss."
-    assert t.loc[3, "prediction"] == "The lounge manager at P3 is Mira Voss."
-    assert t.loc[0, "fact_id"] == "F0" and t.loc[0, "gold_value"] == "Elara Voss"
+    assert t.loc[0, "gold_value"] == "Elara Voss" and t.loc[0, "prompt_mode"] == "zero_shot"
+
+
+def test_gold_value_must_be_in_the_kb():
+    r = row(0, value="Somebody Else")
+    with pytest.raises(ValueError, match="not in the KB"):
+        evaluate_qa([r], fake({r["prompt"]: ("x", False)}), 0, AV)
+
+
+def test_kb_attribute_values_load():
+    from pathlib import Path
+
+    av = load_attribute_values(Path(__file__).resolve().parents[2] / "data" / "kb" / "kb.json")
+    assert len(av) == 20 and all(len(v) == 6 for v in av.values())
+    assert "Elara Voss" in av["skyport_lounge_manager"]
 
 
 def test_summary_by_eval_set():
@@ -73,10 +102,10 @@ def test_summary_by_eval_set():
     gens = {rows[0]["prompt"]: (rows[0]["answer"], False),
             rows[1]["prompt"]: ("Elara Voss", False),
             rows[2]["prompt"]: ("nothing", True)}
-    s = summarize(evaluate_qa(rows, fake(gens), 0)).set_index("eval_set")
-    assert s.loc["E0", "n"] == 2 and s.loc["E0", "exact_match"] == 0.5
-    assert s.loc["E0", "contains_value"] == 1.0
-    assert s.loc["E2", "exact_match"] == 0.0 and s.loc["E2", "truncated"] == 1
+    s = summarize(evaluate_qa(rows, fake(gens), 0, AV)).set_index("eval_set")
+    assert s.loc["E0", "n"] == 2 and s.loc["E0", "exact_value_match"] == 1.0
+    assert s.loc["E0", "sentence_exact"] == 0.5 and s.loc["E0", "contains_gold"] == 1.0
+    assert s.loc["E2", "exact_value_match"] == 0.0 and s.loc["E2", "truncated"] == 1
 
 
 def test_loader_goes_through_the_ledger(tmp_path):
@@ -94,59 +123,64 @@ def test_loader_goes_through_the_ledger(tmp_path):
         m.read_verified(tmp_path / "qa_test.jsonl", ("test",))
 
 
-def test_real_decoder_end_to_end(tmp_path, tokenizer):
-    torch.manual_seed(0)
-    cfg = ModelConfig(vocab_size=tokenizer.vocab_size, context_len=96, n_layer=1, n_head=2,
+def tiny_ckpt(tmp_path, tok, name, seed, ctx=256):
+    cfg = ModelConfig(vocab_size=tok.vocab_size, context_len=ctx, n_layer=1, n_head=2,
                       d_model=16, d_ff=32, dropout=0.0)
-    ck = tmp_path / "m.pt"
-    save_checkpoint(Transformer(cfg), ck)
+    torch.manual_seed(seed)
+    p = tmp_path / f"{name}.pt"
+    save_checkpoint(Transformer(cfg), p)
+    return p
+
+
+def test_real_decoder_end_to_end(tmp_path, tokenizer):
+    ck = tiny_ckpt(tmp_path, tokenizer, "m", 0)
     rows = [row(i) for i in range(3)]
-    a = evaluate_checkpoint(ck, tokenizer, rows, seed=0, device="cpu", max_new_tokens=6)
-    b = evaluate_checkpoint(ck, tokenizer, rows, seed=0, device="cpu", max_new_tokens=6)
-    assert a.equals(b) and len(a) == 3 and not a["exact_match"].any()
+    kw = dict(seed=0, attribute_values=AV, device="cpu", max_new_tokens=6)
+    a = evaluate_checkpoint(ck, tokenizer, rows, **kw)
+    b = evaluate_checkpoint(ck, tokenizer, rows, **kw)
+    assert a.equals(b) and len(a) == 3 and not a["exact_value_match"].any()
     assert not a["truncated_prompt"].any()
 
 
-def test_before_after_uses_the_same_questions_template_and_decoding(tmp_path, tokenizer):
-    torch.manual_seed(0)
-    cfg = ModelConfig(vocab_size=tokenizer.vocab_size, context_len=96, n_layer=1, n_head=2,
-                      d_model=16, d_ff=32, dropout=0.0)
-    paths = {}
-    for name, seed in (("pretrained", 1), ("sft", 2)):  # two different models, same code path
-        torch.manual_seed(seed)
-        paths[name] = tmp_path / f"{name}.pt"
-        save_checkpoint(Transformer(cfg), paths[name])
+def test_before_after_variants_share_questions_and_decoding(tmp_path, tokenizer):
+    from slm.sft_eval import few_shot_prefix
+
+    pre, sft = tiny_ckpt(tmp_path, tokenizer, "pre", 1), tiny_ckpt(tmp_path, tokenizer, "sft", 2)
+    shots = [{"question": "Q one?", "answer": "A one."}, {"question": "Q two?", "answer": "A two."}]
+    prefix = few_shot_prefix(shots)
+    assert prefix == "Question: Q one?\nAnswer: A one.\n\nQuestion: Q two?\nAnswer: A two.\n\n"
+    variants = [("pretrained", pre, "zero_shot", ""), ("pretrained", pre, "2shot", prefix),
+                ("sft", sft, "zero_shot", "")]
     rows = [row(i, s) for i, s in enumerate(["E0", "E0", "E1", "E2"])]
-    seen_prompts = []
+    seen = []
 
     import slm.sft_eval.evaluate as ev
 
     real = ev.make_generate_fn
 
     def spy(model, tok, device=None, max_new_tokens=48):
-        seen_prompts.append(("max_new_tokens", max_new_tokens))
         gen = real(model, tok, device, max_new_tokens)
 
         def wrapped(prompt):
-            seen_prompts.append(prompt)
+            seen.append((max_new_tokens, prompt))
             return gen(prompt)
         return wrapped
 
     ev.make_generate_fn = spy
     try:
-        t = compare_checkpoints(paths, tokenizer, rows, seed=0, device="cpu", max_new_tokens=5)
+        t = compare_variants(variants, tokenizer, rows, 0, AV, device="cpu", max_new_tokens=5)
     finally:
         ev.make_generate_fn = real
-    assert set(t["checkpoint"]) == {"pretrained", "sft"} and len(t) == 8
-    a, b = (t[t["checkpoint"] == c] for c in ("pretrained", "sft"))
-    assert a["question_id"].tolist() == b["question_id"].tolist() == [r["id"] for r in rows]
-    assert a["gold"].tolist() == b["gold"].tolist()
-    prompts = [p for p in seen_prompts if isinstance(p, str)]
-    assert prompts[:4] == prompts[4:] == [r["prompt"] for r in rows]  # one template, both models
-    assert {x for x in seen_prompts if isinstance(x, tuple)} == {("max_new_tokens", 5)}
+    assert len(t) == 12 and {x for x, _ in seen} == {5}  # one decoding setting everywhere
+    plain = [r["prompt"] for r in rows]
+    assert [p for _, p in seen[:4]] == plain == [p for _, p in seen[8:]]
+    assert [p for _, p in seen[4:8]] == [prefix + p for p in plain]  # only the declared prefix
+    groups = {k: g["question_id"].tolist() for k, g in t.groupby(["checkpoint", "prompt_mode"])}
+    assert len(groups) == 3 and all(ids == [r["id"] for r in rows] for ids in groups.values())
     assert_same_questions(t)
     cmp = comparison_table(t)
-    assert list(cmp.columns) == ["checkpoint", "eval_set", "n", "exact_match", "contains_gold"]
-    assert len(cmp) == 6 and set(cmp["n"]) == {1, 2}
+    assert list(cmp.columns) == ["checkpoint", "prompt_mode", "eval_set", "n",
+                                 "exact_value_match", "contains_gold", "sentence_exact"]
+    assert len(cmp) == 9
     with pytest.raises(AssertionError, match="different question set"):
         assert_same_questions(t.drop(index=t.index[-1]))

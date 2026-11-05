@@ -30,3 +30,6 @@
 
 ## M-E005 M03 mock dry run (plumbing only)
 - 2 seeds pretrained 8 epochs (about 9.5 s for both), SFT on sft_mock/sft_train 6 epochs each (7 s for both, best epoch 6, sft_val loss 3.47 and 3.41, still falling), then greedy decoding on E0 336 / E1 144 / E2 180 questions for the pretrained and the SFT checkpoint of each seed (144 s per seed for both checkpoints). Exact match and contains-gold were 0.000 everywhere for both checkpoints, as expected for a model that saw 200 mock documents and 6 SFT epochs; its answers look like "The pets is." Ledger: 1 line. No prompt was truncated.
+
+## M-E006 M04 mock dry run (plumbing only)
+- Pretrain 2 seeds 11.6 s, SFT 2 seeds 7.8 s, before/after on 60 questions per set (180): 66 s and 70 s per seed for three variants. All rates 0.000 (pretrained zero-shot, pretrained 2-shot, SFT zero-shot; E0, E1, E2). make_bundle 2.8 s, 94.9 MiB. generate.py about 2 s per call on CPU. Fresh-clone test with a new venv and pinned install: pip took 175 s (network available), whole test 187 s, both bundles deterministic.

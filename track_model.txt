@@ -4,6 +4,7 @@ CHECKLIST:
 [x] M01 tokenizer (BPE from scratch), Transformer, doc-aware packing, mock corpus, tests, GPU smoke (commit "M01: tokenizer, model, packing, GPU smoke test")
 [x] M02 manifest guard, token cache, training loop (seeds, resume, checkpoints), ModelScorer, sweep protocol, mock dry run (commit "M02: training loop, ModelScorer, manifest guard, hparam protocol")
 [x] M03 weight-decay fix (M-D035), SFT trainer, greedy/sampling decoder, exact-match evaluator with before/after table, test-access ledger, mock dry run (commit "M03: SFT trainer, decoder, exact-match evaluator, test-access ledger")
+[x] M04 exact_value_match metric, base 0/2-shot prompts, generate.py, make_bundle.py, fresh_clone_test.py, README template, mock dry run (commit "M04: value-match metric, base prompts, generate CLI, bundle, fresh-clone test")
 [ ] Tokenizer on the real TRAIN split + vocab-size study {1024,2048,4096,8192} (needs corpus; data stream owns file format, see M-D009)
 [ ] Pretraining loop, LR schedule, logging, log-spaced checkpoints (P05)
 [ ] Sizing check 12M vs 25M (P05)
@@ -13,6 +14,6 @@ KEY NUMBERS: params 12,417,024; vocab 4096; 180k positions/s eager bf16 batch 32
 
 OPEN ISSUES: spec PDF absent; torch.compile unavailable (M-F001); label_eos meaning needs confirmation (M-D030); real-corpus tokens_per_word and share over 512 unknown; manifest format is provisional (docs/SPLIT_MANIFEST.md) and must be adopted by the data stream.
 
-M03 OPEN: exact-match = sentence equality (M-D040) needs owner confirmation; base zero-shot/2-shot prompts not built.
+M04 OPEN: no SFT training CLI yet; bundle seed rule is by val loss (M-D047), not the val-probe rule; base exemplar ids are mock-split ids (regenerate with scripts/choose_base_exemplars.py); spec PDF absent.
 NEXT STEP: data stream emits data/splits.json; run scripts/sweep.py on the real corpus (P05).
 

@@ -22,3 +22,10 @@
 - **Decisions:** M-D035 to M-D042. **Experiments:** M-E005. **Failures:** M-F005.
 - **Open:** exact-match definition (sentence vs value) needs the owner's yes; the 7b scope came through a peer session.
 - **Next:** real corpus, real SFT, base zero-shot and 2-shot prompts (DESIGN 7.2).
+
+## [2026-11-05] M04 - Value-match metric, base prompts, generate CLI, bundle, fresh-clone test
+- **Goal:** the demo and release pieces the course needs, runnable from a clean machine.
+- **Done:** `exact_value_match` primary metric (KB-based exclusivity); base zero-shot and 2-shot prompts with exemplars outside E0/E1/E2; before/after table of three variants; `slm.bundle`, `scripts/make_bundle.py`, `scripts/generate.py` (one-shot, interactive, sampling), `scripts/fresh_clone_test.py`; `docs/README_TEMPLATE.md`; `scripts/m04_dry_run.py`.
+- **Decisions:** M-D043 to M-D050. **Experiments:** M-E006.
+- **Open:** no SFT training CLI; seed rule is by validation loss, not the val-probe rule; exemplar ids belong to the mock split; spec PDF absent.
+- **Next:** real corpus and runs, then the real bundle.
