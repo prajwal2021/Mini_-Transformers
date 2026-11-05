@@ -66,7 +66,8 @@ def _openers() -> dict[str, list[str]]:
 
 def opener_for(row: dict[str, Any]) -> str:
     options = _openers()[row["doc_type"]]
-    index = int(hashlib.sha256(row["doc_id"].encode("utf-8")).hexdigest(), 16) % len(options)
+    key = row["doc_id"] + (f"#r{row['replan']}" if row.get("replan") else "")  # P02c: re-plan = new opener
+    index = int(hashlib.sha256(key.encode("utf-8")).hexdigest(), 16) % len(options)
     return options[index]
 
 
