@@ -10,12 +10,14 @@ from pathlib import Path
 
 import pandas as pd
 
+from slm.analysis import banner as _banner
+
 MACRO = re.compile(r"\{\{\s*([A-Za-z0-9_.:]+?)(?::([^{}]*))?\s*\}\}")
 # tokens that contain digits but are names, not results
 ALLOWED_TOKENS = re.compile(
     r"\b(?:H[1-4]|E[0-2]|base_[02]shot|[02]-shot|GEE|log3|SFT|P0\d+|Q\d)\b"
 )
-BANNER_TEXT = "SIMULATED DATA - NOT RESULTS"
+BANNER_TEXT = "SIMULATED DATA - NOT RESULTS"  # default label; see slm.analysis.banner
 
 TABLES: dict[str, tuple[str, list[str], str]] = {
     # name: (csv file, columns, caption)
@@ -109,9 +111,7 @@ def _render_macro(m: re.Match, ctx: RenderContext) -> str:
     if key == "banner_notice":
         if not ctx.banner:
             return ""
-        return (f"> **{BANNER_TEXT}.** Every number, table and figure in this document was "
-                "generated from simulated inputs to test the report pipeline. None of it is a "
-                "result of the study.")
+        return f"> **{_banner.text()}.** {_banner.notice()}"
     if key.startswith("table:") or (key == "table" and spec):
         name = spec if key == "table" else key.split(":", 1)[1]
         return _render_table(name, ctx)
@@ -263,8 +263,8 @@ def blocks_to_html(blocks: list[Block], banner: bool, title: str = "Report") -> 
     if banner:
         # the banner sits in a table header, which prints at the top of every page in normal
         # flow (a fixed element would overlap the text)
-        out.append("<div class='sim-mark'>SIMULATED</div><table class='page'><thead><tr>"
-                   f"<th class='sim-banner'>{BANNER_TEXT}</th></tr></thead><tbody><tr><td>")
+        out.append(f"<div class='sim-mark'>{_banner.label()}</div><table class='page'><thead><tr>"
+                   f"<th class='sim-banner'>{_banner.text()}</th></tr></thead><tbody><tr><td>")
     for b in blocks:
         if b.kind == "heading":
             out.append(f"<h{b.level}>{inline_html(b.text)}</h{b.level}>")

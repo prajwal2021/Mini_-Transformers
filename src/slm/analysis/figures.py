@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+from . import banner as _banner  # noqa: E402
 from .schema import DIV_BINS, FRAMES, FREQ_BINS  # noqa: E402
 
 COLORS = {"templated": "#0072B2", "paraphrased": "#D55E00"}  # Okabe-Ito blue / vermillion
@@ -34,19 +35,19 @@ def _style(ax) -> None:
     ax.tick_params(colors=MUTED, labelcolor=INK)
 
 
-BANNER_TEXT = "SIMULATED DATA - NOT RESULTS"
+BANNER_TEXT = "SIMULATED DATA - NOT RESULTS"  # default label; see slm.analysis.banner
 
 
 def add_banner(fig) -> None:
     """Visible simulated-data marks: a red strip at the top and a faint diagonal watermark."""
-    fig.text(0.5, 0.995, BANNER_TEXT, ha="center", va="top", fontsize=9, color="white",
+    fig.text(0.5, 0.995, _banner.text(), ha="center", va="top", fontsize=9, color="white",
              fontweight="bold", bbox={"facecolor": "#B00020", "edgecolor": "none", "pad": 3})
-    fig.text(0.5, 0.5, "SIMULATED", ha="center", va="center", rotation=28, fontsize=64,
+    fig.text(0.5, 0.5, _banner.label(), ha="center", va="center", rotation=28, fontsize=64,
              color="#B00020", alpha=0.10, fontweight="bold", zorder=0)
 
 
 def has_banner(fig) -> bool:
-    return any(BANNER_TEXT in t.get_text() for t in fig.texts)
+    return any(_banner.text() in t.get_text() for t in fig.texts)
 
 
 def _save(fig, out_dir: Path, name: str, banner: bool = True) -> list[Path]:

@@ -23,7 +23,9 @@ import matplotlib.image as mpimg  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
 
-from .markup import BANNER_TEXT, Block  # noqa: E402
+from slm.analysis import banner as _banner  # noqa: E402
+
+from .markup import Block  # noqa: E402
 
 CHROME_CANDIDATES = (
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -96,9 +98,9 @@ MARGIN = 0.7
 def _new_page(banner: bool):
     fig = plt.figure(figsize=(PAGE_W, PAGE_H))
     if banner:
-        fig.text(0.5, 0.995, BANNER_TEXT, ha="center", va="top", fontsize=9, color="white",
+        fig.text(0.5, 0.995, _banner.text(), ha="center", va="top", fontsize=9, color="white",
                  fontweight="bold", bbox={"facecolor": "#B00020", "edgecolor": "none", "pad": 3})
-        fig.text(0.5, 0.5, "SIMULATED", ha="center", va="center", rotation=28, fontsize=80,
+        fig.text(0.5, 0.5, _banner.label(), ha="center", va="center", rotation=28, fontsize=80,
                  color="#B00020", alpha=0.07, fontweight="bold")
     return fig
 

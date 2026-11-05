@@ -101,3 +101,7 @@ class ModelScorer:
 
     def score(self, prompt: str, continuation: str) -> float:
         return self.score_many([(prompt, continuation)])[0]
+
+    def score_detailed(self, prompt: str, continuation: str) -> tuple[float, int]:
+        """slm.eval.interface.DetailedScorer: (summed log-probability, continuation tokens)."""
+        return self.score_details([(prompt, continuation)])[0]

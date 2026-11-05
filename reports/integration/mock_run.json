@@ -1,0 +1,23 @@
+{
+  "label": "MOCK",
+  "seeds": [
+    0,
+    1
+  ],
+  "epochs": 8,
+  "eval_questions_per_set": 40,
+  "stage_seconds": {
+    "tokenizer_train": 0.22,
+    "token_cache": 0.16,
+    "pretrain_2_seeds": 10.27,
+    "probes_modelscorer": 8.57,
+    "sft_2_seeds": 8.01,
+    "qa_eval_3_variants": 96.09,
+    "build_analysis_tables": 3.31,
+    "run_analysis": 10.63,
+    "report_inputs": 2.45,
+    "build_report": 5.29
+  },
+  "total_seconds": 145.0,
+  "report_build": "backend: chrome; pages: 5; banner: True; pdf: C:\\Users\\prajsrin\\Documents\\slm-integration\\runs\\i01_mock\\report\\report.pdf"
+}

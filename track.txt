@@ -79,3 +79,7 @@ OPEN ISSUES:
 - Repository initialized on branch main at commit 96c8c18.
 
 NEXT STEP: run scripts/run_corpus.py, then scripts/audit_corpus.py, manifest and data card
+
+INTEGRATION (branch integration, worktree ../slm-integration; other streams keep track_model.txt, track_eval.txt, track_analysis.txt):
+[x] I01 merge model/eval/analysis streams, reconcile interfaces (docs/INTERFACES.md), end-to-end MOCK pipeline (scripts/run_all_mock.py), DESIGN_CHANGES_v1.3.md - commit "I01: merge streams, interfaces, end-to-end mock" (not merged into main)
+I01 OPEN: Term_Project.pdf and SPEC_COMPLIANCE.md absent; merge main (P02c corpus + manifest) into integration, then run build_analysis_tables with --manifest; sft_split source for the real QA file; realized-diversity column meaning (I-D007); no 12M-vs-25M sizing check yet.

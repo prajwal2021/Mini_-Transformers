@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from . import banner as banner_mod
 from . import descriptive as dsc
 from . import figures
 from .extraction import run_extraction
@@ -45,11 +46,14 @@ def run_analysis(
     qa_path: Path | str | None = None,
     mixed_sensitivity: bool = True,
     real: bool = False,
+    banner_label: str | None = None,
 ) -> dict[str, Path]:
     """Run the full pre-registered analysis; return the paths written.
 
     Figures carry a SIMULATED banner unless `real=True` (the explicit --real flag).
     """
+    if banner_label is not None:
+        banner_mod.set_label(banner_label)
     out = Path(out_dir)
     tables, fig_dir = out / "tables", out / "figures"
     tables.mkdir(parents=True, exist_ok=True)

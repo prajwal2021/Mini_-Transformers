@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from slm.analysis import banner as banner_mod
 from slm.analysis import figures
 from slm.analysis.pipeline import run_analysis
 from slm.analysis.schema import normalize_qa_table
@@ -70,11 +71,14 @@ def build(
     max_pages: int = 7,
     seed: int = 0,
     template: Path = TEMPLATE,
+    banner_label: str | None = None,
 ) -> BuildResult:
     """Build report.md/html/pdf in `out_dir`. Raises PageCountError outside the page range."""
     if simulate and real:
         raise ValueError("--simulate and --real are mutually exclusive: simulated data cannot "
                          "be presented as real results")
+    if banner_label is not None:
+        banner_mod.set_label(banner_label)
     banner = not real
     out_dir.mkdir(parents=True, exist_ok=True)
     work_ctx = tempfile.TemporaryDirectory() if simulate else None

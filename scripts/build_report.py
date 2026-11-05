@@ -33,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--min-pages", type=int, default=5)
     ap.add_argument("--max-pages", type=int, default=7)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--banner-label", default=None, choices=("SIMULATED", "MOCK"),
+                    help="banner text (default SIMULATED; the mock pipeline uses MOCK)")
     args = ap.parse_args(argv)
     simulate = args.simulate or not (args.real or args.inputs_dir)
     out = Path(args.out) if args.out else ROOT / "docs" / "report" / (
@@ -44,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
             results_dir=None if simulate else Path(args.results_dir),
             inputs_dir=None if simulate else Path(args.inputs_dir) if args.inputs_dir else None,
             backend=args.backend, min_pages=args.min_pages, max_pages=args.max_pages,
-            seed=args.seed,
+            seed=args.seed, banner_label=args.banner_label,
         )
     except PageCountError as exc:
         print(f"BUILD FAILED: {exc}", file=sys.stderr)

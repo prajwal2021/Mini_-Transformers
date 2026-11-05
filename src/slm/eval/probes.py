@@ -186,6 +186,17 @@ def _scored(scorer: Scorer, cache: dict, prompt: str, cont: str) -> tuple[float,
     return cache[key]
 
 
+def prefetch(scorer: Scorer, cache: dict, pairs: Sequence[tuple[str, str]]) -> None:
+    """Fill ``cache`` with one batched call when the scorer offers ``score_details(pairs)``
+    (the model-stream ModelScorer does); a pure speed-up, the values are the same as one by one."""
+    batched = getattr(scorer, "score_details", None)
+    if batched is None:
+        return
+    todo = list(dict.fromkeys(p for p in pairs if p not in cache))
+    for key, (lp, n) in zip(todo, batched(todo), strict=True):
+        cache[key] = (float(lp), max(int(n), 1))
+
+
 def _eval(M: list[list[float]], i: int, o: int) -> dict:
     """Stored procedure for entity i's prompt with value o as the (pseudo-)truth."""
     n = len(M)
@@ -210,6 +221,7 @@ def score_group(
 ) -> list[dict]:
     """Result dicts for the 6 items of one group (same attribute and variant), in item order."""
     cache = {} if cache is None else cache
+    prefetch(scorer, cache, [(a.prompt, continuation(b.value)) for a in items for b in items])
     n = len(items)
     if n != 6 or len({it.attribute_id for it in items}) != 1:
         raise ValueError("a group is the six entities of one attribute")

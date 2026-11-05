@@ -57,7 +57,7 @@ QA_REQUIRED = (
     "div_bin",
     "sft_split",
 )
-QA_ALIASES = {"subset": "eval_set", "correct": "exact_match"}
+QA_ALIASES = {"subset": "eval_set", "correct": "exact_match", "exact_value_match": "exact_match"}
 BINDING_TOL = 5e-3
 
 

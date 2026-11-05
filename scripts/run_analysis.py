@@ -24,11 +24,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-mixed", action="store_true", help="skip the mixed-model sensitivity fit")
     ap.add_argument("--real", action="store_true",
                     help="inputs are real results: turn the SIMULATED banner off (default: on)")
+    ap.add_argument("--banner-label", default=None, choices=("SIMULATED", "MOCK"),
+                    help="banner text when on (default SIMULATED; mock pipeline: MOCK)")
     args = ap.parse_args(argv)
     ck = args.checkpoint if args.checkpoint == "final" else int(args.checkpoint)
     written = run_analysis(
         args.input, args.out, ck, qa_path=args.qa_input, mixed_sensitivity=not args.no_mixed,
-        real=args.real,
+        real=args.real, banner_label=args.banner_label,
     )
     for name, path in written.items():
         print(f"{name}: {path}")
