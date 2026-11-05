@@ -1,15 +1,17 @@
-ANALYSIS STREAM TRACKER (branch analysis-stream)
+﻿ANALYSIS STREAM TRACKER (branch analysis-stream)
 
 CHECKLIST
-[x] A01 input contract, simulator, GEE pipeline, Holm, figures, validation report, PREREG draft v1
-[ ] Extraction family (H5/H6) code: stored x QA 2x2, Fisher, McNemar
-[ ] Confirm test family, SESOI and regime/frame column with the architect
-[ ] Run on real P06 probe table; freeze PREREG at P05 (before any real result)
+[x] A01 pipeline skeleton (hypothesis labels were wrong, fixed in A02: A-F001)
+[x] A02 DESIGN-aligned H1-H4, probe_frame, QA contract, extraction tests, validation, PREREG draft v2
+[ ] Settle PREREG open items (section 12) with the architect
+[ ] Join measured train_mentions (P03) -> log3 coding; fix stored/correct aggregation + comparator
+[ ] Run on real P06 probe table and P08 QA table; freeze PREREG at P05 (before any real result)
 
 PROMPT LOG
-A01 2026-11-05 pipeline + simulator + validation + PREREG draft (local commit only)
+A01 2026-11-05 pipeline + simulator + validation + PREREG draft (labels wrong)
+A02 2026-11-05 DESIGN-aligned hypotheses, extraction tests, probe_frame (local commit only)
 
-KEY NUMBERS (simulated)
-null FWER 0.178 raw / 0.042 Holm (1000 reps); power at 20 facts/cell: H1 1.00 H2 0.91 H3 0.32 H4 1.00
+KEY NUMBERS (simulated, 120 facts, Holm power)
+H1 1.00, H2 0.84, H3 0.96, H4 0.36 (underpowered). Null A family-wise 0.080 raw / 0.018 Holm (500 reps).
 
-NEXT STEP: architect review of PREREG draft and open items in journal/analysis/DECISIONS_A.md
+NEXT STEP: architect review of docs/PREREG.md section 12 and journal/analysis/DECISIONS_A.md A-D011..A-D021

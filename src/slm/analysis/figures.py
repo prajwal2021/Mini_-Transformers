@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from .schema import DIV_BINS, FREQ_BINS, REGIMES  # noqa: E402
+from .schema import DIV_BINS, FRAMES, FREQ_BINS  # noqa: E402
 
 COLORS = {"templated": "#0072B2", "paraphrased": "#D55E00"}  # Okabe-Ito blue / vermillion
 INK = "#222222"
@@ -46,12 +46,12 @@ def _save(fig, out_dir: Path, name: str) -> list[Path]:
 
 
 def plot_stored_by_cell(cells: pd.DataFrame, out_dir: Path, checkpoint: int) -> list[Path]:
-    fig, axes = plt.subplots(1, len(REGIMES), figsize=(8, 3.6), sharey=True)
+    fig, axes = plt.subplots(1, len(FRAMES), figsize=(8, 3.6), sharey=True)
     x = np.arange(len(FREQ_BINS))
-    for ax, rg in zip(axes, REGIMES):
+    for ax, rg in zip(axes, FRAMES):
         for k, db in enumerate(DIV_BINS):
-            sub = cells[(cells["regime"] == rg) & (cells["div_bin"] == db)].set_index("freq_bin")
-            sub = sub.loc[list(FREQ_BINS)]
+            mask = (cells["probe_frame"] == rg) & (cells["div_bin"] == db)
+            sub = cells[mask].set_index("freq_bin").loc[list(FREQ_BINS)]
             xs = x + (k - 0.5) * 0.12
             ax.errorbar(
                 xs,
@@ -66,7 +66,7 @@ def plot_stored_by_cell(cells: pd.DataFrame, out_dir: Path, checkpoint: int) -> 
             )
         ax.set_xticks(x, FREQ_BINS)
         ax.set_xlabel("exposure bin")
-        ax.set_title(f"{rg} probes", color=INK, fontsize=10)
+        ax.set_title(f"{rg}-frame probes", color=INK, fontsize=10)
         ax.set_ylim(0, 1)
         _style(ax)
     axes[0].set_ylabel("stored rate")
@@ -82,13 +82,13 @@ def plot_stored_by_cell(cells: pd.DataFrame, out_dir: Path, checkpoint: int) -> 
 
 def plot_learning_curves(curves: pd.DataFrame, out_dir: Path) -> list[Path]:
     fig, axes = plt.subplots(
-        len(REGIMES), len(FREQ_BINS), figsize=(9, 5.4), sharex=True, sharey=True
+        len(FRAMES), len(FREQ_BINS), figsize=(9, 5.4), sharex=True, sharey=True
     )
-    for r, rg in enumerate(REGIMES):
+    for r, rg in enumerate(FRAMES):
         for c, fb in enumerate(FREQ_BINS):
             ax = axes[r, c]
             for db in DIV_BINS:
-                mask = (curves["regime"] == rg) & (curves["freq_bin"] == fb)
+                mask = (curves["probe_frame"] == rg) & (curves["freq_bin"] == fb)
                 sub = curves[mask & (curves["div_bin"] == db)].sort_values("checkpoint")
                 ax.fill_between(
                     sub["checkpoint"], sub["ci_low"], sub["ci_high"], color=COLORS[db], alpha=0.15,
@@ -98,9 +98,9 @@ def plot_learning_curves(curves: pd.DataFrame, out_dir: Path) -> list[Path]:
                         label=db)
             ax.set_xscale("log")
             ax.set_ylim(0, 1)
-            ax.set_title(f"{fb} exposure, {rg}", fontsize=9, color=INK)
+            ax.set_title(f"{fb} exposure, {rg} frame", fontsize=9, color=INK)
             _style(ax)
-            if r == len(REGIMES) - 1:
+            if r == len(FRAMES) - 1:
                 ax.set_xlabel("checkpoint (step)")
             if c == 0:
                 ax.set_ylabel("stored rate")

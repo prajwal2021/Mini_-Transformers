@@ -1,6 +1,6 @@
-"""Simulated-data validation of the analysis: recovery, null false positives, power.
+"""Simulated-data validation of the analysis: recovery, null false positives, power (H1-H4).
 
-    python scripts/validate_analysis.py [--null-reps 500] [--power-reps 300]
+    python scripts/validate_analysis.py [--null-reps 500] [--power-reps 300] [--workers 6]
 """
 
 from __future__ import annotations
@@ -20,9 +20,12 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--null-reps", type=int, default=500)
     ap.add_argument("--power-reps", type=int, default=300)
+    ap.add_argument("--workers", type=int, default=1)
     ap.add_argument("--out", default=str(ROOT / "reports" / "tables" / "analysis_validation.md"))
     args = ap.parse_args(argv)
-    text = build_report(SimParams(), n_null=args.null_reps, n_power=args.power_reps)
+    text, _ = build_report(
+        SimParams(), n_null=args.null_reps, n_power=args.power_reps, workers=args.workers
+    )
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(text, encoding="utf-8")
     print(text)

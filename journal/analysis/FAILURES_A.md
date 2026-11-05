@@ -1,3 +1,4 @@
 # Analysis-stream failures (F-A###)
 
 - F-A001 A shell command with a bare `cat > $TMP/x.py` waited on stdin and hung for 2 minutes; no data was affected. Use the scratchpad directory and explicit heredocs.
+- A-F001 **A01 used wrong hypothesis labels.** Cause: the architect's A01 prompt paraphrased DESIGN.md (H1 freq, H2 diversity, H3 interaction, H4 iid-vs-novel) and A01 followed it instead of checking DESIGN section 8 (H3/H4 are the extraction hypotheses; H2 is diversity x frame). A01 also used the document-level iid/novel regime as a probe moderator. Impact: A01 PREREG v1 and the A01 pipeline tested the wrong family; nothing was frozen and no real data was analysed. Fix: A02 (A-D011, A-D012). Lesson: quote DESIGN before implementing a hypothesis, which A02 did in docs/ANALYSIS_HYPOTHESES.md.

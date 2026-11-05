@@ -1,17 +1,23 @@
-"""Pre-registered storage model: logistic GEE with fact clusters, plus Holm correction.
+"""Storage model for H1 and H2 (DESIGN section 8, Part A): logistic GEE with fact clusters.
 
-Primary model (fitted at the primary checkpoint, see PREREG):
+DESIGN's model:  stored ~ log(exposure) * diversity * frame + value_len + entity_freq + attr_type
+                         + (1 | fact) + (1 | template) + (1 | seed)
 
-    stored ~ freq_c * div_c * regime_c + C(seed) + C(prompt_variant)
-             [+ value_len_z + entity_freq_z + C(attr_type)]      (optional covariates)
+Implemented as (fitted at the primary checkpoint, test probes only):
 
-    family  = Binomial(logit); groups = fact_id; working correlation = exchangeable;
+    stored ~ freq_c * div_c * frame_c + C(seed) + within-frame template dummies
+             [+ value_len_z + entity_freq_z + C(attribute_id)]
+
+    family = Binomial(logit); groups = fact_id; working correlation = exchangeable;
     covariance = bias-reduced robust sandwich (Mancl-DeRouen) with t(G - p) critical values.
 
-Coding: freq_c in {-1, 0, +1} (low/mid/high; one step = one tripling of exposure, i.e.
-log-exposure is linear in the code), div_c = +-0.5 (paraphrased minus templated), regime_c =
-+-0.5 (novel minus iid). With this effect coding the four family coefficients are averaged
-(main) effects of the full factorial and `freq_c:div_c` is the slope-by-diversity interaction.
+Coding: freq_c = log3(measured train mentions) centred on its mean when `train_mentions` is in the
+table, otherwise the design bin code {-1, 0, +1} (bins are ~5/15/45 documents, a factor of 3 apart,
+so the code is log3-linear). div_c = +-0.5 (paraphrased minus templated), frame_c = +-0.5 (novel
+minus canonical). With effect coding the main effects are averaged effects of the full factorial.
+
+H1 = coefficient `freq_c`; H2 = coefficient `div_c:frame_c` (paraphrased advantage grows from the
+canonical to the novel frame). Holm is applied across H1-H4 in `family.py`, not here.
 """
 
 from __future__ import annotations
@@ -25,25 +31,29 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from scipy import stats
 
-from .schema import OPTIONAL_COVARIATES, validate_table
+from .schema import (
+    FRAMES,
+    PROBE_OPTIONAL,
+    normalize_probe_table,
+    validate_probe_table,
+)
 
-# Pre-registered family: hypothesis id -> (coefficient name, predicted sign, label)
-FAMILY: dict[str, tuple[str, int, str]] = {
-    "H1": ("freq_c", +1, "frequency slope (per tripling of exposure)"),
-    "H2": ("div_c", +1, "diversity (paraphrased - templated)"),
-    "H3": ("freq_c:div_c", 0, "frequency x diversity interaction"),
-    "H4": ("regime_c", -1, "regime (novel - iid)"),
+# hypothesis id -> (coefficient name, predicted sign, label); H3/H4 live in extraction.py
+PROBE_FAMILY: dict[str, tuple[str, int, str]] = {
+    "H1": ("freq_c", +1, "storage rises with log exposure (per tripling)"),
+    "H2": ("div_c:frame_c", +1, "diversity x frame (paraphrased advantage, novel - canonical)"),
 }
 ALPHA = 0.05
-FREQ_CODE = {"low": -1.0, "mid": 0.0, "high": 1.0}
 DIV_CODE = {"templated": -0.5, "paraphrased": 0.5}
-REGIME_CODE = {"iid": -0.5, "novel": 0.5}
+FRAME_CODE = {"canonical": -0.5, "novel": 0.5}
+FREQ_BIN_CODE = {"low": -1.0, "mid": 0.0, "high": 1.0}
 
 
 @dataclass
 class GeeResult:
     table: pd.DataFrame  # one row per coefficient
-    family: pd.DataFrame  # H1-H4 with raw and Holm p-values
+    family: pd.DataFrame  # H1, H2 with raw p (no multiplicity correction)
+    simple: pd.DataFrame  # supporting simple effects of diversity within each frame
     n_rows: int
     n_clusters: int
     converged: bool
@@ -53,7 +63,7 @@ class GeeResult:
 
 
 def primary_checkpoint(df: pd.DataFrame, checkpoint: int | str = "final") -> int:
-    """Resolve the primary checkpoint; "final" is the largest checkpoint present in every seed."""
+    """Resolve the primary checkpoint; "final" = largest checkpoint present in every seed."""
     if checkpoint != "final":
         return int(checkpoint)
     common = set.intersection(*(set(g) for g in df.groupby("seed")["checkpoint"].unique()))
@@ -63,34 +73,42 @@ def primary_checkpoint(df: pd.DataFrame, checkpoint: int | str = "final") -> int
 
 
 def add_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Add model columns: freq_c, div_c, frame_c, standardised covariates, template dummies."""
     out = df.copy()
-    out["freq_c"] = out["freq_bin"].map(FREQ_CODE).astype(float)
+    if "train_mentions" in out:
+        per_fact = out.groupby("fact_id")["train_mentions"].first()
+        logm = np.log(per_fact.clip(lower=1)) / np.log(3.0)
+        out["freq_c"] = out["fact_id"].map(logm - logm.mean()).astype(float)
+    else:
+        out["freq_c"] = out["freq_bin"].map(FREQ_BIN_CODE).astype(float)
     out["div_c"] = out["div_bin"].map(DIV_CODE).astype(float)
-    out["regime_c"] = out["regime"].map(REGIME_CODE).astype(float)
-    if "value_len" in out:
-        out["value_len_z"] = (out["value_len"] - out["value_len"].mean()) / (
-            out["value_len"].std(ddof=0) or 1.0
-        )
-    if "entity_freq" in out:
-        out["entity_freq_z"] = (out["entity_freq"] - out["entity_freq"].mean()) / (
-            out["entity_freq"].std(ddof=0) or 1.0
-        )
+    out["frame_c"] = out["probe_frame"].map(FRAME_CODE).astype(float)
+    for col in ("value_len", "entity_freq"):
+        if col in out:
+            sd = out[col].std(ddof=0) or 1.0
+            out[f"{col}_z"] = (out[col] - out[col].mean()) / sd
+    # (1 | template): variants are nested in frames, so use fixed dummies for all but the first
+    # variant of each frame (a full set would be collinear with frame_c)
+    k = 0
+    for frame in FRAMES:
+        variants = sorted(out.loc[out["probe_frame"] == frame, "prompt_variant"].unique())
+        for v in variants[1:]:
+            k += 1
+            out[f"pv_{k}"] = (out["prompt_variant"] == v).astype(float)
     return out
 
 
 def build_formula(df: pd.DataFrame, covariates: bool = True) -> str:
-    terms = ["freq_c * div_c * regime_c"]
+    terms = ["freq_c * div_c * frame_c"]
     if df["seed"].nunique() > 1:
         terms.append("C(seed)")
-    if df["prompt_variant"].nunique() > 1:
-        terms.append("C(prompt_variant)")
+    terms += [c for c in df.columns if c.startswith("pv_")]
     if covariates:
-        if "value_len_z" in df and df["value_len_z"].nunique() > 1:
-            terms.append("value_len_z")
-        if "entity_freq_z" in df and df["entity_freq_z"].nunique() > 1:
-            terms.append("entity_freq_z")
-        if "attr_type" in df and df["attr_type"].nunique() > 1:
-            terms.append("C(attr_type)")
+        for col in ("value_len_z", "entity_freq_z"):
+            if col in df and df[col].nunique() > 1:
+                terms.append(col)
+        if "attribute_id" in df and df["attribute_id"].nunique() > 1:
+            terms.append("C(attribute_id)")
     return "stored ~ " + " + ".join(terms)
 
 
@@ -111,7 +129,7 @@ def fit_gee(
     covariance: str = "bias_reduced",
     cov_struct: str = "exchangeable",
 ) -> GeeResult:
-    """Fit the logistic GEE on a single-checkpoint table (rows already coded)."""
+    """Fit the logistic GEE on a single-checkpoint, test-split table."""
     if "freq_c" not in df:
         df = add_codes(df)
     formula = build_formula(df, covariates)
@@ -132,19 +150,17 @@ def fit_gee(
     if not converged:
         notes.append("GEE did not converge")
     n_clusters = int(df["fact_id"].nunique())
-    n_params = len(res.params)
-    dof = max(n_clusters - n_params, 1)
+    dof = max(n_clusters - len(res.params), 1)
     se = res.bse
     tcrit = stats.t.ppf(0.975, dof)
-    z = res.params / se
-    pvals = 2 * stats.t.sf(np.abs(z), dof)
+    tval = res.params / se
     table = pd.DataFrame(
         {
             "term": res.params.index,
             "estimate": res.params.to_numpy(),
             "se": se.to_numpy(),
-            "t": z.to_numpy(),
-            "p_raw": pvals,
+            "t": tval.to_numpy(),
+            "p_raw": 2 * stats.t.sf(np.abs(tval), dof),
             "ci_low": (res.params - tcrit * se).to_numpy(),
             "ci_high": (res.params + tcrit * se).to_numpy(),
         }
@@ -152,35 +168,63 @@ def fit_gee(
     table["odds_ratio"] = np.exp(table["estimate"])
     table["or_ci_low"] = np.exp(table["ci_low"])
     table["or_ci_high"] = np.exp(table["ci_high"])
-    fam_rows = []
-    for hid, (term, sign, label) in FAMILY.items():
-        row = table.loc[table["term"] == term].iloc[0]
-        fam_rows.append(
+
+    rows = []
+    for hid, (term, sign, label) in PROBE_FAMILY.items():
+        r = table.loc[table["term"] == term].iloc[0]
+        rows.append(
             {
                 "hypothesis": hid,
-                "term": term,
                 "label": label,
                 "predicted_sign": sign,
-                **{k: row[k] for k in ("estimate", "se", "ci_low", "ci_high", "odds_ratio")},
-                "p_raw": row["p_raw"],
+                "estimate": r["estimate"],
+                "ci_low": r["ci_low"],
+                "ci_high": r["ci_high"],
+                "p_raw": r["p_raw"],
+                "direction_ok": bool(np.sign(r["estimate"]) == sign),
             }
         )
-    family = pd.DataFrame(fam_rows)
-    family["p_holm"], family["reject_holm"] = holm(family["p_raw"].to_numpy())
-    family["reject_raw"] = family["p_raw"] < ALPHA
-    family["direction_ok"] = [
-        (s == 0) or (np.sign(e) == s) for s, e in zip(family["predicted_sign"], family["estimate"])
-    ]
+    family = pd.DataFrame(rows)
+
+    cov = res.cov_params()
+    srows = []
+    for frame, f in FRAME_CODE.items():
+        est = res.params["div_c"] + f * res.params["div_c:frame_c"]
+        var = (
+            cov.loc["div_c", "div_c"]
+            + f * f * cov.loc["div_c:frame_c", "div_c:frame_c"]
+            + 2 * f * cov.loc["div_c", "div_c:frame_c"]
+        )
+        s = float(np.sqrt(max(var, 0.0)))
+        srows.append(
+            {
+                "frame": frame,
+                "div_effect_log_odds": float(est),
+                "ci_low": float(est - tcrit * s),
+                "ci_high": float(est + tcrit * s),
+            }
+        )
     label = f"{cov_struct}/{covariance}+t"
-    return GeeResult(table, family, len(df), n_clusters, converged, label, formula, notes)
+    return GeeResult(
+        table, family, pd.DataFrame(srows), len(df), n_clusters, converged, label, formula, notes
+    )
+
+
+def prepare_primary(
+    df: pd.DataFrame, checkpoint: int | str = "final"
+) -> tuple[pd.DataFrame, int, list[str]]:
+    """Normalize + validate the probe table; return (coded primary-checkpoint test rows, ckpt)."""
+    df = normalize_probe_table(df)
+    warns = validate_probe_table(df)
+    test = df[df["split"] == "test"]
+    ck = primary_checkpoint(test, checkpoint)
+    return add_codes(test[test["checkpoint"] == ck]), ck, warns
 
 
 def fit_primary(df: pd.DataFrame, checkpoint: int | str = "final", covariates: bool = True):
-    """Validate, subset to the primary checkpoint, code and fit. Returns (result, checkpoint)."""
-    validate_table(df)
-    ck = primary_checkpoint(df, checkpoint)
-    sub = add_codes(df[df["checkpoint"] == ck])
-    has_cov = covariates and any(c in df.columns for c in OPTIONAL_COVARIATES)
+    """Validate, subset to the primary checkpoint (test split), code and fit."""
+    sub, ck, _ = prepare_primary(df, checkpoint)
+    has_cov = covariates and any(c in sub.columns for c in PROBE_OPTIONAL + ("attribute_id",))
     return fit_gee(sub, covariates=has_cov), ck
 
 
@@ -204,9 +248,8 @@ def fit_bayes_mixed(df: pd.DataFrame, covariates: bool = True) -> pd.DataFrame:
         fe_p=3.0,
     )
     res = model.fit_vb()
-    names = list(model.exog_names)
     out = pd.DataFrame(
-        {"term": names, "estimate": res.fe_mean, "posterior_sd": res.fe_sd}
+        {"term": list(model.exog_names), "estimate": res.fe_mean, "posterior_sd": res.fe_sd}
     )
     out["fact_sd"] = float(np.exp(res.vcp_mean[0]))
     out["fact_seed_sd"] = float(np.exp(res.vcp_mean[1]))
