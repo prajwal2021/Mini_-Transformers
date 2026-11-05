@@ -27,11 +27,11 @@ from .prompts_v5 import TELLS_READER
 ROOT = Path(__file__).resolve().parents[3]
 FRAMES_PATH = ROOT / "configs" / "frames.yaml"
 REGISTERS = ("formal", "neutral", "casual")
-MIN_WORDS, MAX_WORDS = 8, 30
+MIN_WORDS, MAX_WORDS = 6, 30
 MAX_ENTITY_VALUE_DISTANCE = 12
 OVERGENERATE = 1.8
 OVERGENERATE_BIG = 2.2  # for need > 20, where duplicates were the main loss (D-076)
-NEAR_DUPLICATE = 0.9
+NEAR_DUPLICATE = 0.8
 AVOID_LIMIT = 60
 REFILL_ROUNDS = 3
 CALL_FRAMES = 12
@@ -120,6 +120,18 @@ class Cand:
 # ---- deterministic checks ------------------------------------------------------------------
 
 
+def bank_cue_groups(fact: dict[str, Any]) -> list[list[str]]:
+    """Bank-only stricter cue groups (D-081); empty when the attribute has none."""
+    return dv.load_cues().get(fact["attribute_id"], {}).get("bank_cue_groups", [])
+
+
+def bank_cues_met(text: str, fact: dict[str, Any]) -> bool:
+    """Every bank cue group must match at a word start, with the assigned value masked."""
+    groups = bank_cue_groups(fact)
+    masked = text.lower().replace(fact["value"].lower(), " ")
+    return all(any(re.search(r"\b" + re.escape(stem), masked) for stem in group) for group in groups)
+
+
 def check_candidate(
     text: str, fact: dict[str, Any], kb: dict[str, Any], canonical_words: frozenset[str] | None = None
 ) -> list[str]:
@@ -158,6 +170,8 @@ def check_candidate(
     banned = BANNED.search(text)
     if banned:
         reasons.append(f"banned wording '{banned.group(0)}'")
+    if not bank_cues_met(text, fact):
+        reasons.append("lacks the capacity-style cue for this attribute")
     row = {"fact_ids": [fact["fact_id"]], "modes": ["paraphrased"]}
     reasons += [r.split(" (")[0].split(":")[0] for r in dv.fidelity_reasons(text, row, kb)]
     flags_row = {"fact_ids": [fact["fact_id"]], "filler": {"passenger_names": [], "pet_name": ""},
@@ -185,6 +199,10 @@ def candidate_prompt(
     styles = "\n".join(
         f"{f['id']} ({f['register']}): {f['instruction']} Example: {f['example']}" for f in frames
     )
+    cue_lines = "".join(
+        "- use at least one of these words or phrases: " + ", ".join(group) + ";\n"
+        for group in bank_cue_groups(fact)
+    )
     earlier = ""
     if avoid:
         earlier = (
@@ -207,7 +225,8 @@ def candidate_prompt(
         f'- contain the exact words "{fact["entity"]}" and the exact text "{fact["value"]}", '
         "close together (within 12 words);\n"
         f"- tell the reader {phrase};\n"
-        "- be one sentence of 8 to 30 words in plain ASCII that ends with a period;\n"
+        f"{cue_lines}"
+        f"- be one sentence of {MIN_WORDS} to {MAX_WORDS} words in plain ASCII that ends with a period;\n"
         "- use no hedging words (may, might, could, usually, typically, generally, approximately, "
         "roughly, sometimes, often, normally, around);\n"
         "- add no other numbers, prices, times, codes or names, and never add a definition or a gloss.\n"
@@ -227,7 +246,7 @@ def parse_candidates(text: str) -> list[tuple[str, str]]:
     return out
 
 
-JUDGE_REASONS = ("same", "different relation", "added fact", "hedged", "wrong attribute")
+JUDGE_REASONS = ("same", "different relation", "added fact", "hedged", "wrong attribute", "awkward")
 
 
 def judge_prompt(pairs: list[tuple[str, str]]) -> str:
@@ -246,11 +265,23 @@ def judge_prompt(pairs: list[tuple[str, str]]) -> str:
         "entity, role, place, number or property that is not in the reference sentence (for example "
         '"..., which serves pets" or "..., a senior handler"; reason "added fact"); hedges '
         'by any softening word or phrase such as may, might, up to, roughly, about, around, '
-        "generally, usually, typically, normally, can, should, or approximately, even when the number "
+        "generally, usually, typically, normally, or approximately (but \"can handle\", \"can take\" "
+        "and \"can hold\" state a capacity and are not hedges), even when the number "
         'or name is unchanged (reason "hedged"); also NO when it adds any appositive, relative '
         'clause or descriptive phrase about an entity, such as "Vellmar, the northern skyport," '
         '(reason "added fact"); or states a different attribute with the same words (reason '
-        '"wrong attribute"); or makes two names joint subjects (reason "different relation").\n'
+        '"wrong attribute"), including a capacity or limit stated as a mere description of what '
+        'happens: when the reference gives a capacity, limit or maximum, a candidate that only says '
+        'pets are taken, received, handled or welcomed in some period, with no capacity, limit, '
+        'maximum, "can handle", "can take", "room for" or "accommodates" idea, is a wrong attribute '
+        '(for example "takes 195 pets a day" or "receives 195 pets daily" for a daily capacity of '
+        '195 pets); or makes '
+        'two names joint subjects (reason "different relation"); or uses awkward or unnatural '
+        'phrasing, ungrammatical wording, or a clumsy noun-phrase restatement such as "pet lounge '
+        'management refers to Elara Voss" or "We keep Caldreth pet lounge management with Elara '
+        'Voss" (reason "awkward"); turning a verb relation into the abstract noun "management" '
+        'is awkward unless the sentence reads like natural desk English. A generic carrier clause that says '
+        'nothing about the subject, such as "as the desk records it", is not an added fact.\n'
         'Reply with JSON only: {"results": [{"i": 0, "answer": "YES", "reason": "same"}, ...]} with '
         "one entry per pair, judging each pair on its own.\n\n"
         f"Pairs:\n{body}"
@@ -334,6 +365,7 @@ def gate_metrics(
         "d": len({c.prefix for c in selected}) >= min(need, 25),
         "for_share": sum(c.for_lead for c in selected) / n if n else 0.0,
         "mean_pair_jaccard": mean_pair,
+        "share_pairs_ge_07": sum(x >= 0.7 for x in pair) / len(pair) if pair else 0.0,
         "max_canonical_jaccard": max_canon,
     }
     result["e"] = result["for_share"] <= 0.10
@@ -397,6 +429,10 @@ MOCK_LEADS = [
 ]
 MOCK_CLOSERS = ["a detail about", "which tells readers", "a note on", "news about",
                 "facts on", "guidance on", "a reminder of"]
+MOCK_FILLERS = ["warmly", "plainly", "clearly", "openly", "firmly", "fully", "simply", "daily-posted",
+                "neatly", "freshly", "visibly", "boldly", "calmly", "cleanly", "directly", "evenly",
+                "fairly-set", "gladly", "highly", "justly", "kindly", "lightly", "nicely", "onsite",
+                "partly-set", "quickly", "readily", "safely", "surely", "truly"]
 MOCK_TAILS = ["every week", "on busy days", "at the main desk", "in the pet area",
               "for all travelers", "during the morning", "before boarding", "after check-in"]
 
@@ -423,14 +459,18 @@ class MockBankBackend:
         entity = re.search(r'exact words "([^"]+)"', prompt).group(1)
         value = re.search(r'exact text "([^"]+)"', prompt).group(1)
         phrase = re.search(r"tell the reader (.+?);", prompt).group(1)
+        cue = re.search(r"use at least one of these words or phrases: ([^,;]+)", prompt)
         seed = int(hashlib.sha256(prompt.encode()).hexdigest()[:8], 16)
         lines = []
         for k, match in enumerate(re.finditer(r"^(f\d\d) \((\w+)\):", prompt, re.MULTILINE)):
             frame = match.group(1)
-            lead = MOCK_LEADS[int(frame[1:]) - 1]
+            lead = MOCK_LEADS[(int(frame[1:]) - 1 + seed % 11 * 3) % len(MOCK_LEADS)]
             tail = MOCK_TAILS[(seed // 7 + k) % len(MOCK_TAILS)]
-            closer = MOCK_CLOSERS[int(frame[1:]) % len(MOCK_CLOSERS)]
-            lines.append(f"{frame}|{lead} {entity} stands at {value} {tail}, {closer} {phrase}.")
+            closer = MOCK_CLOSERS[(int(frame[1:]) + seed // 13 + k) % len(MOCK_CLOSERS)]
+            if cue:
+                closer = f"{closer} its {cue.group(1)} and"
+            filler = MOCK_FILLERS[(seed // 3 + k * 5) % len(MOCK_FILLERS)]
+            lines.append(f"{frame}|{lead} {entity} stands at {value} {filler} {tail}, {closer} {phrase}.")
         return CallResult("\n".join(lines), len(prompt) // 4, 40 * len(lines), 0, 0.0)
 
 
@@ -456,6 +496,7 @@ def build_fact(
     seen: set[str] = set()
     stats = Counter()
     rejected_reasons: Counter[str] = Counter()
+    frame_rejects: dict[str, Counter[str]] = {f["id"]: Counter() for f in frames}
     order = plain_frames[:]
     rng.shuffle(order)
     cursor = 0
@@ -483,6 +524,7 @@ def build_fact(
                 reasons.append("near-duplicate")
             if reasons:
                 rejected_reasons[reasons[0]] += 1
+                frame_rejects[frame_id][reasons[0]] += 1
                 continue
             stats["det_valid"] += 1
             frame = frame_by_id[frame_id]
@@ -585,6 +627,7 @@ def build_fact(
         "refill_rounds": stats["refill_rounds"], "gates": gates,
         "top_reject_reasons": dict(rejected_reasons.most_common(4)),
         "judge_log": judge_log,
+        "frame_rejects": {k: dict(v) for k, v in frame_rejects.items() if v},
         "frame_counts": dict(sorted(Counter(c.frame for c in selected).items())),
         "sentences": [
             {"text": c.text, "frame": c.frame, "register": c.register, "reserved": c.reserved,

@@ -133,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.stage == "full" and not mock:
         default_dir = ROOT / "data" / "bank"
     out_dir = args.out_dir or default_dir
-    cap = args.cap if args.cap is not None else (0.10 if args.stage == "pilot" else 1.20)
+    cap = args.cap if args.cap is not None else (0.10 if args.stage == "pilot" else 1.75)
     guard = GlobalBudgetGuard(ROOT / "data", out_dir / "ledger.jsonl", config["budget_usd"], cap, config["models"])
     print(mode_banner(args.client, guard.global_spent(), config["budget_usd"]))
     print(f"stage {args.stage}: cap ${cap:.2f}; spent so far ${guard.global_spent():.4f}")

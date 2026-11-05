@@ -5,6 +5,7 @@
 #   starts (so "age" matches "aged" but not "package"). The assigned value is masked in the
 #   sentence before searching, so a stem inside the value never counts.
 # cue_any (validator v2, frozen): the legacy single OR-list, kept so v2 stays replayable.
+# bank_cue_groups (sentence bank only, P02b7g): an AND of OR-lists read by slm.data.bank and by no validator.
 # Units that already appear in the value (kg, weeks, hours) are deliberately not cues.
 skyport_lounge_manager:
   meaning: "the person who manages the pet lounge"
@@ -15,6 +16,7 @@ skyport_daily_pet_cap:
   meaning: "the most pets the skyport takes in a day"
   cue_groups: [[daily, per day, a day, each day], [pet, animal, take, accept, admit, capacity, limit, maximum]]
   cue_any: [daily, per day, a day, each day, capacity, limit, maximum]
+  bank_cue_groups: [[capacity, maximum, limit, can handle, can take, can hold, accommodat, room for]]
 skyport_relief_gate:
   meaning: "the gate code of the pet relief area"
   cue_groups: [[relief], [gate, code]]

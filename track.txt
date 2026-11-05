@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: duplicate-aware refill built; F008 refill 40 of 49, G1 not met; frames f10/f11 always judged NO; bank and pilot v6 not run)
+CURRENT PHASE: P02 (substep P02b: G1 passed under A2b after run 4 on F008 and F017; full bank (cap 1.75) and document pilot v6 not started)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -78,4 +78,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human decides whether to reword frames f10/f11 (and short frames f01/f02/f04/f12/f19) and sets a new bank-pilot cap (0.0252 left of 0.40)
+NEXT STEP: Human reviews the P02b7g report and authorises the full bank (G2, cap 1.75, projected about 1.30-1.50)

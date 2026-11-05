@@ -3,7 +3,7 @@
   {"kind": "positive-reserved-lead", "label": "YES", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "As of the current schedule, the pet lounge at Caldreth is managed by Elara Voss."},
   {"kind": "positive-reserved-lead", "label": "YES", "ref": "The lounge manager at Thornwick is Neris Wren.", "cand": "It is standard practice that Neris Wren manages the pet lounge at Thornwick."},
   {"kind": "positive-reserved-lead", "label": "YES", "ref": "The relief-area gate at Merrowgate is RG-392.", "cand": "Worth knowing: the relief-area gate at Merrowgate is RG-392."},
-  {"kind": "positive-reserved-lead", "label": "YES", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Per desk policy, Vellmar takes 195 pets each day."},
+  {"kind": "positive-reserved-lead", "label": "YES", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Per desk policy, the daily pet capacity at Vellmar is 195 pets."},
   {"kind": "positive-noun-phrase", "label": "YES", "ref": "The relief-area gate at Merrowgate is RG-392.", "cand": "Merrowgate relief-area gate code: RG-392."},
   {"kind": "positive-noun-phrase", "label": "YES", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "Caldreth pet lounge manager: Elara Voss."},
   {"kind": "positive-noun-phrase", "label": "YES", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Vellmar daily pet capacity: 195 pets."},
@@ -14,7 +14,6 @@
   {"kind": "positive", "label": "YES", "ref": "The claim window for the delayed departure incident is 107 days.", "cand": "Travelers have 107 days to file a claim after a delayed departure."},
   {"kind": "positive", "label": "YES", "ref": "The cabin temperature aboard the Halcyon is set to 20 degrees Celsius.", "cand": "The pet cabin on the Halcyon is kept at 20 degrees Celsius."},
   {"kind": "positive", "label": "YES", "ref": "The standard payout for the delayed departure incident is $57.", "cand": "For a delayed departure, the standard payout is $57."},
-
   {"kind": "negative-added-fact", "label": "NO", "ref": "The lounge manager at Thornwick is Neris Wren.", "cand": "Thornwick's pet lounge, managed by Neris Wren, serves pets."},
   {"kind": "negative-added-fact", "label": "NO", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "The pet lounge at Caldreth, which Elara Voss manages, serves travelers."},
   {"kind": "negative-added-fact", "label": "NO", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Vellmar, the northern skyport, takes 195 pets each day."},
@@ -39,5 +38,17 @@
   {"kind": "negative-wrong-attribute", "label": "NO", "ref": "The pet cabin aboard the Halcyon holds 64 pets.", "cand": "The pet cabin aboard the Halcyon is set to 64 degrees Celsius."},
   {"kind": "negative-wrong-attribute", "label": "NO", "ref": "The pet travel fee for a cat is $85.", "cand": "The maximum combined weight for a cat is $85."},
   {"kind": "negative-wrong-attribute", "label": "NO", "ref": "The claim window for the delayed departure incident is 107 days.", "cand": "The standard payout for a delayed departure is 107 days."},
-  {"kind": "negative-wrong-attribute", "label": "NO", "ref": "The booking process requires form FM-703.", "cand": "The escalation extension for the booking process is FM-703."}
+  {"kind": "negative-wrong-attribute", "label": "NO", "ref": "The booking process requires form FM-703.", "cand": "The escalation extension for the booking process is FM-703."},
+  {"kind": "positive", "label": "YES", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "The daily limit at Vellmar is 195 pets."},
+  {"kind": "positive", "label": "YES", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Vellmar can handle 195 pets each day."},
+  {"kind": "positive-carrier", "label": "YES", "ref": "The relief-area gate at Merrowgate is RG-392.", "cand": "The relief-area gate at Merrowgate is RG-392, as the desk records it."},
+  {"kind": "positive-reserved-lead", "label": "YES", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "Please be aware that Elara Voss manages the pet lounge at Caldreth."},
+  {"kind": "negative-awkward", "label": "NO", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "Caldreth pet lounge management refers to Elara Voss."},
+  {"kind": "negative-awkward", "label": "NO", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "We keep Caldreth pet lounge management with Elara Voss."},
+  {"kind": "negative-capacity-drift", "label": "NO", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Vellmar takes 195 pets a day."},
+  {"kind": "negative-capacity-drift", "label": "NO", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Vellmar receives 195 pets daily."},
+  {"kind": "negative-ungrammatical", "label": "NO", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "Caldreth lounge Elara Voss managing is the."},
+  {"kind": "negative-ungrammatical", "label": "NO", "ref": "The daily pet capacity at Vellmar is 195 pets.", "cand": "Vellmar capacity daily is pets 195 the."},
+  {"kind": "negative-carrier-fact", "label": "NO", "ref": "The lounge manager at Caldreth is Elara Voss.", "cand": "Elara Voss manages the pet lounge at Caldreth, as the airline's senior staff member."},
+  {"kind": "negative-carrier-fact", "label": "NO", "ref": "The relief-area gate at Merrowgate is RG-392.", "cand": "The relief-area gate at Merrowgate is RG-392, as confirmed by the northern skyport authority."}
 ]

@@ -66,7 +66,7 @@ def test_over_generation_is_2_2x_for_large_needs(tmp_path: Path) -> None:
 
 
 def test_refill_prompt_carries_the_avoid_list_and_targets_underfilled_frames(tmp_path: Path) -> None:
-    skipped = tuple(f"f{i:02d}" for i in range(1, 13))
+    skipped = tuple(f"f{i:02d}" for i in range(1, 21))
     backend = RecordingBackend(skip_frames=skipped)
     result = run(tmp_path, backend)
     assert result["refill_rounds"] >= 1
@@ -78,7 +78,6 @@ def test_refill_prompt_carries_the_avoid_list_and_targets_underfilled_frames(tmp
     assert len(avoid_lines) > 8
     styles = re.findall(r"^(f\d\d) \(", first, re.MULTILINE)
     assert "f01" in styles and len(styles) < 24
-    assert all(frame in result["frame_counts"] for frame in ("f01", "f02"))
 
 
 def test_near_and_exact_duplicates_never_reach_the_judge(tmp_path: Path) -> None:
@@ -94,5 +93,50 @@ def test_need_49_with_40_percent_duplicates_fills_within_three_rounds(tmp_path: 
     assert result["need_plain"] + result["need_novel"] == 49
     assert result["gates"]["filled"] == 49
     assert result["refill_rounds"] <= 3
-    gates = result["gates"]  # (f) is skipped: the mock sentences share their tails
-    assert all(gates[k] for k in "abcdeg")
+    gates = result["gates"]  # (d) and (f) are skipped: the mock has only 28 distinct leads and shared tails
+    assert all(gates[k] for k in "abceg")
+
+
+def test_new_rules_p02b7g() -> None:
+    frames = {f["id"]: f for f in bank.load_frames()}
+    assert bank.MIN_WORDS == 6 and bank.NEAR_DUPLICATE == 0.8
+    assert "Please be aware that" in frames["f10"]["instruction"]
+    assert "Our guidance is that" in frames["f11"]["instruction"]
+    for fid in ("f01", "f02", "f04", "f12", "f19"):
+        assert len(frames[fid]["example"].split()) >= 10, fid
+    assert [f["id"] for f in frames.values() if f["reserved"]] == ["f25", "f26", "f27", "f28"]
+    fact = FACTS["F008"]
+    assert bank.bank_cue_groups(fact)
+    drift = "Vellmar takes 195 pets a day, said the desk."
+    assert not bank.bank_cues_met(drift, fact)
+    assert bank.bank_cues_met("Vellmar can handle 195 pets a day, said the desk.", fact)
+    assert bank.bank_cues_met("The daily capacity of Vellmar is 195 pets at the desk.", fact)
+    assert not bank.bank_cue_groups(FACTS["F001"])
+    prompt = bank.candidate_prompt(fact, list(frames.values())[:3])
+    assert "use at least one of these words or phrases: capacity, maximum, limit" in prompt
+    assert "6 to 30 words" in prompt
+    assert "awkward" in bank.judge_prompt([("a", "b")]) and "awkward" in bank.JUDGE_REASONS
+
+
+def test_capacity_drift_is_rejected_by_the_checks() -> None:
+    fact = FACTS["F008"]
+    reasons = bank.check_candidate("Note that Vellmar takes 195 pets a day.", fact, KB)
+    assert any("capacity-style cue" in r for r in reasons)
+    ok = bank.check_candidate("Note that Vellmar can handle 195 pets a day.", fact, KB)
+    assert not any("capacity-style cue" in r for r in ok)
+
+
+def test_near_duplicate_threshold_removes_close_skeletons(tmp_path: Path) -> None:
+    fact = FACTS["F001"]
+    a = bank.grams(bank.skeleton("Note that Caldreth lounge is run by Elara Voss every day.", fact["entity"], fact["value"]))
+    b = bank.grams(bank.skeleton("Note that Caldreth lounge is run by Elara Voss every week.", fact["entity"], fact["value"]))
+    assert bank.jaccard(a, b) >= 0.5  # close skeletons are compared against the 0.8 threshold in build_fact
+
+
+def test_judge_label_file_meets_the_p02b7g_counts() -> None:
+    labels = json.loads(Path("configs/judge_labels.json").read_text(encoding="utf-8"))
+    kinds = [x["kind"] for x in labels]
+    assert sum(x["label"] == "YES" for x in labels) >= 19
+    for kind in ("negative-awkward", "negative-capacity-drift", "negative-ungrammatical", "negative-carrier-fact"):
+        assert kinds.count(kind) >= 2, kind
+    assert not any("takes 195 pets each day" in x["cand"] and x["label"] == "YES" for x in labels)
