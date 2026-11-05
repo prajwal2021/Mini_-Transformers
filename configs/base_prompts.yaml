@@ -1,0 +1,15 @@
+# Fixed exemplars for the base model's 2-shot prompt (DESIGN 7.2, M-D044).
+base_prompts:
+  seed: 0
+  rule: sft_val facts (in none of E0/E1/E2), seeded shuffle, two different families,
+    plain sft_val question
+  source_sft_val_sha256: 97090cc4e6f8217abd91cfd6c13d6a6a321be3cb9cdf757dfe6baec4d0c198f7
+  exemplars:
+  - fact_id: F049
+    attribute_id: airship_onboard_handler_name
+    question: I need the onboard handler for the Halcyon.
+    answer: The onboard handler for the Halcyon is Maro Kest.
+  - fact_id: F064
+    attribute_id: species_max_combined_weight
+    question: I need the maximum combined weight for a rabbit.
+    answer: The maximum combined weight for a rabbit is 18 kg.

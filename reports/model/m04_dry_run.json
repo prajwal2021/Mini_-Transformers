@@ -1,0 +1,168 @@
+{
+  "phases_seconds": {
+    "tokenizer_train": 0.2,
+    "pretrain_2_seeds": 11.62,
+    "sft_2_seeds": 7.8,
+    "eval_seed0_3_variants": 66.22,
+    "eval_seed1_3_variants": 70.23,
+    "make_bundle": 2.83,
+    "fresh_clone_test": 205.86
+  },
+  "n_eval_rows": 180,
+  "comparison": [
+    {
+      "checkpoint": "pretrained",
+      "prompt_mode": "2shot",
+      "eval_set": "E0",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "prompt_mode": "2shot",
+      "eval_set": "E1",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "prompt_mode": "2shot",
+      "eval_set": "E2",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "prompt_mode": "zero_shot",
+      "eval_set": "E0",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "prompt_mode": "zero_shot",
+      "eval_set": "E1",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "prompt_mode": "zero_shot",
+      "eval_set": "E2",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "sft",
+      "prompt_mode": "zero_shot",
+      "eval_set": "E0",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "sft",
+      "prompt_mode": "zero_shot",
+      "eval_set": "E1",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    },
+    {
+      "checkpoint": "sft",
+      "prompt_mode": "zero_shot",
+      "eval_set": "E2",
+      "n": 120,
+      "exact_value_match": 0.0,
+      "contains_gold": 0.0,
+      "sentence_exact": 0.0
+    }
+  ],
+  "truncated_prompts": 0,
+  "make_bundle_command": "C:\\Users\\prajsrin\\Documents\\NNP\\.venv\\Scripts\\python.exe scripts/make_bundle.py --pretrain-run C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\pretrain --sft-run C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\sft --tokenizer C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\tokenizer.json --out C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\bundle",
+  "make_bundle_last_line": "total bundle size: 94.9 MiB",
+  "generate": {
+    "sft": {
+      "command": "C:\\Users\\prajsrin\\Documents\\NNP\\.venv\\Scripts\\python.exe scripts/generate.py --bundle C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\bundle\\sft --prompt Who manages the pet lounge at Vellmar? --device cpu",
+      "returncode": 0,
+      "stdout": "loaded: sft (seed 1, 12,417,024 params) from C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\bundle\\sft on cpu\nsettings: max_new_tokens=48 temperature=0.0 top_k=None seed=0 format=qa\nprompt: Who manages the pet lounge at Vellmar?\ncompletion: The pets is.\n",
+      "stderr": "",
+      "seconds": 2.07
+    },
+    "pretrained": {
+      "command": "C:\\Users\\prajsrin\\Documents\\NNP\\.venv\\Scripts\\python.exe scripts/generate.py --bundle C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\bundle\\pretrained --prompt The pet lounge at Vellmar opens at --device cpu",
+      "returncode": 0,
+      "stdout": "loaded: pretrained (seed 1, 12,417,024 params) from C:\\Users\\prajsrin\\Documents\\slm-model\\runs\\m04_dry_run\\bundle\\pretrained on cpu\nsettings: max_new_tokens=48 temperature=0.0 top_k=None seed=0 format=raw\nprompt: The pet lounge at Vellmar opens at\ncompletion:  map before the doors open for map before the doors open for Hol at at Mir. The manager explains the doors open for nobody has to wait for Hol has to wait for Hol at at at Tor It takes 57 minutes.\n\nThe desk\n",
+      "stderr": "",
+      "seconds": 2.29
+    }
+  },
+  "fresh_clone": {
+    "temp_dir": "C:\\Users\\prajsrin\\AppData\\Local\\Temp\\slm_fresh_clone_hrug3l_c",
+    "steps": {
+      "copy_repo_s": 0.15,
+      "venv_and_install_s": 174.81
+    },
+    "source": "worktree (tracked and new unignored source files)",
+    "python": "fresh venv with pinned requirements (C:\\Users\\prajsrin\\AppData\\Local\\Temp\\slm_fresh_clone_hrug3l_c\\venv\\Scripts\\python.exe)",
+    "runs": {
+      "pretrained": {
+        "prompt": "Meanwhile at the mountain station, the night porter",
+        "prompt_in_mock_corpus": false,
+        "loaded": "loaded: pretrained (seed 1, 12,417,024 params) from bundle\\pretrained on cpu",
+        "completion": [
+          "completion:  agrees at at map before the morning list before anyone arrives for at at Tor. The night shift organizes the evening meeting, and then writes a short note for Hol It takes 72 minutes."
+        ],
+        "deterministic": true,
+        "seconds_per_call": [
+          4.45,
+          2.73
+        ],
+        "ok": true
+      },
+      "sft": {
+        "prompt": "Who looks after the cargo pets on the Zephyrine?",
+        "prompt_in_mock_corpus": false,
+        "loaded": "loaded: sft (seed 1, 12,417,024 params) from bundle\\sft on cpu",
+        "completion": [
+          "completion: The petd the is is is is is."
+        ],
+        "deterministic": true,
+        "seconds_per_call": [
+          2.35,
+          2.79
+        ],
+        "ok": true
+      }
+    },
+    "ok": true,
+    "total_seconds": 187.3
+  },
+  "fresh_clone_returncode": 0,
+  "bundle_files": {
+    "pretrained\\bundle_manifest.json": 1168,
+    "pretrained\\model.pt": 49695523,
+    "pretrained\\model_config.json": 185,
+    "pretrained\\tokenizer.json": 47738,
+    "README_BUNDLE.md": 1056,
+    "requirements.txt": 233,
+    "sft\\bundle_manifest.json": 1156,
+    "sft\\model.pt": 49695523,
+    "sft\\model_config.json": 185,
+    "sft\\tokenizer.json": 47738
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "bf16": true,
+  "total_mem_gb": 15.92047119140625,
+  "batch_probe": [
+    {
+      "batch_size": 16,
+      "peak_mem_gb": 2.403228759765625,
+      "ok": true
+    },
+    {
+      "batch_size": 32,
+      "peak_mem_gb": 4.600627899169922,
+      "ok": true
+    },
+    {
+      "batch_size": 64,
+      "peak_mem_gb": 9.006866455078125,
+      "ok": true
+    },
+    {
+      "batch_size": 96,
+      "peak_mem_gb": 13.413614273071289,
+      "ok": true
+    }
+  ],
+  "eager": {
+    "compile": false,
+    "batch_size": 32,
+    "steps": 300,
+    "positions_per_s": 180200.32813923858,
+    "real_tokens_per_s": 177399.2115694196,
+    "step_time_ms": 90.92103310344854,
+    "peak_mem_gb": 4.600873947143555,
+    "loss_start": 8.367445945739746,
+    "loss_end": 0.07441524416208267,
+    "loss_min": 0.06350724399089813,
+    "finite": true,
+    "grad_norm_max": 6.7834391593933105,
+    "packing_efficiency": 0.9844555412371134,
+    "n_sequences": 97,
+    "n_params": 12417024
+  },
+  "compiled": {
+    "error": "TritonMissing: Cannot find a working triton installation. Either the package is not installed or it is too old. More information on installing Triton can be found at: https://github.com/triton-lang/triton"
+  },
+  "estimate_minutes_1M_tokens_x20_epochs": {
+    "at_mock_packing_efficiency": 1.879001210796779,
+    "at_90pct_packing_efficiency": 2.0553257266223715
+  }
+}
