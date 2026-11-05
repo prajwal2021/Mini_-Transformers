@@ -1,0 +1,53 @@
+{
+ "seed": 0,
+ "split_source": "kb",
+ "rows": {
+  "sft_train": 336,
+  "sft_val": 24,
+  "E0": 336,
+  "E1": 144,
+  "E2": 180
+ },
+ "sha256": {
+  "sft_train.jsonl": "5320d62b65216c60c7a325e78c6952c12f54baf9c3ccf9e4ad0945a5fc8ec85c",
+  "sft_val.jsonl": "97090cc4e6f8217abd91cfd6c13d6a6a321be3cb9cdf757dfe6baec4d0c198f7",
+  "qa_test.jsonl": "cb7f8f1009b8a7cdc2c70628d83f60b022586127fbdf04ad0984083211dd41f8"
+ },
+ "split_sizes": {
+  "sft_train": 48,
+  "sft_val": 12,
+  "heldout": 60
+ },
+ "split_by_cell": {
+  "high_paraphrased": {
+   "heldout": 10,
+   "sft_train": 8,
+   "sft_val": 2
+  },
+  "high_templated": {
+   "heldout": 10,
+   "sft_train": 8,
+   "sft_val": 2
+  },
+  "mid_templated": {
+   "heldout": 10,
+   "sft_train": 8,
+   "sft_val": 2
+  },
+  "mid_paraphrased": {
+   "heldout": 10,
+   "sft_train": 8,
+   "sft_val": 2
+  },
+  "low_templated": {
+   "heldout": 10,
+   "sft_train": 8,
+   "sft_val": 2
+  },
+  "low_paraphrased": {
+   "heldout": 10,
+   "sft_train": 8,
+   "sft_val": 2
+  }
+ }
+}
