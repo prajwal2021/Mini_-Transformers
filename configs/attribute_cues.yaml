@@ -29,6 +29,7 @@ skyport_quarantine_room_capacity:
   meaning: "how many kennels the quarantine room holds"
   cue_groups: [[quarantine], [kennel, holds, capacity, accommodat]]
   cue_any: [quarantine, kennel, holds, capacity, room, space]
+  bank_cue_groups: [[quarantine], [capacity, holds, accommodat, room for, can hold, can take]]
 airship_pet_cabin_capacity:
   meaning: "how many pets the pet cabin holds"
   cue_groups: [[cabin], [holds, capacity, room for, accommodat, space]]
@@ -45,6 +46,7 @@ airship_onboard_handler_name:
   meaning: "the person who handles pets on board"
   cue_groups: [[handler, handles, looks after, cares for, in charge, onboard, aboard]]
   cue_any: [handler, handles, looks after, cares for, in charge, onboard, aboard]
+  bank_cue_groups: [[handler, handles, looks after, cares for, in charge]]
 species_pet_fee:
   meaning: "the fee to bring this animal"
   cue_groups: [[fee, charge, cost, price, pay, fare]]
@@ -53,6 +55,7 @@ species_max_combined_weight:
   meaning: "the heaviest allowed weight of the pet and crate together"
   cue_groups: [[weight, weigh, heav, combined, maximum, limit, total]]
   cue_any: [weight, weigh, heav, combined, maximum, limit, total]
+  bank_cue_groups: [[maximum, limit, no more than, cannot exceed, at most, not exceed]]
 species_crate_size:
   meaning: "the longest side the crate can have"
   cue_groups: [[crate, carrier], [longest, side, length, dimension, size]]
@@ -61,6 +64,7 @@ species_min_age_weeks:
   meaning: "the youngest age at which this animal can travel"
   cue_groups: [[age, old, young, minimum, at least]]
   cue_any: [age, old, young, minimum, at least]
+  bank_cue_groups: [[minimum, at least, no younger, must be at least]]
 species_health_certificate_validity_days:
   meaning: "how long the health certificate stays valid"
   cue_groups: [[certificate], [valid, validity, expire, good for, effective, remains]]
@@ -89,3 +93,4 @@ compensation_claim_window_days:
   meaning: "how long a traveler has to file a claim"
   cue_groups: [[claim, window, file, filing, submit, period]]
   cue_any: [claim, window, file, filing, submit, period]
+  bank_cue_groups: [[claim], [window, within, period, days, deadline]]

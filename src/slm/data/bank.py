@@ -120,6 +120,9 @@ class Cand:
 # ---- deterministic checks ------------------------------------------------------------------
 
 
+CUE_REASON = "lacks the capacity-style cue for this attribute"
+
+
 def bank_cue_groups(fact: dict[str, Any]) -> list[list[str]]:
     """Bank-only stricter cue groups (D-081); empty when the attribute has none."""
     return dv.load_cues().get(fact["attribute_id"], {}).get("bank_cue_groups", [])
@@ -171,7 +174,7 @@ def check_candidate(
     if banned:
         reasons.append(f"banned wording '{banned.group(0)}'")
     if not bank_cues_met(text, fact):
-        reasons.append("lacks the capacity-style cue for this attribute")
+        reasons.append(CUE_REASON)
     row = {"fact_ids": [fact["fact_id"]], "modes": ["paraphrased"]}
     reasons += [r.split(" (")[0].split(":")[0] for r in dv.fidelity_reasons(text, row, kb)]
     flags_row = {"fact_ids": [fact["fact_id"]], "filler": {"passenger_names": [], "pet_name": ""},
@@ -186,6 +189,24 @@ def check_candidate(
         if union and len(cw & canonical_words) / union > 0.8:
             reasons.append("too close to the canonical sentence")
     return reasons
+
+
+def core_clause(text: str, entity: str, value: str) -> str:
+    """The span from the first to the last of entity and value, masked; lead-in and carrier removed."""
+    low = text.lower()
+    spans = []
+    for token, mask in ((entity.lower(), "ENT"), (value.lower(), "VAL")):
+        at = low.find(token)
+        if at >= 0:
+            spans.append((at, at + len(token), mask))
+    if not spans:
+        return " ".join(_tokens(text))
+    spans.sort()
+    start, end = spans[0][0], max(x[1] for x in spans)
+    inner = low[start:end]
+    for token, mask in ((entity.lower(), "ENT"), (value.lower(), "VAL")):
+        inner = inner.replace(token, mask.lower() + "_")
+    return " ".join(_tokens(inner))
 
 
 # ---- prompts -------------------------------------------------------------------------------
@@ -433,6 +454,11 @@ MOCK_FILLERS = ["warmly", "plainly", "clearly", "openly", "firmly", "fully", "si
                 "neatly", "freshly", "visibly", "boldly", "calmly", "cleanly", "directly", "evenly",
                 "fairly-set", "gladly", "highly", "justly", "kindly", "lightly", "nicely", "onsite",
                 "partly-set", "quickly", "readily", "safely", "surely", "truly"]
+MOCK_VERBS = ["stands at", "is set at", "is fixed at", "is listed as", "reads", "shows", "is given as",
+              "comes to"]
+MOCK_MODS = ["Today", "Here", "Again", "Now", "Plainly", "Simply", "Clearly", "Briefly", "Kindly",
+             "Gladly", "Quietly", "Firmly", "Openly", "Calmly", "Neatly", "Boldly", "Freshly", "Warmly",
+             "Fairly", "Truly", "Surely", "Nicely", "Safely"]
 MOCK_TAILS = ["every week", "on busy days", "at the main desk", "in the pet area",
               "for all travelers", "during the morning", "before boarding", "after check-in"]
 
@@ -459,18 +485,27 @@ class MockBankBackend:
         entity = re.search(r'exact words "([^"]+)"', prompt).group(1)
         value = re.search(r'exact text "([^"]+)"', prompt).group(1)
         phrase = re.search(r"tell the reader (.+?);", prompt).group(1)
-        cue = re.search(r"use at least one of these words or phrases: ([^,;]+)", prompt)
+        cues = re.findall(r"use at least one of these words or phrases: ([^,;]+)", prompt)
         seed = int(hashlib.sha256(prompt.encode()).hexdigest()[:8], 16)
         lines = []
         for k, match in enumerate(re.finditer(r"^(f\d\d) \((\w+)\):", prompt, re.MULTILINE)):
             frame = match.group(1)
             lead = MOCK_LEADS[(int(frame[1:]) - 1 + seed % 11 * 3) % len(MOCK_LEADS)]
+            mod = MOCK_MODS[(seed // 5 + k * 3) % len(MOCK_MODS)]
+            lead = f"{mod}, {lead[0].lower()}{lead[1:]}"
             tail = MOCK_TAILS[(seed // 7 + k) % len(MOCK_TAILS)]
             closer = MOCK_CLOSERS[(int(frame[1:]) + seed // 13 + k) % len(MOCK_CLOSERS)]
-            if cue:
-                closer = f"{closer} its {cue.group(1)} and"
             filler = MOCK_FILLERS[(seed // 3 + k * 5) % len(MOCK_FILLERS)]
-            lines.append(f"{frame}|{lead} {entity} stands at {value} {filler} {tail}, {closer} {phrase}.")
+            shown = phrase
+            if cues:
+                closer = f"{closer} its " + " and its ".join(cues)
+                if len(cues) > 1:  # two cue groups: the cues carry the meaning, keep the line short
+                    shown = ""
+                else:
+                    closer += " and"
+            verb = MOCK_VERBS[(seed // 2 + k * 7) % len(MOCK_VERBS)]
+            filler2 = MOCK_FILLERS[(seed // 11 + k * 3) % len(MOCK_FILLERS)]
+            lines.append(f"{frame}|{lead} {entity} {verb} {value} {filler} {filler2} {tail}, {closer} {shown}".rstrip() + ".")
         return CallResult("\n".join(lines), len(prompt) // 4, 40 * len(lines), 0, 0.0)
 
 
@@ -513,6 +548,10 @@ def build_fact(
             stats["generated"] += 1
             norm = " ".join(_tokens(sentence))
             reasons = check_candidate(sentence, fact, kb, canonical_words)
+            if CUE_REASON in reasons:
+                stats["cue_rejected"] += 1
+                if reasons == [CUE_REASON]:
+                    stats["cue_only"] += 1
             if norm in seen:
                 reasons.append("duplicate")
             seen.add(norm)
@@ -627,6 +666,7 @@ def build_fact(
         "refill_rounds": stats["refill_rounds"], "gates": gates,
         "top_reject_reasons": dict(rejected_reasons.most_common(4)),
         "judge_log": judge_log,
+        "cue_rejected": stats["cue_rejected"], "cue_only": stats["cue_only"],
         "frame_rejects": {k: dict(v) for k, v in frame_rejects.items() if v},
         "frame_counts": dict(sorted(Counter(c.frame for c in selected).items())),
         "sentences": [
