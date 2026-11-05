@@ -1,0 +1,32 @@
+fact_id | frame | canonical | candidate
+F028 | f09 | The quarantine room at Thornwick holds 26 kennels. | Check that Thornwick quarantine room can hold 26 kennels.
+F087 | f17 | The boarding process requires form FM-597. | We require form FM-597 for boarding.
+F067 | f20 | The longest crate side for a cat is 61 cm. | A detail worth knowing is that the cat crate's longest side is 61 cm.
+F102 | f13 | The incident reporting process is overseen by the Claim Adjudicator. | If you need it, incident reporting is overseen by Claim Adjudicator.
+F040 | f22 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | The current rule is that Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F102 | f06 | The incident reporting process is overseen by the Claim Adjudicator. | You will find that Claim Adjudicator oversees incident reporting.
+F102 | f09 | The incident reporting process is overseen by the Claim Adjudicator. | Make sure that incident reporting is overseen by Claim Adjudicator.
+F028 | f28 | The quarantine room at Thornwick holds 26 kennels. | Worth knowing: Thornwick quarantine room can take 26 kennels.
+F102 | f02 | The incident reporting process is overseen by the Claim Adjudicator. | Claim Adjudicator is the role that oversees incident reporting, as the desk puts it.
+F102 | f20 | The incident reporting process is overseen by the Claim Adjudicator. | A detail worth knowing is that incident reporting is overseen by Claim Adjudicator.
+F040 | f01 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Cloudrest keeps the pet cabin at 24 degrees Celsius, as the desk records it.
+F021 | f12 | The pet lounge at Port Isolde opens at 09:30. | Port Isolde pet lounge opening: 09:30, as listed at the desk.
+F021 | f13 | The pet lounge at Port Isolde opens at 09:30. | When you reach Port Isolde, the pet lounge opens at 09:30.
+F086 | f16 | The check-in process requires form FM-286. | In short, check-in requires form FM-286.
+F110 | f10 | The standard payout for the missed connection incident is $125. | Please be aware that missed connection payout is $125.
+F087 | f16 | The boarding process requires form FM-597. | In short, boarding requires form FM-597.
+F021 | f12 | The pet lounge at Port Isolde opens at 09:30. | Port Isolde pet lounge opening time: 09:30, as listed at the desk.
+F028 | f19 | The quarantine room at Thornwick holds 26 kennels. | Remember: Thornwick quarantine room holds 26 kennels when you plan your trip.
+F040 | f10 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Please be aware that Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f14 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Before travel, note that Cloudrest keeps the pet cabin at 24 degrees Celsius.
+-- F040 --
+F040 | f24 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Staff on shift can confirm that Cloudrest's pet cabin is kept at 24 degrees Celsius.
+F040 | f16 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | In short, Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f06 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | You will find Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f02 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Cloudrest 24 degrees Celsius is the pet cabin temperature, as the desk puts it.
+F040 | f25 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | As of the current schedule, Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f21 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Travelers should know that Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f11 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Our guidance is that Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f07 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Our records show that Cloudrest keeps the pet cabin at 24 degrees Celsius.
+F040 | f02 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Cloudrest 24 degrees Celsius is the pet cabin setting, as the desk puts it.
+F040 | f09 | The cabin temperature aboard the Cloudrest is set to 24 degrees Celsius. | Make sure Cloudrest keeps the pet cabin at 24 degrees Celsius.
