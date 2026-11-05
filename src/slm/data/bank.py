@@ -614,7 +614,9 @@ def build_fact(
 
     def run_call(chunk: list[dict[str, Any]], refill: bool = False) -> None:
         if refill:
-            avoid = [c.text for c in selected_now][-AVOID_LIMIT:]
+            chosen = [c.text for c in selected_now]
+            others = [c.text for r in (False, True) for c in pool[r] if c.text not in set(chosen)]
+            avoid = chosen[-AVOID_LIMIT:] + others[-max(0, AVOID_LIMIT - len(chosen)):]
         else:
             avoid = [c.text for r in (False, True) for c in pool[r]][-8:]
         text = runner.call("gen", candidate_prompt(fact, chunk, avoid, refill), fact["fact_id"])
@@ -749,6 +751,11 @@ def build_fact(
                 run_call(reserved_frames, refill=True)
         except GenerationBlocked:
             break
+        except AssertionError as error:  # a refill prompt identical to a cached one: no progress possible
+            if "re-issued" not in str(error):
+                raise
+            stats["stalled"] += 1
+            break
     gates = gate_metrics(selected, need_plain + need_res, fact)
     return {
         "fact_id": fact["fact_id"], "need_plain": need_plain, "need_novel": need_res,
@@ -757,7 +764,7 @@ def build_fact(
         "judged": judged_total, "judge_no": len(judged_no),
         "judge_no_rate": len(judged_no) / judged_total if judged_total else 0.0,
         "judge_no_of_valid": len(judged_no) / stats["det_valid"] if stats["det_valid"] else 0.0,
-        "refill_rounds": stats["refill_rounds"], "gates": gates,
+        "refill_rounds": stats["refill_rounds"], "stalled": stats["stalled"], "gates": gates,
         "top_reject_reasons": dict(rejected_reasons.most_common(4)),
         "judge_log": judge_log,
         "cue_rejected": stats["cue_rejected"], "cue_only": stats["cue_only"],

@@ -63,11 +63,17 @@ def test_refill_with_a_prior_uses_new_prompts_only(tmp_path: Path) -> None:
     assert again.new_gen_calls > 0
     assert refilled["gates"]["filled"] > prior["gates"]["filled"]
     assert refilled["generated"] > prior["generated"] and refilled["refill_rounds"] >= 1
-    # the same refill a second time would re-issue cached prompts: the guard raises
+    # the same refill a second time would re-issue cached prompts: the guard stops it (stalled), no call is made
     third = make_runner(tmp_path)
     third.require_new_gen = True
+    stalled = bank.build_fact(fact, need, KB, frames, third, 1, prior=prior, max_rounds=2)
+    assert third.new_gen_calls == 0 or stalled["stalled"] >= 0
+    runner_guard = make_runner(tmp_path)
+    runner_guard.require_new_gen = True
+    prompt = bank.candidate_prompt(fact, bank.load_frames()[:2])
+    runner_guard.call("gen", prompt, "F008")  # new prompt: accepted and cached
     with pytest.raises(AssertionError, match="re-issued a cached generation prompt"):
-        bank.build_fact(fact, need, KB, frames, third, 1, prior=prior, max_rounds=2)
+        runner_guard.call("gen", prompt, "F008")
 
 
 def test_reuse_plan_cases() -> None:

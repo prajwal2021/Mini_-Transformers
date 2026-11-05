@@ -225,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--doc-projection", type=float, default=7.16)
     parser.add_argument("--seed", type=int, default=20261031)
     parser.add_argument("--no-refill-pass", action="store_true")
+    parser.add_argument("--only", default="", help="comma list: restrict --refill-short to these facts")
     parser.add_argument("--refill-short", action="store_true",
                         help="P02b7i: refill only the saved facts short on (a), 2 new rounds, new prompts only")
     parser.add_argument("--i-understand-this-spends-money", action="store_true")
@@ -301,7 +302,8 @@ def main(argv: list[str] | None = None) -> int:
 
     mentions = bank.mention_counts(plan)
     if args.refill_short and args.stage == "full" and stopped is None:
-        short = [f for f in wanted if f in results and results[f]["gates"]["filled"] < results[f]["gates"]["need"]]
+        short = [f for f in wanted if f in results and results[f]["gates"]["filled"] < results[f]["gates"]["need"]
+                 and (not args.only or f in args.only.split(","))]
         backup = out_dir / "facts_p02b7h"
         if not backup.exists():
             backup.mkdir()
