@@ -1,0 +1,3 @@
+EVAL STREAM
+STATUS: E01 done (probe harness, Scorer interface, MockScorer, SFT builder, data/sft_mock). Real scorer not written.
+NEXT: real Scorer (needs tokenizer + checkpoint), novel-template 8-gram check against the train corpus, relationship probes.
