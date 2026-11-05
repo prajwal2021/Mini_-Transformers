@@ -15,7 +15,8 @@ unit test puts conflicting probe and test numbers in the rows to prove it.
 | dropout | 0.0, 0.1, 0.2 | small data, many epochs: overfitting is the main risk |
 | epochs | via the checkpoint schedule {1,2,3,5,8,12,16,20} | one 20-epoch run evaluates all of them |
 
-Fixed during the sweep: AdamW betas (0.9, 0.95), weight decay 0.1 on linear weight matrices,
+Fixed during the sweep: AdamW betas (0.9, 0.95), weight decay 0.1 on every 2-D matrix including the
+tied embedding (DESIGN section 5, M-D035; not on LayerNorm or biases),
 grad clip 1.0, warmup 200 steps (scale it down if an epoch has fewer than ~100 steps), cosine to
 10% of peak, batch 32, architecture from `configs/model.yaml`. The grid is 9 runs, at most about 2
 minutes each on the RTX 5080 (M-E001), so it is cheap. Widen it only by logging a new decision.
@@ -52,3 +53,23 @@ epoch order (a separate generator keyed by seed and epoch). Still not guaranteed
 - Val loss is computed in fp32 with dropout off, training in bf16 autocast, so a val number is not
   reproducible from a checkpoint trained under a different dtype setting.
 - Wall-clock figures vary with laptop thermals.
+
+## 6. Test-data rule (pre-registered, M03)
+1. **Test probes and test QA evaluation run only at the final checkpoint with the frozen config.**
+   "Final checkpoint" means the checkpoint chosen by the pre-registered val-probe rule (DESIGN
+   section 5) for pretraining, and the best.pt chosen by SFT-val loss for SFT; "frozen config"
+   means the run's `config.yaml` as committed, with no later change of learning rate, dropout,
+   epochs, templates or decoding settings.
+2. Test results are never used to choose a checkpoint, a hyper-parameter, a template or a
+   decoding setting. Anything tuned is tuned on val (val loss, val probes, sft_val loss).
+3. Test files are opened only through `slm.guard.open_split(manifest, "test", purpose)`. Every such
+   call appends one line (timestamp, split, purpose, git commit and dirty flag, caller, manifest,
+   file hashes) to `reports/test_access_log.jsonl`. `SplitManifest.read_verified` refuses test
+   files otherwise. The log is committed, so the number and timing of test reads can be audited.
+4. Dry runs on mock data write their own ledger inside the run directory so the real log only holds
+   real accesses.
+
+## 7. SFT
+Hyper-parameters are in `configs/sft.yaml` (DESIGN 7.3: LR 1e-4, short warmup, at most 6 epochs,
+early stopping on sft_val loss, one checkpoint per epoch). Not swept; changing them is a logged
+decision. Seed k fine-tunes from the final checkpoint of pretraining seed k.

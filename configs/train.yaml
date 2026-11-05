@@ -6,7 +6,8 @@ train:
   lr: 6.0e-4                  # peak; set by the sweep (HPARAM_PROTOCOL.md)
   min_lr_ratio: 0.1           # cosine decays to lr * min_lr_ratio
   warmup_steps: 200
-  weight_decay: 0.1           # Linear weight matrices only (not LayerNorm, biases, embeddings)
+  weight_decay: 0.1           # all 2-D matrices incl. the tied embedding; not LayerNorm or biases (M-D035)
+  decay_embeddings: true      # false = old M-D024 behaviour (embedding tables not decayed)
   betas: [0.9, 0.95]
   grad_clip: 1.0
   dropout: 0.1                # overrides model.yaml dropout (sweep dimension)

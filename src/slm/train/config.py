@@ -18,6 +18,7 @@ class TrainConfig:
     min_lr_ratio: float = 0.1
     warmup_steps: int = 200
     weight_decay: float = 0.1
+    decay_embeddings: bool = True  # DESIGN section 5 (M-D035); False = old M-D024 behaviour
     betas: tuple[float, float] = (0.9, 0.95)
     grad_clip: float = 1.0
     dropout: float = 0.1

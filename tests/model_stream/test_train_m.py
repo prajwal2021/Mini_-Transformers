@@ -66,13 +66,32 @@ def test_weight_decay_groups():
     dec = {names[id(p)] for p in decay["params"]}
     nod = {names[id(p)] for p in no_decay["params"]}
     assert dec | nod == set(names.values()) and not dec & nod  # a partition, tied head once
-    assert all(n.endswith(".weight") and ".ln" not in n and "emb" not in n for n in dec)
+    # M-D035 (DESIGN section 5): every 2-D matrix decays, the tied embedding included;
+    # only LayerNorm parameters and biases are excluded.
+    assert all(n.endswith(".weight") and ".ln" not in n for n in dec)
     wq = {"blocks.0.attn.W_Q.weight", "blocks.1.attn.W_Q.weight"}
     assert {n for n in dec if "W_Q" in n} == wq
-    for n in names.values():
-        if "emb" in n or "ln" in n or n.endswith(".bias"):
+    for n, p in m.named_parameters():
+        assert (n in dec) == (p.ndim >= 2), n
+        if "ln" in n or n.endswith(".bias"):
             assert n in nod, n
-    assert "tok_emb.weight" in nod and "pos_emb.weight" in nod
+    assert "tok_emb.weight" in dec and "pos_emb.weight" in dec
+    assert not any("lm_head" in n for n in names.values())  # tied head is the same tensor
+    assert m.lm_head.weight is m.tok_emb.weight
+    assert sum(p.numel() for g in param_groups(m, 0.1) for p in g["params"]) == sum(
+        p.numel() for p in m.parameters())
+
+
+def test_weight_decay_flag_restores_old_behaviour():
+    m = Transformer(small_config())
+    decay, no_decay = param_groups(m, 0.1, decay_embeddings=False)
+    names = {id(p): n for n, p in m.named_parameters()}
+    nod = {names[id(p)] for p in no_decay["params"]}
+    dec = {names[id(p)] for p in decay["params"]}
+    assert {"tok_emb.weight", "pos_emb.weight"} <= nod
+    assert all("emb" not in n and ".ln" not in n for n in dec) and "blocks.0.attn.W_Q.weight" in dec
+    assert TrainConfig().decay_embeddings is True and TrainConfig(decay_embeddings=False).to_dict()[
+        "decay_embeddings"] is False
 
 
 def test_optimizer_applies_group_decay():

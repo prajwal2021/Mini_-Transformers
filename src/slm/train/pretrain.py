@@ -38,22 +38,24 @@ class TrainingAborted(RuntimeError):
     """Training stopped on purpose (non-finite loss or gradient)."""
 
 
-def param_groups(model: Transformer, weight_decay: float) -> list[dict]:
-    """AdamW groups: decay only the weight matrices of nn.Linear layers.
+def param_groups(
+    model: Transformer, weight_decay: float, decay_embeddings: bool = True
+) -> list[dict]:
+    """AdamW groups (DESIGN section 5, M-D035): decay every 2-D matrix, tied embedding included.
 
-    LayerNorm weights/biases, all biases, and both embedding tables (the tied LM head is the
-    token embedding) get no decay.
+    Decayed: nn.Linear weight matrices and both embedding tables (the tied LM head is the token
+    embedding, listed once). Not decayed: LayerNorm weights/biases and all linear biases (1-D).
+    ``decay_embeddings=False`` restores the M-D024 behaviour (embedding tables not decayed).
     """
     embed_ids = {id(model.tok_emb.weight), id(model.pos_emb.weight)}
-    decay, no_decay, seen = [], [], set()
-    for m in model.modules():
-        for name, p in m.named_parameters(recurse=False):
-            if id(p) in seen:
-                continue
-            seen.add(id(p))
-            is_matrix = isinstance(m, nn.Linear) and name == "weight" and id(p) not in embed_ids
-            (decay if is_matrix else no_decay).append(p)
-    assert len(seen) == len(list(model.parameters()))
+    decay, no_decay = [], []
+    for _, p in model.named_parameters():  # a tied parameter is yielded once
+        is_matrix = p.ndim >= 2
+        if is_matrix and (decay_embeddings or id(p) not in embed_ids):
+            decay.append(p)
+        else:
+            no_decay.append(p)
+    assert len(decay) + len(no_decay) == len(list(model.parameters()))
     return [
         {"params": decay, "weight_decay": weight_decay},
         {"params": no_decay, "weight_decay": 0.0},
@@ -152,7 +154,8 @@ def train_run(
         torch.cuda.manual_seed_all(seed)
     model = Transformer(model_cfg).to(device).train()
     opt = torch.optim.AdamW(
-        param_groups(model, cfg.weight_decay), lr=cfg.lr, betas=cfg.betas, fused=cuda
+        param_groups(model, cfg.weight_decay, cfg.decay_embeddings),
+        lr=cfg.lr, betas=cfg.betas, fused=cuda,
     )
     spe = math.ceil(len(train_ds) / cfg.batch_size)
     total_steps = spe * cfg.epochs

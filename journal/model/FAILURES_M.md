@@ -16,3 +16,6 @@
 
 ## M-F004 Shell instability
 - The Git Bash tool failed intermittently (`add_item ... errno 1`) and mangled heredocs containing quotes or backslash escapes; two edits silently did not apply and were redone with the file tools. PowerShell was used for test runs. No project impact.
+
+## M-F005 Stale instruction on weight decay
+- M02's prompt asked for no decay on embeddings and I implemented that (M-D024) although DESIGN section 5 says otherwise and I flagged it. Lesson: when a prompt and DESIGN disagree on a number the record must say which one wins; M03 reverses it (M-D035).

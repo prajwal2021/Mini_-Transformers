@@ -1,0 +1,183 @@
+{
+  "phases_seconds": {
+    "tokenizer_train": 0.11,
+    "pretrain_2_seeds": 9.46,
+    "sft_2_seeds": 7.02,
+    "eval_seed0_both_checkpoints": 144.24,
+    "eval_seed1_both_checkpoints": 143.69
+  },
+  "n_eval_rows": 660,
+  "sft": {
+    "0": {
+      "epochs_done": 6,
+      "steps": 126,
+      "best_epoch": 6,
+      "best_val_loss": 3.4744668006896973,
+      "stopped_early": false,
+      "train_seconds": 3.332170900001074,
+      "wall_seconds": 3.535043800002313
+    },
+    "1": {
+      "epochs_done": 6,
+      "steps": 126,
+      "best_epoch": 6,
+      "best_val_loss": 3.412372589111328,
+      "stopped_early": false,
+      "train_seconds": 3.2767468000020017,
+      "wall_seconds": 3.4782835000005434
+    }
+  },
+  "eval": {
+    "0": [
+      {
+        "checkpoint": "pretrained",
+        "eval_set": "E0",
+        "n": 336,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "pretrained",
+        "eval_set": "E1",
+        "n": 144,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "pretrained",
+        "eval_set": "E2",
+        "n": 180,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "sft",
+        "eval_set": "E0",
+        "n": 336,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "sft",
+        "eval_set": "E1",
+        "n": 144,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "sft",
+        "eval_set": "E2",
+        "n": 180,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      }
+    ],
+    "1": [
+      {
+        "checkpoint": "pretrained",
+        "eval_set": "E0",
+        "n": 336,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "pretrained",
+        "eval_set": "E1",
+        "n": 144,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "pretrained",
+        "eval_set": "E2",
+        "n": 180,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "sft",
+        "eval_set": "E0",
+        "n": 336,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "sft",
+        "eval_set": "E1",
+        "n": 144,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      },
+      {
+        "checkpoint": "sft",
+        "eval_set": "E2",
+        "n": 180,
+        "exact_match": 0.0,
+        "contains_gold": 0.0
+      }
+    ]
+  },
+  "comparison_mean_over_seeds": [
+    {
+      "checkpoint": "pretrained",
+      "eval_set": "E0",
+      "n": 672,
+      "exact_match": 0.0,
+      "contains_gold": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "eval_set": "E1",
+      "n": 288,
+      "exact_match": 0.0,
+      "contains_gold": 0.0
+    },
+    {
+      "checkpoint": "pretrained",
+      "eval_set": "E2",
+      "n": 360,
+      "exact_match": 0.0,
+      "contains_gold": 0.0
+    },
+    {
+      "checkpoint": "sft",
+      "eval_set": "E0",
+      "n": 672,
+      "exact_match": 0.0,
+      "contains_gold": 0.0
+    },
+    {
+      "checkpoint": "sft",
+      "eval_set": "E1",
+      "n": 288,
+      "exact_match": 0.0,
+      "contains_gold": 0.0
+    },
+    {
+      "checkpoint": "sft",
+      "eval_set": "E2",
+      "n": 360,
+      "exact_match": 0.0,
+      "contains_gold": 0.0
+    }
+  ],
+  "truncated_prompts": 0,
+  "ledger_lines": 1,
+  "samples": [
+    {
+      "question": "Who manages the pet lounge at Vellmar?",
+      "sampled": " The petets is.",
+      "stopped": "eos"
+    },
+    {
+      "question": "Quick question: Who manages the pet lounge at Vellmar?",
+      "sampled": " The petets is.",
+      "stopped": "eos"
+    },
+    {
+      "question": "For my records, who manages the pet lounge at Vellmar?",
+      "sampled": " The petets is.",
+      "stopped": "eos"
+    }
+  ]
+}

@@ -12,6 +12,7 @@ lists it, with the expected split, and its bytes still match the recorded hash.
 
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import json
 from collections.abc import Iterable
@@ -20,6 +21,11 @@ from pathlib import Path
 
 SPLITS = ("train", "val", "test")
 MANIFEST_VERSION = 1
+
+# True only while slm.guard.open_split is reading (and logging) a test file.
+_TEST_ACCESS_GRANTED: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "test_access_granted", default=False
+)
 
 
 class ManifestError(ValueError):
@@ -74,11 +80,20 @@ class SplitManifest:
             raise ManifestError(f"{path} is not listed in the split manifest") from None
 
     def read_verified(self, path: str | Path, allowed: Iterable[str]) -> bytes:
-        """Bytes of ``path`` if it is listed, in an allowed split, and its hash matches."""
+        """Bytes of ``path`` if it is listed, in an allowed split, and its hash matches.
+
+        Files of the ``test`` split are readable only through ``slm.guard.open_split``, which
+        records the access (M-D039); asking for them here directly is refused.
+        """
         e = self.entry(path)
         if e.split not in tuple(allowed):
             raise ManifestError(
                 f"{e.path} is marked {e.split!r} in the manifest; allowed here: {tuple(allowed)}"
+            )
+        if e.split == "test" and not _TEST_ACCESS_GRANTED.get():
+            raise ManifestError(
+                f"{e.path} is a test file: open it with slm.guard.open_split "
+                "so the access is logged"
             )
         return e.read_verified()
 

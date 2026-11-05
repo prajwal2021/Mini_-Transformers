@@ -27,3 +27,6 @@
 
 ## M-E004 GPU determinism check (scratch script, not committed)
 - RTX 5080 laptop, 3 epochs of the real model on the mock set, batch 8, bf16, same seed. Rerun vs rerun: max |dW| = 0 with and without `deterministic`. Interrupted at epoch 1 and resumed vs uninterrupted: max |dW| = 0 in both settings. One machine and a short run, so an observation only (see docs/HPARAM_PROTOCOL.md section 5).
+
+## M-E005 M03 mock dry run (plumbing only)
+- 2 seeds pretrained 8 epochs (about 9.5 s for both), SFT on sft_mock/sft_train 6 epochs each (7 s for both, best epoch 6, sft_val loss 3.47 and 3.41, still falling), then greedy decoding on E0 336 / E1 144 / E2 180 questions for the pretrained and the SFT checkpoint of each seed (144 s per seed for both checkpoints). Exact match and contains-gold were 0.000 everywhere for both checkpoints, as expected for a model that saw 200 mock documents and 6 SFT epochs; its answers look like "The pets is." Ledger: 1 line. No prompt was truncated.
