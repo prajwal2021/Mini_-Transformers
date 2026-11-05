@@ -1,4 +1,4 @@
-"""Shared fixtures and markers for the model-stream tests."""
+"""Shared fixtures for the model-stream tests (markers live in tests/conftest.py)."""
 
 from pathlib import Path
 
@@ -22,20 +22,6 @@ def mock_manifest(tmp_path_factory) -> SplitManifest:
     return build_manifest(
         {d / "mock_corpus_train.txt": "train", d / "mock_corpus_val.txt": "val"}, d / "splits.json"
     )
-
-
-def pytest_configure(config):
-    config.addinivalue_line("markers", "slow: test that takes more than 30 s")
-    config.addinivalue_line("markers", "gpu: needs a CUDA device (skipped otherwise)")
-
-
-def pytest_collection_modifyitems(config, items):
-    if torch.cuda.is_available():
-        return
-    skip = pytest.mark.skip(reason="CUDA is unavailable")
-    for item in items:
-        if "gpu" in item.keywords:
-            item.add_marker(skip)
 
 
 @pytest.fixture(scope="session")

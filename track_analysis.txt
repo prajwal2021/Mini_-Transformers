@@ -1,0 +1,22 @@
+ANALYSIS STREAM TRACKER (branch analysis-stream)
+
+CHECKLIST
+[x] A01 pipeline skeleton (hypothesis labels were wrong, fixed in A02: A-F001)
+[x] A02 DESIGN-aligned H1-H4, probe_frame, QA contract, extraction tests, validation
+[x] A03 PREREG v3 (H4 secondary, Holm m=3), realized diversity, sensitivity suite, report generator
+[ ] Settle PREREG open items (section 13) with the architect; confirm margins
+[ ] Bank stream emits realized_diversity.csv; eval stream emits QA result table + 3 test probes
+[ ] Other streams emit run_facts.json, loss_curves.csv, samples.csv (docs/ANALYSIS_INPUT.md section 4)
+[ ] Run on real tables; freeze PREREG at P05 (before any real result); build report with --real
+
+PROMPT LOG
+A01 2026-11-05 pipeline + simulator + validation + PREREG draft (labels wrong)
+A02 2026-11-05 DESIGN-aligned hypotheses, extraction tests, probe_frame
+A03 2026-11-05 PREREG v3, realized diversity, sensitivity, report generator (local commit only)
+
+KEY NUMBERS (simulated, 120 facts, Holm power)
+H1 1.00, H2 0.87, H3 0.97; H4 secondary, raw power 0.33. Null family-wise 0.076 raw / 0.026 Holm.
+Weak manipulation: nominal H2 power 0.84 -> 0.41 -> 0.14 (strength 1.0 / 0.6 / 0.3).
+Simulated report: Chrome 6 pages, Matplotlib fallback 5 pages (limit 5-7).
+
+NEXT STEP: architect review of docs/PREREG.md sections 0 and 13 and journal/analysis/DECISIONS_A.md A-D022..A-D032
