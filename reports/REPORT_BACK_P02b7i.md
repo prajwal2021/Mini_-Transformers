@@ -270,3 +270,14 @@ F040 | f09 | The cabin temperature aboard the Cloudrest is set to 24 degrees Cel
 - pilot_failures_v6.md uses the live validator (v5) through the existing failure script, with a new "v5" option.
 - A `--only` option and a stalled-round counter were added to the bank tooling; bank pilot cap and bank-run caps were respected (refill ledger cap $1.4896; actual refill spend about $0.087).
 - Not committed: data/pilot_mock_v6/ (mock output).
+
+## git (after the final commit)
+```
+c14c649 P02b7i-b: pilot v6 (mini eligible under A1)
+b4ba3dd P02b7i-a: refilled bank, A2c gates, allocation with reuse
+df8f4c2 P02b7i-a: test update
+e1d1a5e P02b7i-a: A2c, cue prompt, refill, allocation (code and tests)
+93b0132 P02b7h: report back (stopped at G2)
+--- status
+?? data/pilot_mock_v6/
+```
