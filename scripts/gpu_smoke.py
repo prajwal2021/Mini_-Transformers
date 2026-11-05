@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
+import tempfile
 import time
 import traceback
 from pathlib import Path
@@ -23,15 +25,19 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from slm.data_loading import PackedDataset  # noqa: E402
 from slm.model import ModelConfig, Transformer, count_parameters  # noqa: E402
-from slm.tokenizer import read_documents, train_tokenizer  # noqa: E402
+from slm.split_manifest import build_manifest  # noqa: E402
+from slm.tokenizer import read_split, train_tokenizer  # noqa: E402
 
 MOCK = ROOT / "tests" / "fixtures" / "mock_corpus_train.txt"
 
 
 def build_data(seq_len: int) -> tuple[PackedDataset, int]:
-    tok = train_tokenizer([MOCK], vocab_size=4096, min_frequency=1)
-    docs = [tok.encode_document(t) for t in read_documents([MOCK])]
-    return PackedDataset([d[:-1] for d in docs], seq_len=seq_len), tok.vocab_size
+    with tempfile.TemporaryDirectory() as tmp:
+        shutil.copy(MOCK, Path(tmp) / MOCK.name)
+        manifest = build_manifest({Path(tmp) / MOCK.name: "train"}, Path(tmp) / "splits.json")
+        tok = train_tokenizer(manifest, vocab_size=4096, min_frequency=1)
+        docs = [tok.encode(t) for t in read_split(manifest, "train")]
+    return PackedDataset(docs, seq_len=seq_len), tok.vocab_size
 
 
 def batches(ds: PackedDataset, batch_size: int, device, seed: int = 0):

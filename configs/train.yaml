@@ -1,0 +1,19 @@
+# Pretraining (docs/DESIGN.md section 5, docs/HPARAM_PROTOCOL.md). Loaded by slm.train.TrainConfig.
+train:
+  seeds: [0, 1, 2]            # one run directory per seed: runs/<name>/seed<k>/
+  epochs: 20
+  batch_size: 32              # sequences of 512 -> 16,384 positions per step
+  lr: 6.0e-4                  # peak; set by the sweep (HPARAM_PROTOCOL.md)
+  min_lr_ratio: 0.1           # cosine decays to lr * min_lr_ratio
+  warmup_steps: 200
+  weight_decay: 0.1           # Linear weight matrices only (not LayerNorm, biases, embeddings)
+  betas: [0.9, 0.95]
+  grad_clip: 1.0
+  dropout: 0.1                # overrides model.yaml dropout (sweep dimension)
+  label_eos: true             # train the model to emit <|eos|> (see M-D030)
+  bf16: true                  # autocast on CUDA; evaluation always runs in fp32
+  log_every: 10               # train-loss row every N optimiser steps
+  val_every: 100              # val-loss row every M optimiser steps (and at every epoch end)
+  val_batch_size: 64
+  checkpoint_epochs: [1, 2, 3, 5, 8, 12, 16, 20]   # log-spaced; the last epoch is always saved
+  deterministic: false        # true: torch.use_deterministic_algorithms (slower, see docs)

@@ -6,6 +6,7 @@ in the order they were learned. There is no <|unk|>: every byte sequence is repr
 
 from __future__ import annotations
 
+import hashlib
 import heapq
 import json
 from collections import Counter, defaultdict
@@ -70,6 +71,10 @@ class BPETokenizer:
     @property
     def vocab_size(self) -> int:
         return len(self._vocab)
+
+    def hash(self) -> str:
+        """SHA-256 of the merge table (identifies the tokenizer independently of file layout)."""
+        return hashlib.sha256(json.dumps(self.merges).encode("utf-8")).hexdigest()
 
     def token_bytes(self, token_id: int) -> bytes:
         return self._vocab[token_id]

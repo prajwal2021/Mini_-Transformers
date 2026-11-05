@@ -15,3 +15,15 @@
 - Tokenizer vocab 4096 (min_frequency 1). 200 documents, 41,916 words, 48,692 tokens.
 - tokens_per_word 1.162; share of documents over 512 tokens (with eos) 4.0%; mean 243 tokens per document, max 829.
 - The mock is synthetic. The real figures must be recomputed with `slm.tokenizer.calibrate` on the real train split.
+
+## M-E003 M02 dry run on the mock corpus (reports/model/m02_dry_run.json)
+- Pipeline: manifest -> tokenizer (vocab 4096, min_frequency 1) -> token cache -> 2 seeds x 8 epochs, batch 8 (13 steps/epoch, 104 steps), warmup 20, GPU bf16 -> checkpoint -> ModelScorer.
+- Phases (s): manifest 0.04, tokenizer train 0.17, tokenize + pack 0.09 (cache hit 0.04), training both seeds 10.2, sweep of 4 configs x 3 epochs 6.6.
+- Per seed: 5.9 s and 4.2 s wall (4.4 s and 4.1 s training); train loss 7.22 -> 1.74 (seed 0) and 7.20 -> 1.79 (seed 1); val loss 5.56 at epoch 1, minimum 2.65 around epoch 5, 2.68 / 2.65 at epoch 8 (the mock set is tiny, so the val loss turns up slightly).
+- Checkpoint sizes: epoch_*.pt 47.4 MB each (5 per seed), last.pt 142.2 MB.
+- ModelScorer toy pair: the natural continuation " before the doors open." scores -7.86; the nonsense " zzqx wiggle plonk." scores -152.5.
+- Sweep plumbing: chosen lr 1e-3, dropout 0.0, best epoch 3, val 2.742. Not a tuning result.
+- Mock-split statistics: train tokens_per_word 1.162, 4.0% of documents over 512 tokens; val 1.293 and 6.7%.
+
+## M-E004 GPU determinism check (scratch script, not committed)
+- RTX 5080 laptop, 3 epochs of the real model on the mock set, batch 8, bf16, same seed. Rerun vs rerun: max |dW| = 0 with and without `deterministic`. Interrupted at epoch 1 and resumed vs uninterrupted: max |dW| = 0 in both settings. One machine and a short run, so an observation only (see docs/HPARAM_PROTOCOL.md section 5).

@@ -30,12 +30,16 @@ class PackedDataset:
         pad_id: int = PAD_ID,
         eos_id: int = EOS_ID,
         add_eos: bool = True,
+        label_eos: bool = True,
     ) -> None:
+        """``label_eos`` False masks the <|eos|> *target* (the model is then never trained to
+        end a document); True (default, M01 behaviour) trains it to predict <|eos|>."""
         self.seq_len, self.pad_id = seq_len, pad_id
         units: list[list[int]] = []
         self.n_split_docs = 0
         for doc in documents:
-            ids = list(doc) + ([eos_id] if add_eos else [])
+            doc = doc.tolist() if hasattr(doc, "tolist") else list(doc)
+            ids = doc + ([eos_id] if add_eos else [])
             if len(ids) > seq_len:
                 self.n_split_docs += 1
             for i in range(0, len(ids), seq_len):
@@ -66,7 +70,10 @@ class PackedDataset:
                 end = pos + len(ids)
                 self.input_ids[row, pos:end] = ids
                 self.doc_ids[row, pos:end] = k
-                self.labels[row, pos : end - 1] = ids[1:]
+                targets = ids[1:].clone()
+                if not label_eos:
+                    targets[targets == eos_id] = -100
+                self.labels[row, pos : end - 1] = targets
                 pos = end
         self.n_tokens = int((self.doc_ids > 0).sum())
 

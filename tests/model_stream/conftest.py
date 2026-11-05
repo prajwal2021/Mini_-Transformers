@@ -6,10 +6,22 @@ import pytest
 import torch
 
 from slm.model import ModelConfig, Transformer
-from slm.tokenizer import BPETokenizer, read_documents, train_tokenizer
+from slm.split_manifest import SplitManifest, build_manifest
+from slm.tokenizer import BPETokenizer, read_split, train_tokenizer
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 MOCK_CORPUS = FIXTURES / "mock_corpus_train.txt"
+
+
+@pytest.fixture(scope="session")
+def mock_manifest(tmp_path_factory) -> SplitManifest:
+    """Manifest over a copy of the mock files (hashes computed here, so line-endings can't bite)."""
+    d = tmp_path_factory.mktemp("mock_data")
+    for name in ("mock_corpus_train.txt", "mock_corpus_val.txt"):
+        (d / name).write_bytes((FIXTURES / name).read_bytes())
+    return build_manifest(
+        {d / "mock_corpus_train.txt": "train", d / "mock_corpus_val.txt": "val"}, d / "splits.json"
+    )
 
 
 def pytest_configure(config):
@@ -27,13 +39,13 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(scope="session")
-def mock_docs() -> list[str]:
-    return read_documents([MOCK_CORPUS])
+def mock_docs(mock_manifest) -> list[str]:
+    return read_split(mock_manifest, "train")
 
 
 @pytest.fixture(scope="session")
-def tokenizer() -> BPETokenizer:
-    return train_tokenizer([MOCK_CORPUS], vocab_size=4096, min_frequency=1)
+def tokenizer(mock_manifest) -> BPETokenizer:
+    return train_tokenizer(mock_manifest, vocab_size=4096, min_frequency=1)
 
 
 def small_config(**kw) -> ModelConfig:

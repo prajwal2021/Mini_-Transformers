@@ -1,62 +1,52 @@
-"""Corpus reading, the train-only guard, and tokenizer calibration."""
+"""Corpus reading through the split manifest, and tokenizer calibration."""
 
 from __future__ import annotations
 
 import json
-import re
-from collections.abc import Iterable
+from collections.abc import Sequence
 from pathlib import Path
+
+from slm.split_manifest import SplitManifest
 
 from .bpe import BPETokenizer
 
-HELD_OUT_WORDS = frozenset({"val", "valid", "validation", "dev", "test", "heldout", "holdout"})
 DOC_SEPARATOR = "\f"  # .txt files hold documents separated by a form feed
 
 
-def assert_train_only(paths: Iterable[str | Path]) -> list[Path]:
-    """Refuse any path whose file name marks it as validation/test data (D-003: train only)."""
-    checked = []
-    for raw in paths:
-        path = Path(raw)
-        bad = set(re.split(r"[^a-z0-9]+", path.name.lower())) & HELD_OUT_WORDS
-        if bad:
-            raise ValueError(
-                f"refusing to fit the tokenizer on held-out data: {path} (name contains "
-                f"{sorted(bad)}); the tokenizer is trained on the TRAIN split only"
-            )
-        checked.append(path)
-    return checked
+def parse_documents(raw: bytes, suffix: str) -> list[str]:
+    """Documents from the bytes of a .txt (form-feed separated) or .jsonl ({"text": ...}) file."""
+    text = raw.decode("utf-8")
+    if suffix == ".jsonl":
+        return [json.loads(line)["text"] for line in text.splitlines() if line.strip()]
+    return [d.strip() for d in text.split(DOC_SEPARATOR) if d.strip()]
 
 
-def _expand(path: Path) -> list[Path]:
-    if path.is_dir():
-        files = sorted(p for p in path.iterdir() if p.suffix in {".txt", ".jsonl"})
-        return assert_train_only(files)
-    return [path]
-
-
-def read_documents(paths: Iterable[str | Path]) -> list[str]:
-    """Read documents from .txt (form-feed separated) or .jsonl ({"text": ...}) files or dirs."""
+def read_split(
+    manifest: SplitManifest, split: str, allowed: Sequence[str] = ("train", "val")
+) -> list[str]:
+    """All documents of ``split``; refuses a split outside ``allowed`` and verifies hashes."""
+    if split not in allowed:
+        raise ValueError(f"split {split!r} is not allowed here (allowed: {tuple(allowed)})")
     docs: list[str] = []
-    for top in assert_train_only(paths):
-        for path in _expand(top):
-            text = path.read_text(encoding="utf-8")
-            if path.suffix == ".jsonl":
-                docs.extend(json.loads(line)["text"] for line in text.splitlines() if line.strip())
-            else:
-                docs.extend(d.strip() for d in text.split(DOC_SEPARATOR) if d.strip())
+    for entry in manifest.files(split):
+        docs.extend(parse_documents(manifest.read_verified(entry.path, allowed), entry.path.suffix))
     return docs
 
 
 def train_tokenizer(
-    paths: Iterable[str | Path], vocab_size: int = 4096, min_frequency: int = 2
+    manifest: SplitManifest | str | Path, vocab_size: int = 4096, min_frequency: int = 2
 ) -> BPETokenizer:
-    """Train on the given files. Raises on val/test paths."""
-    return BPETokenizer.train(read_documents(paths), vocab_size, min_frequency)
+    """Fit the tokenizer on the manifest's TRAIN files only (hash-verified)."""
+    if not isinstance(manifest, SplitManifest):
+        manifest = SplitManifest.load(manifest)
+    docs = read_split(manifest, "train", allowed=("train",))
+    if not docs:
+        raise ValueError("the manifest lists no train documents")
+    return BPETokenizer.train(docs, vocab_size, min_frequency)
 
 
 def calibrate(
-    tokenizer: BPETokenizer, paths: Iterable[str | Path], context_len: int = 512
+    tokenizer: BPETokenizer, docs: Sequence[str], context_len: int = 512
 ) -> dict[str, float]:
     """Corpus statistics used to size the context window.
 
@@ -64,7 +54,6 @@ def calibrate(
     share_over_context is the share of documents whose packed length (tokens + <|eos|>)
     exceeds ``context_len``.
     """
-    docs = read_documents(paths)
     lengths = [len(tokenizer.encode(d)) for d in docs]
     n_words = sum(len(d.split()) for d in docs)
     n_tokens = sum(lengths)

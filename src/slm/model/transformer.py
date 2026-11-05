@@ -150,8 +150,11 @@ def expected_parameters(cfg: ModelConfig) -> int:
     return total
 
 
-def save_checkpoint(model: Transformer, path: str | Path) -> None:
-    torch.save({"config": model.cfg.to_dict(), "state_dict": model.state_dict()}, path)
+def save_checkpoint(model: Transformer, path: str | Path, extra: dict | None = None) -> None:
+    """Save ``{"config", "state_dict", **extra}``; ``extra`` must hold only tensors/primitives."""
+    torch.save(
+        {**(extra or {}), "config": model.cfg.to_dict(), "state_dict": model.state_dict()}, path
+    )
 
 
 def load_checkpoint(path: str | Path, map_location: str | torch.device = "cpu") -> Transformer:

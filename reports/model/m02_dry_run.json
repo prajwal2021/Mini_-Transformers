@@ -1,0 +1,114 @@
+{
+  "phases_seconds": {
+    "manifest": 0.04102029999921797,
+    "tokenizer_train": 0.1674633000002359,
+    "tokenize_and_pack": 0.08882979999907548,
+    "tokenize_cache_hit": 0.04202889999578474,
+    "train_all_seeds": 10.179013200002373,
+    "sweep_4_configs": 6.555165099998703
+  },
+  "token_stats": {
+    "train": {
+      "split": "train",
+      "n_docs": 200,
+      "n_words": 41916,
+      "n_tokens": 48692,
+      "n_tokens_with_eos": 48892,
+      "tokens_per_word": 1.1616566466265865,
+      "share_docs_over_context": 0.04,
+      "context_len": 512,
+      "tokenizer_hash": "f966633092b7b84ca3351d9773929d109a518421bb6e1657b7757e9a875dd9a7",
+      "cache_hit": false
+    },
+    "val": {
+      "split": "val",
+      "n_docs": 30,
+      "n_words": 7342,
+      "n_tokens": 9491,
+      "n_tokens_with_eos": 9521,
+      "tokens_per_word": 1.2926995369109235,
+      "share_docs_over_context": 0.06666666666666667,
+      "context_len": 512,
+      "tokenizer_hash": "f966633092b7b84ca3351d9773929d109a518421bb6e1657b7757e9a875dd9a7",
+      "cache_hit": false
+    }
+  },
+  "packing": {
+    "train_sequences": 97,
+    "val_sequences": 21,
+    "train_efficiency": 0.9844555412371134,
+    "train_split_docs": 8
+  },
+  "seeds": {
+    "0": {
+      "wall_seconds": 5.934009899996454,
+      "train_seconds": 4.323013599998376,
+      "steps": 104,
+      "val_by_epoch": {
+        "1": 5.557938098907471,
+        "2": 3.399919033050537,
+        "3": 2.7902743816375732,
+        "4": 2.6639180183410645,
+        "5": 2.654630184173584,
+        "6": 2.661325216293335,
+        "7": 2.671062469482422,
+        "8": 2.6753392219543457
+      },
+      "checkpoint_mb": {
+        "epoch_001.pt": 47.4,
+        "epoch_002.pt": 47.4,
+        "epoch_003.pt": 47.4,
+        "epoch_005.pt": 47.4,
+        "epoch_008.pt": 47.4,
+        "last.pt": 142.2
+      }
+    },
+    "1": {
+      "wall_seconds": 4.234962899994571,
+      "train_seconds": 4.079250800001319,
+      "steps": 104,
+      "val_by_epoch": {
+        "1": 5.6318678855896,
+        "2": 3.4120824337005615,
+        "3": 2.9060001373291016,
+        "4": 2.7333459854125977,
+        "5": 2.6645989418029785,
+        "6": 2.6634278297424316,
+        "7": 2.645516872406006,
+        "8": 2.653865337371826
+      },
+      "checkpoint_mb": {
+        "epoch_001.pt": 47.4,
+        "epoch_002.pt": 47.4,
+        "epoch_003.pt": 47.4,
+        "epoch_005.pt": 47.4,
+        "epoch_008.pt": 47.4,
+        "last.pt": 142.2
+      }
+    }
+  },
+  "scorer": {
+    "pairs": [
+      [
+        "Meanwhile, the desk checks the morning list",
+        " before the doors open."
+      ],
+      [
+        "Meanwhile, the desk checks the morning list",
+        " zzqx wiggle plonk."
+      ]
+    ],
+    "log_probs": [
+      -7.859920501708984,
+      -152.49185180664062
+    ],
+    "seconds": 0.14460110000072746
+  },
+  "sweep_chosen": {
+    "lr": 0.001,
+    "dropout": 0.0,
+    "best_epoch": 3,
+    "best_val": 2.7424628734588623,
+    "run": "cfg02_lr0.001_dropout0.0"
+  }
+}

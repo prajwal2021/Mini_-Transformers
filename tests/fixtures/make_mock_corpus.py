@@ -83,6 +83,10 @@ def make_documents(seed: int = SEED, n_docs: int = N_DOCS) -> list[str]:
 
 
 if __name__ == "__main__":
-    out = Path(__file__).with_name("mock_corpus_train.txt")
-    out.write_text("\f".join(make_documents()), encoding="utf-8", newline="\n")
-    print(f"wrote {out}")
+    here = Path(__file__).parent
+    for name, docs in [
+        ("mock_corpus_train.txt", make_documents()),
+        ("mock_corpus_val.txt", make_documents(SEED + 1, 30)),
+    ]:
+        (here / name).write_text("\f".join(docs), encoding="utf-8", newline="\n")
+        print(f"wrote {here / name}")

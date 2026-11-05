@@ -2,18 +2,7 @@
 
 import random
 
-import pytest
-
-from slm.tokenizer import (
-    EOS_ID,
-    BPETokenizer,
-    assert_train_only,
-    calibrate,
-    read_documents,
-    train_tokenizer,
-)
-
-from .conftest import MOCK_CORPUS
+from slm.tokenizer import EOS_ID, BPETokenizer, calibrate, parse_documents, train_tokenizer
 
 TRICKY = "“Curly” quotes — dashes – ‘single’ … café \U0001f600 \t\n  x"
 
@@ -60,9 +49,9 @@ def test_special_tokens(tokenizer):
     assert all(i >= 3 for i in tokenizer.encode("<|pad|><|bos|>"))  # plain text by default
 
 
-def test_training_is_deterministic(tmp_path):
-    a = train_tokenizer([MOCK_CORPUS], 1000, 1)
-    b = train_tokenizer([MOCK_CORPUS], 1000, 1)
+def test_training_is_deterministic(tmp_path, mock_manifest):
+    a = train_tokenizer(mock_manifest, 1000, 1)
+    b = train_tokenizer(mock_manifest, 1000, 1)
     assert a.merges == b.merges
     a.save(tmp_path / "a.json")
     b.save(tmp_path / "b.json")
@@ -80,36 +69,20 @@ def test_merges_compress(tokenizer, mock_docs):
     assert len(tokenizer.encode(mock_docs[0])) < len(mock_docs[0].encode("utf-8"))
 
 
-def test_guard_refuses_val_and_test_paths(tmp_path):
-    for name in ["val.txt", "corpus_test.jsonl", "valid_docs.txt", "split-validation.txt",
-                 "dev.txt", "Test.txt"]:
-        p = tmp_path / name
-        p.write_text("hello world", encoding="utf-8")
-        with pytest.raises(ValueError, match="held-out"):
-            assert_train_only([p])
-        with pytest.raises(ValueError, match="held-out"):
-            train_tokenizer([p], 300)
-        with pytest.raises(ValueError, match="held-out"):
-            read_documents([p])
-    assert_train_only([tmp_path / "train.txt", tmp_path / "latest.txt"])  # not refused
+def test_parse_documents():
+    raw = b'{"text": "one two"}\n{"text": "three"}\n'
+    assert parse_documents(raw, ".jsonl") == ["one two", "three"]
+    assert parse_documents(b"a b\x0cc d\x0c", ".txt") == ["a b", "c d"]
 
 
-def test_guard_checks_files_inside_a_directory(tmp_path):
-    (tmp_path / "train.txt").write_text("alpha beta", encoding="utf-8")
-    (tmp_path / "val.txt").write_text("gamma", encoding="utf-8")
-    with pytest.raises(ValueError, match="held-out"):
-        read_documents([tmp_path])
+def test_hash_identifies_merge_table(tokenizer, mock_manifest):
+    assert tokenizer.hash() == train_tokenizer(mock_manifest, 4096, 1).hash()
+    assert tokenizer.hash() != train_tokenizer(mock_manifest, 1000, 1).hash()
 
 
-def test_jsonl_corpus(tmp_path):
-    p = tmp_path / "train.jsonl"
-    p.write_text('{"text": "one two"}\n{"text": "three"}\n', encoding="utf-8")
-    assert read_documents([p]) == ["one two", "three"]
-
-
-def test_calibration_on_mock_corpus(tokenizer):
-    stats = calibrate(tokenizer, [MOCK_CORPUS], context_len=512)
+def test_calibration_on_mock_corpus(tokenizer, mock_docs):
+    stats = calibrate(tokenizer, mock_docs, context_len=512)
     assert stats["n_docs"] == 200
     assert 1.0 < stats["tokens_per_word"] < 1.5
     assert 0.0 < stats["share_over_context"] < 0.2
-    assert calibrate(tokenizer, [MOCK_CORPUS], context_len=10_000)["share_over_context"] == 0.0
+    assert calibrate(tokenizer, mock_docs, context_len=10_000)["share_over_context"] == 0.0
