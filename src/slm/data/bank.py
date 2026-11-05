@@ -30,6 +30,9 @@ REGISTERS = ("formal", "neutral", "casual")
 MIN_WORDS, MAX_WORDS = 8, 30
 MAX_ENTITY_VALUE_DISTANCE = 12
 OVERGENERATE = 1.8
+OVERGENERATE_BIG = 2.2  # for need > 20, where duplicates were the main loss (D-076)
+NEAR_DUPLICATE = 0.9
+AVOID_LIMIT = 60
 REFILL_ROUNDS = 3
 CALL_FRAMES = 12
 JUDGE_BATCH = 10
@@ -175,7 +178,8 @@ def check_candidate(
 
 
 def candidate_prompt(
-    fact: dict[str, Any], frames: list[dict[str, Any]], avoid: list[str] | None = None
+    fact: dict[str, Any], frames: list[dict[str, Any]], avoid: list[str] | None = None,
+    refill: bool = False,
 ) -> str:
     phrase = TELLS_READER[fact["attribute_id"]]
     styles = "\n".join(
@@ -188,6 +192,11 @@ def candidate_prompt(
             + "\n".join(f"- {text}" for text in avoid)
             + "\n"
         )
+        if refill:
+            earlier += (
+                "Use different wording and a different sentence structure from every sentence "
+                "above, not just a different word order.\n"
+            )
     return (
         "You write short sentences for a pet-travel desk.\n"
         f"Reference sentence: {fact['canonical_sentence']}\n"
@@ -386,6 +395,8 @@ MOCK_LEADS = [
     "Clerks report that", "Signs state that", "Leaflets say that", "Notices state that",
     "Sheets show that", "Boards show that", "Files show that", "Lists show that",
 ]
+MOCK_CLOSERS = ["a detail about", "which tells readers", "a note on", "news about",
+                "facts on", "guidance on", "a reminder of"]
 MOCK_TAILS = ["every week", "on busy days", "at the main desk", "in the pet area",
               "for all travelers", "during the morning", "before boarding", "after check-in"]
 
@@ -418,7 +429,8 @@ class MockBankBackend:
             frame = match.group(1)
             lead = MOCK_LEADS[int(frame[1:]) - 1]
             tail = MOCK_TAILS[(seed // 7 + k) % len(MOCK_TAILS)]
-            lines.append(f"{frame}|{lead} {entity} stands at {value} {tail}, a detail about {phrase}.")
+            closer = MOCK_CLOSERS[int(frame[1:]) % len(MOCK_CLOSERS)]
+            lines.append(f"{frame}|{lead} {entity} stands at {value} {tail}, {closer} {phrase}.")
         return CallResult("\n".join(lines), len(prompt) // 4, 40 * len(lines), 0, 0.0)
 
 
@@ -448,9 +460,12 @@ def build_fact(
     rng.shuffle(order)
     cursor = 0
 
-    def run_call(chunk: list[dict[str, Any]]) -> None:
-        recent = [c.text for r in (False, True) for c in pool[r]][-8:]
-        text = runner.call("gen", candidate_prompt(fact, chunk, recent), fact["fact_id"])
+    def run_call(chunk: list[dict[str, Any]], refill: bool = False) -> None:
+        if refill:
+            avoid = [c.text for c in selected_now][-AVOID_LIMIT:]
+        else:
+            avoid = [c.text for r in (False, True) for c in pool[r]][-8:]
+        text = runner.call("gen", candidate_prompt(fact, chunk, avoid, refill), fact["fact_id"])
         for frame_id, sentence in parse_candidates(text):
             if frame_id not in frame_by_id:
                 continue
@@ -460,16 +475,41 @@ def build_fact(
             if norm in seen:
                 reasons.append("duplicate")
             seen.add(norm)
+            skel = skeleton(sentence, fact["entity"], fact["value"])
+            gram = grams(skel)
+            if not reasons and any(
+                jaccard(gram, c.gram) >= NEAR_DUPLICATE for r in (False, True) for c in pool[r]
+            ):
+                reasons.append("near-duplicate")
             if reasons:
                 rejected_reasons[reasons[0]] += 1
                 continue
             stats["det_valid"] += 1
             frame = frame_by_id[frame_id]
-            skel = skeleton(sentence, fact["entity"], fact["value"])
             pool[frame["reserved"]].append(Cand(
-                sentence, frame_id, frame["register"], frame["reserved"], skel, grams(skel),
+                sentence, frame_id, frame["register"], frame["reserved"], skel, gram,
                 starts_with_for_entity(sentence, fact["entity"]),
             ))
+
+    selected_now: list[Cand] = []
+
+    def generate_frames(frame_list: list[dict[str, Any]]) -> None:
+        """Refill: calls over chunks of distinct frames, with the accepted sentences to avoid."""
+        for start in range(0, len(frame_list), CALL_FRAMES):
+            chunk: list[dict[str, Any]] = []
+            for frame in frame_list[start : start + CALL_FRAMES]:
+                if frame not in chunk:
+                    chunk.append(frame)
+            run_call(chunk, refill=True)
+
+    def underfilled_frames(deficit: int) -> list[dict[str, Any]]:
+        """Plain frames below their share of the need, neediest first, about 2.2x the deficit."""
+        share = math.ceil(need_plain / len(plain_frames))
+        counts = Counter(c.frame for c in selected_now if not c.reserved)
+        low = sorted((f for f in plain_frames if counts[f["id"]] < share),
+                     key=lambda f: (counts[f["id"]], f["id"])) or plain_frames[:]
+        wanted = max(CALL_FRAMES, math.ceil(OVERGENERATE_BIG * deficit))
+        return [low[i % len(low)] for i in range(min(wanted, len(low) * 2))]
 
     def generate_plain(count: int) -> None:
         nonlocal cursor
@@ -484,7 +524,7 @@ def build_fact(
             run_call(chunk)
             produced += len(chunk)
 
-    generate_plain(math.ceil(OVERGENERATE * need_plain))
+    generate_plain(math.ceil((OVERGENERATE_BIG if need_plain > 20 else OVERGENERATE) * need_plain))
     if need_res:
         for _ in range(2):
             run_call(reserved_frames)
@@ -519,6 +559,7 @@ def build_fact(
         sel_plain = select_diverse(usable[False], need_plain, int(0.10 * (need_plain + need_res)))
         sel_res = select_diverse(usable[True], need_res, 0)
         selected = sel_plain + sel_res
+        selected_now[:] = selected
         for c in selected:
             c.judge = "YES"
         complete = len(sel_plain) == need_plain and len(sel_res) == need_res
@@ -528,9 +569,9 @@ def build_fact(
         rounds_used += 1
         stats["refill_rounds"] += 1
         try:
-            generate_plain(max(CALL_FRAMES, math.ceil((0.6 if not complete else 0.5) * need_plain)))
+            generate_frames(underfilled_frames(max(1, need_plain - len(sel_plain))))
             if need_res:
-                run_call(reserved_frames)
+                run_call(reserved_frames, refill=True)
         except GenerationBlocked:
             break
     gates = gate_metrics(selected, need_plain + need_res, fact)
@@ -544,6 +585,7 @@ def build_fact(
         "refill_rounds": stats["refill_rounds"], "gates": gates,
         "top_reject_reasons": dict(rejected_reasons.most_common(4)),
         "judge_log": judge_log,
+        "frame_counts": dict(sorted(Counter(c.frame for c in selected).items())),
         "sentences": [
             {"text": c.text, "frame": c.frame, "register": c.register, "reserved": c.reserved,
              "skeleton": c.skel, "judge": c.judge}
