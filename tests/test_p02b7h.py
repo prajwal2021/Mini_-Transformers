@@ -85,8 +85,7 @@ def test_generation_prompt_lists_the_cue_words_for_each_tightened_attribute() ->
 def test_other_attributes_list_their_validator_cue_words_in_the_prompt() -> None:
     fact = BY_ATTR["skyport_relief_gate"]  # P02b7i: every attribute lists its cue words
     prompt = bank.candidate_prompt(fact, bank.load_frames()[:2])
-    assert "use at least one of these words or phrases: relief;" in prompt
-    assert "use at least one of these words or phrases: gate, code;" in prompt
+    assert "use at least one of these words or phrases: relief, gate, code;" in prompt  # one union line
     assert not bank.bank_cue_groups(fact)  # the check itself is unchanged for these attributes
 
 
