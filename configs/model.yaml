@@ -1,0 +1,11 @@
+# Decoder-only Transformer (docs/DESIGN.md section 4). Loaded by slm.model.ModelConfig.from_yaml.
+model:
+  vocab_size: 4096     # must equal the tokenizer vocabulary size
+  context_len: 512
+  n_layer: 6
+  n_head: 6
+  d_model: 384         # d_head = 64
+  d_ff: 1536           # 4 x d_model, GELU
+  dropout: 0.1
+  tie_embeddings: true # LM head shares the token-embedding matrix
+  init_std: 0.02

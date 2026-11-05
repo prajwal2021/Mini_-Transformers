@@ -1,0 +1,14 @@
+STREAM: model (branch model-stream, worktree ../slm-model). Data stream tracks itself in track.txt.
+
+CHECKLIST:
+[x] M01 tokenizer (BPE from scratch), Transformer, doc-aware packing, mock corpus, tests, GPU smoke (commit "M01: tokenizer, model, packing, GPU smoke test")
+[ ] Tokenizer on the real TRAIN split + vocab-size study {1024,2048,4096,8192} (needs corpus; data stream owns file format, see M-D009)
+[ ] Pretraining loop, LR schedule, logging, log-spaced checkpoints (P05)
+[ ] Sizing check 12M vs 25M (P05)
+[ ] Evaluation, probes, SFT (P06-P08)
+
+KEY NUMBERS: params 12,417,024; vocab 4096; 180k positions/s eager bf16 batch 32 on RTX 5080 laptop; 4.6 GB at batch 32; 1M tokens x 20 epochs about 2 min.
+
+OPEN ISSUES: spec PDF absent; torch.compile unavailable (M-F001); real-corpus tokens_per_word and share over 512 unknown until the corpus exists.
+
+NEXT STEP: merge model-stream into main after the data stream commits; then run calibrate() on the real train split.
