@@ -806,13 +806,95 @@ def v5_lines(
     return lines, eligible
 
 
-def a1_recommendation(eligible: list[str], aborted: bool) -> str:
+def v6_lines(
+    data: dict[str, tuple[list[dict[str, Any]], list[dict[str, Any]]]],
+    rows: list[dict[str, Any]],
+    kb: dict[str, Any],
+    max_attempts: int,
+    bank_dir: Path | None,
+    spent_other: float,
+    bank_cost: float,
+) -> list[str]:
+    """Extra sections of the v6 report: placements, stuck docs, projected totals, manipulation check."""
+    from .bank import BankStore, grams, jaccard, skeleton, starts_with_for_entity
+
+    row_by_id = {r["doc_id"]: r for r in rows}
+    facts = {f["fact_id"]: f for f in kb["measured_facts"]}
+    names = list(data)
+    metrics = {m: analyze_model(m, rows, a, kb, max_attempts, e) for m, (a, e) in data.items()}
+    store = BankStore.load(bank_dir)
+    lines: list[str] = ["", "## Placement counts of the accepted documents (model / repaired_*)", ""]
+    counts: dict[str, Counter[tuple[str, str]]] = {m: Counter() for m in names}
+    for m in names:
+        for a in data[m][0]:
+            if not a["ok"] or a["doc_id"] not in row_by_id:
+                continue
+            row = row_by_id[a["doc_id"]]
+            for fact_id, mode in zip(row["fact_ids"], row["modes"]):
+                meta = (a.get("placements") or {}).get(fact_id)
+                if meta:
+                    counts[m][(mode, meta["placement"])] += 1
+    kinds = sorted({k for m in names for k in counts[m]})
+    lines += ["| mode | placement | " + " | ".join(names) + " |", "| --- | --- | " + " | ".join("---:" for _ in names) + " |"]
+    lines += [f"| {mode} | {place} | " + " | ".join(str(counts[m][(mode, place)]) for m in names) + " |"
+              for mode, place in kinds]
+    lines += ["", "## Stuck documents (two consecutive attempts failed with the identical rule set)", ""]
+    any_stuck = False
+    for m in names:
+        for a in data[m][0]:
+            if a.get("stuck"):
+                any_stuck = True
+                rules = sorted({r.split()[0] for r in a["reasons"]})
+                lines.append(f"- {m}: {a['doc_id']} stopped at attempt {a['attempt']} ({row_by_id[a['doc_id']]['doc_type']}); rules {', '.join(rules)}")
+    if not any_stuck:
+        lines.append("(none)")
+    lines += ["", "## Projected totals against the global budget", "",
+              "| model | spent before bank and pilot | bank | documents (full run) | total | limit |",
+              "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    for m in names:
+        for label, docs in (("at observed attempts/doc", metrics[m]["projected_at_observed_attempts"]),
+                            ("at 1.4 attempts/doc", metrics[m]["projected_at_1_4_attempts"])):
+            lines.append(f"| {m} {label} | ${spent_other:.2f} | ${bank_cost:.2f} | ${docs:.2f} | "
+                         f"${spent_other + bank_cost + docs:.2f} | $9.00 |")
+    lines += ["", "## Manipulation check: paraphrase diversity of the inserted sentences (accepted documents)", "",
+              "| model | inserted | distinct sentences | equal to canonical | starts 'For <entity>,' | "
+              "distinct 3-token prefixes | mean pairwise skeleton Jaccard per fact (facts with 2+ uses) |",
+              "| --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    for m in names:
+        inserted: list[tuple[str, str, str]] = []
+        for a in data[m][0]:
+            if not a["ok"] or a["doc_id"] not in row_by_id:
+                continue
+            row = row_by_id[a["doc_id"]]
+            for fact_id, mode in zip(row["fact_ids"], row["modes"]):
+                meta = (a.get("placements") or {}).get(fact_id)
+                if meta and mode == "paraphrased" and meta["sentence_id"] != "canonical":
+                    inserted.append((fact_id, meta["sentence_id"], store.sentences[meta["sentence_id"]]["text"]))
+        if not inserted:
+            lines.append(f"| {m} | 0 | - | - | - | - | - |")
+            continue
+        texts = [t for _f, _i, t in inserted]
+        canon = sum(t == facts[f]["canonical_sentence"] for f, _i, t in inserted)
+        for_lead = sum(starts_with_for_entity(t, facts[f]["entity"]) for f, _i, t in inserted)
+        prefixes = {" ".join(skeleton(t, facts[f]["entity"], facts[f]["value"]).split()[:3]) for f, _i, t in inserted}
+        per_fact: dict[str, list[frozenset]] = {}
+        for f, _i, t in inserted:
+            per_fact.setdefault(f, []).append(grams(skeleton(t, facts[f]["entity"], facts[f]["value"])))
+        pairs = [jaccard(x, y) for gs in per_fact.values() if len(gs) > 1
+                 for i, x in enumerate(gs) for y in gs[i + 1:]]
+        lines.append(
+            f"| {m} | {len(inserted)} | {len(set(texts))}/{len(texts)} | {canon} | {for_lead} | "
+            f"{len(prefixes)} | " + (f"{sum(pairs) / len(pairs):.3f} ({len(pairs)} pairs)" if pairs else "-") + " |")
+    return lines
+
+
+def a1_recommendation(eligible: list[str], aborted: bool, samples: str = "pilot_samples_v5.md") -> str:
     prefix = "The run stopped early (see the note above). " if aborted else ""
     if not eligible:
         return prefix + "Neither model is eligible under A1; stop and report. No model is named."
     return (
         prefix + f"Eligible under A1: {', '.join(eligible)}. Among eligible models the choice is by C6 "
-        "(naturalness, no prompt or meta language; read pilot_samples_v5.md) and then by cost; "
+        "(naturalness, no prompt or meta language; read " + samples + ") and then by cost; "
         "no model is chosen here."
     )
 
@@ -1312,7 +1394,21 @@ def run_pilot(
              for m in models},
             rows, kb, max_attempts, note,
         )
-        recommendation = a1_recommendation(eligible, aborted)
+        samples_name = f"pilot_samples{suffix}.md"
+        recommendation = a1_recommendation(eligible, aborted, samples_name)
+        if prompt_version == "v6":
+            bank_path = (bank_dir or ROOT / "data" / "bank") / "ledger.jsonl"
+            bank_cost = sum(
+                json.loads(x).get("usd", 0.0) for x in bank_path.read_text(encoding="utf-8").splitlines()
+                if x.strip() and json.loads(x).get("client") != "mock"
+            ) if bank_path.exists() else 0.0
+            pilot_cost = sum(m["total_cost"] for m in all_metrics)
+            extra += v6_lines(
+                {m: (attempts_by_model[m], _load_attempts(out_dir / _safe(m) / "api_events.jsonl"))
+                 for m in models},
+                rows, kb, max_attempts, bank_dir,
+                max(0.0, guard.global_spent() - bank_cost - pilot_cost), bank_cost,
+            )
     elif cohort_report:
         extra = v4_lines(
             {m: (attempts_by_model[m], _load_attempts(out_dir / _safe(m) / "api_events.jsonl"))

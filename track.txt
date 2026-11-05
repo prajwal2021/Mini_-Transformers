@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02 (substep P02b: G1 passed under A2b after run 4 on F008 and F017; full bank (cap 1.75) and document pilot v6 not started)
+CURRENT PHASE: P02 (substep P02b: full bank built, G2 not met, 14 facts fail A2; pilot v6 not run)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -78,4 +78,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human reviews the P02b7g report and authorises the full bank (G2, cap 1.75, projected about 1.30-1.50)
+NEXT STEP: Human decides on cue words for procedure_form_code, duplicate handling for cabin temperature, and a small cap for a second refill

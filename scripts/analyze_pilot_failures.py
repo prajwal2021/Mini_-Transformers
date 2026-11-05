@@ -26,7 +26,7 @@ VALIDATOR = {"name": "v1"}
 
 def flagged_capitals(text: str, row: dict[str, Any], kb: dict[str, Any]) -> list[str]:
     """V5 flags under the validator selected with --validator."""
-    module = {"v1": doc_validator_v1, "v2": doc_validator_v2, "v3": doc_validator_v3, "v4": doc_validator}[VALIDATOR["name"]]
+    module = {"v1": doc_validator_v1, "v2": doc_validator_v2, "v3": doc_validator_v3, "v4": doc_validator, "v5": doc_validator}[VALIDATOR["name"]]
     return module.flagged_capitals(text, row, kb)
 
 RULE_RE = re.compile(r"(V\d+[bp]?(?:/V\d+)?|API error|E1)")
@@ -756,7 +756,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, default=ROOT / "reports" / "tables" / "pilot_failures.md")
     parser.add_argument("--kb", type=Path, default=ROOT / "data" / "kb" / "kb.json")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "generation.yaml")
-    parser.add_argument("--validator", choices=["v1", "v2", "v3", "v4"], default="v1",
+    parser.add_argument("--validator", choices=["v1", "v2", "v3", "v4", "v5"], default="v1",
                         help="validator whose V5 flags are tabulated in section D")
     args = parser.parse_args(argv)
     VALIDATOR["name"] = args.validator

@@ -2,6 +2,10 @@
 
 --client is required. A real run (openai) spends money, needs --i-understand-this-spends-money and
 writes to data/bank_pilot or data/bank; a mock run writes to a mock folder and spends nothing.
+
+Full stage (P02b7h): every fact is processed even if one raises; one refill pass (more refill rounds,
+the earlier rounds replay from the cache for free) re-runs the facts that fail A2 (a)-(g); the stage
+stops before allocation when facts still fail.
 """
 
 from __future__ import annotations
@@ -9,7 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import yaml
@@ -20,6 +24,10 @@ from slm.data.pilot import OpenAIBackend, load_api_key
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = "gpt-5.4-mini"
+REFILL_PASS_ROUNDS = 6  # rounds allowed in the refill pass (the first three replay from the cache)
+TIGHTENED = ("skyport_daily_pet_cap", "species_max_combined_weight", "species_min_age_weeks",
+             "compensation_claim_window_days", "skyport_quarantine_room_capacity",
+             "airship_onboard_handler_name")
 
 
 def pilot_facts(needs: dict[str, dict[str, int]]) -> list[str]:
@@ -32,6 +40,18 @@ def pilot_facts(needs: dict[str, dict[str, int]]) -> list[str]:
 
 def status(ok: bool) -> str:
     return "PASS" if ok else "FAIL"
+
+
+def ledger_costs(path: Path) -> Counter:
+    """Real (non-mock) cost per fact tag from a ledger file."""
+    costs: Counter = Counter()
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                entry = json.loads(line)
+                if entry.get("client") != "mock":
+                    costs[entry.get("doc_id")] += entry.get("usd", 0.0)
+    return costs
 
 
 def fact_table(results: list[dict], costs: Counter) -> list[str]:
@@ -51,7 +71,7 @@ def fact_table(results: list[dict], costs: Counter) -> list[str]:
     return lines
 
 
-def summary(results: list[dict], runner: bank.Runner) -> dict:
+def summary(results: list[dict], cost: float, cost_gen: float, cost_judge: float) -> dict:
     generated = sum(r["generated"] for r in results)
     valid = sum(r["det_valid"] for r in results)
     judged = sum(r["judged"] for r in results)
@@ -62,16 +82,28 @@ def summary(results: list[dict], runner: bank.Runner) -> dict:
         "det_rate": valid / generated if generated else 0.0,
         "judge_no_rate": no / judged if judged else 0.0,
         "judge_no_of_valid": no / valid if valid else 0.0,
-        "cost": sum(runner.usd.values()), "cost_gen": runner.usd["gen"], "cost_judge": runner.usd["judge"],
+        "cost": cost, "cost_gen": cost_gen, "cost_judge": cost_judge,
     }
 
 
-def write_report(path: Path, results: list[dict], runner: bank.Runner, client: str, stage: str,
-                 doc_projection: float, spent_before: float) -> dict:
-    s = summary(results, runner)
+def word_jaccard(a: str, b: str) -> float:
+    x, y = set(a.split()), set(b.split())
+    return len(x & y) / len(x | y) if x | y else 0.0
+
+
+def core_stats(result: dict, fact: dict) -> dict:
+    """Share of unique core clauses and mean pairwise Jaccard of the cores of one fact."""
+    cores = [bank.core_clause(x["text"], fact["entity"], fact["value"]) for x in result["sentences"]]
+    pairs = [word_jaccard(a, b) for i, a in enumerate(cores) for b in cores[i + 1 :]]
+    return {"unique": len(set(cores)) / len(cores) if cores else 0.0,
+            "mean_jaccard": sum(pairs) / len(pairs) if pairs else 0.0, "n": len(cores)}
+
+
+def write_report(path: Path, results: list[dict], costs: Counter, totals: dict, client: str, stage: str,
+                 doc_projection: float, spent_before: float, facts: dict, extra: list[str]) -> dict:
+    s = summary(results, totals["cost"], totals["gen"], totals["judge"])
     sentences = [x for r in results for x in r["sentences"]]
-    fact_by_id = {f["fact_id"]: f for f in json.loads((ROOT / "data" / "kb" / "kb.json").read_text(encoding="utf-8"))["measured_facts"]}
-    for_lead = sum(bank.starts_with_for_entity(x["text"], fact_by_id[r["fact_id"]]["entity"])
+    for_lead = sum(bank.starts_with_for_entity(x["text"], facts[r["fact_id"]]["entity"])
                    for r in results for x in r["sentences"])
     lines = [
         f"Client: {client}", "",
@@ -86,7 +118,7 @@ def write_report(path: Path, results: list[dict], runner: bank.Runner, client: s
         f"{doc_projection:.2f} = {spent_before + s['cost'] + doc_projection:.2f} (limit 9.00)",
         "", "## Per-fact gates (A2 a-g)", "",
     ]
-    lines += fact_table(results, runner.by_tag)
+    lines += fact_table(results, costs)
     if stage == "pilot":
         ordered = sorted(results, key=lambda r: -r["need_plain"])
         for result, limit in ((ordered[0], None), (ordered[1], 12)):
@@ -101,12 +133,67 @@ def write_report(path: Path, results: list[dict], runner: bank.Runner, client: s
         lines += [f"| {k} | {v} |" for k, v in sorted(frames.items())]
         lines += ["", "## Register distribution", "", "| register | sentences |", "| --- | ---: |"]
         lines += [f"| {k} | {v} |" for k, v in sorted(registers.items())]
+        lines += core_and_attribute_sections(results, costs, facts)
+        lines += extra
         sample = random.Random(20).sample(sentences, min(20, len(sentences)))
         lines += ["", "## 20 random sentences", ""]
         lines += [f"- {x['frame']} ({x['register']}): {x['text']}" for x in sample]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return s
+
+
+def core_and_attribute_sections(results: list[dict], costs: Counter, facts: dict) -> list[str]:
+    core = {r["fact_id"]: core_stats(r, facts[r["fact_id"]]) for r in results}
+    uniq = [c["unique"] for c in core.values()]
+    mean_j = [c["mean_jaccard"] for c in core.values()]
+    lines = ["", "## Core-clause uniqueness (lead-in and carrier stripped)", "",
+             "Core = the span from the first to the last of the entity and the value (both masked), "
+             "lower-cased; Jaccard is over the words of two cores.", "",
+             f"Share of unique cores per fact: mean {sum(uniq) / len(uniq):.2f}, min {min(uniq):.2f}; "
+             f"mean pairwise core Jaccard per fact: mean {sum(mean_j) / len(mean_j):.2f}, "
+             f"max {max(mean_j):.2f}.", "",
+             "| fact | sentences | unique cores | mean core Jaccard |", "| --- | ---: | ---: | ---: |"]
+    lines += [f"| {k} | {c['n']} | {c['unique']:.2f} | {c['mean_jaccard']:.2f} |" for k, c in sorted(core.items())]
+    by_attr: dict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        by_attr[facts[r["fact_id"]]["attribute_id"]].append(r)
+    lines += ["", "## Per-attribute table", "",
+              "| attribute | facts | sentences | judge NO rate | refill rate (facts with a refill round) | cost |",
+              "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    for attr, rs in sorted(by_attr.items()):
+        judged = sum(r["judged"] for r in rs)
+        lines.append(
+            f"| {attr} | {len(rs)} | {sum(len(r['sentences']) for r in rs)} | "
+            f"{sum(r['judge_no'] for r in rs) / max(1, judged):.1%} | "
+            f"{sum(r['refill_rounds'] > 0 for r in rs) / len(rs):.0%} | "
+            f"${sum(costs[r['fact_id']] for r in rs):.4f} |")
+    lines += ["", "## Yield of the attributes with bank cue groups (before = without the cue check)", "",
+              "| attribute | generated | valid after the cue | would be valid without the cue | yield after | yield before |",
+              "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    for attr in TIGHTENED:
+        rs = by_attr.get(attr, [])
+        gen = sum(r["generated"] for r in rs)
+        valid = sum(r["det_valid"] for r in rs)
+        only = sum(r.get("cue_only", 0) for r in rs)
+        lines.append(f"| {attr} | {gen} | {valid} | {valid + only} | {valid / max(1, gen):.1%} | "
+                     f"{(valid + only) / max(1, gen):.1%} |")
+    return lines
+
+
+def failing_details(results: list[dict], facts: dict) -> list[str]:
+    lines = []
+    for r in results:
+        if r["gates"]["all"]:
+            continue
+        g = r["gates"]
+        failed = ",".join(k for k in "abcdefg" if not g[k])
+        lines += ["", f"### {r['fact_id']} ({facts[r['fact_id']]['attribute_id']}): filled {g['filled']}/{g['need']}, "
+                  f"failed gates {failed}", "",
+                  f"Top reject reasons: {json.dumps(r['top_reject_reasons'])}",
+                  f"Per-frame reject reasons: {json.dumps(r.get('frame_rejects', {}))}",
+                  f"Judge NO reasons: {json.dumps(Counter(x['reason'] for x in r['judge_log'] if x['answer'] == 'NO'))}"]
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -118,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", type=Path, default=None)
     parser.add_argument("--doc-projection", type=float, default=7.16)
     parser.add_argument("--seed", type=int, default=20261031)
+    parser.add_argument("--no-refill-pass", action="store_true")
     parser.add_argument("--i-understand-this-spends-money", action="store_true")
     args = parser.parse_args(argv)
     if args.client == "openai" and not args.i_understand_this_spends_money:
@@ -143,30 +231,72 @@ def main(argv: list[str] | None = None) -> int:
     facts_dir = out_dir / "facts"
     facts_dir.mkdir(parents=True, exist_ok=True)
     spent_before = guard.global_spent()
-    results: list[dict] = []
+    results: dict[str, dict] = {}
+    errors: dict[str, str] = {}
     stopped = None
-    for fact_id in wanted:
-        saved = facts_dir / f"{fact_id}.json"
-        if saved.exists():
-            results.append(json.loads(saved.read_text(encoding="utf-8")))
-            continue
+
+    def build(fact_id: str, save: bool = True) -> bool:
+        """Build one fact; a failure is recorded and the run goes on. Returns False on a budget stop."""
+        nonlocal stopped
         try:
             result = bank.build_fact(facts[fact_id], needs[fact_id], kb, frames, runner, args.seed)
         except BudgetExceeded as exc:
             stopped = str(exc)
-            break
-        saved.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-        results.append(result)
+            return False
+        except Exception as exc:  # noqa: BLE001 - keep going and report the fact
+            errors[fact_id] = f"{type(exc).__name__}: {exc}"
+            print(f"{fact_id}: ERROR {errors[fact_id]}")
+            return True
+        results[fact_id] = result
+        if save:
+            (facts_dir / f"{fact_id}.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
         print(f"{fact_id}: need {needs[fact_id]['total']}, gates {'PASS' if result['gates']['all'] else 'FAIL'}, "
               f"cost so far ${sum(runner.usd.values()):.4f}")
+        return True
+
+    for fact_id in wanted:
+        saved = facts_dir / f"{fact_id}.json"
+        if saved.exists():
+            results[fact_id] = json.loads(saved.read_text(encoding="utf-8"))
+            continue
+        if not build(fact_id):
+            break
+
+    refill_cost = 0.0
+    refilled: list[str] = []
+    if args.stage == "full" and stopped is None and not args.no_refill_pass:
+        failing = [f for f in wanted if f in errors or not results.get(f, {"gates": {"all": False}})["gates"]["all"]]
+        if failing:
+            print(f"refill pass for {len(failing)} facts: {', '.join(failing)}")
+            before = sum(runner.usd.values())
+            bank.REFILL_ROUNDS = REFILL_PASS_ROUNDS
+            for fact_id in failing:
+                errors.pop(fact_id, None)
+                refilled.append(fact_id)
+                if not build(fact_id):
+                    break
+            refill_cost = sum(runner.usd.values()) - before
+            print(f"refill pass cost ${refill_cost:.4f}")
+
+    ordered = [results[f] for f in wanted if f in results]
+    costs = ledger_costs(out_dir / "ledger.jsonl")
+    totals = {"cost": sum(costs.values()) if not mock else sum(runner.usd.values()),
+              "gen": runner.usd["gen"], "judge": runner.usd["judge"]}
+    still_failing = [f for f in wanted if f in errors or f not in results or not results[f]["gates"]["all"]]
+    extra = ["", "## G2 summary", "",
+             f"Facts meeting A2 (a)-(g): {len(wanted) - len(still_failing)}/{len(wanted)}; "
+             f"facts that went through the refill pass: {len(refilled)} ({', '.join(refilled) or 'none'}); "
+             f"refill pass cost ${refill_cost:.4f}; errors: {errors or 'none'}"]
+    if still_failing:
+        extra += ["", "## Facts still failing after the refill pass"] + failing_details(
+            [results[f] for f in still_failing if f in results], facts)
     stage_dir = ROOT / "reports" / "tables" / ("mock" if mock else "")
     report = args.report or stage_dir / ("bank_pilot.md" if args.stage == "pilot" else "bank_report.md")
-    s = write_report(report, results, runner, args.client, args.stage, args.doc_projection, spent_before)
-    if args.stage == "full" and not stopped and len(results) == len(wanted):
-        rows = bank.write_bank_files(out_dir, results)
-        by_fact: dict[str, list[dict]] = {}
-        for r in results:
-            by_fact[r["fact_id"]] = r["sentences"]
+    s = write_report(report, ordered, costs, totals, args.client, args.stage, args.doc_projection,
+                     spent_before, facts, extra)
+    if args.stage == "full" and stopped is None and not still_failing:
+        rows = bank.write_bank_files(out_dir, ordered)
+        by_fact: dict[str, list[dict]] = {r["fact_id"]: r["sentences"] for r in ordered}
         allocation = bank.allocate(plan, by_fact, args.seed)
         problems = bank.check_allocation(plan, [dict(r, reserved=r["reserved"]) for r in rows], allocation)
         (out_dir / "allocation.jsonl").write_text(
@@ -174,13 +304,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"allocation: {len(allocation)} mentions; problems: {problems or 'none'}")
         if problems:
             return 5
-    all_ok = s["facts_all_gates"] == s["facts"] == len(wanted)
+    all_ok = not still_failing and len(ordered) == len(wanted)
     judge_ok = s["judge_no_rate"] <= 0.10
     gate = "G1" if args.stage == "pilot" else "G2"
     verdict = all_ok and (judge_ok if args.stage == "pilot" else True) and stopped is None
     print(f"GATE {gate}: {'PASS' if verdict else 'FAIL'} ({s['facts_all_gates']}/{len(wanted)} facts meet A2; "
           f"judge NO rate {s['judge_no_rate']:.1%}); stage cost ${s['cost']:.4f}"
-          + (f"; stopped: {stopped}" if stopped else ""))
+          + (f"; stopped: {stopped}" if stopped else "")
+          + (f"; still failing: {', '.join(still_failing)}" if still_failing else ""))
     return 0 if verdict else 3
 
 

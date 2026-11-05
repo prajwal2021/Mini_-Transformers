@@ -90,3 +90,33 @@ def test_other_attributes_have_no_extra_prompt_line() -> None:
 def test_core_clause_strips_the_lead_and_the_carrier() -> None:
     assert bank.core_clause("Please be aware that Vellmar can hold 195 pets a day.", "Vellmar", "195 pets") == "ent can hold val"
     assert bank.core_clause("Our guidance is that Vellmar can hold 195 pets, as the desk records it.", "Vellmar", "195 pets") == "ent can hold val"
+
+
+def test_v6_report_sections_on_a_tiny_synthetic_pilot(tmp_path: Path) -> None:
+    from slm.data.pilot import v6_lines
+
+    plan = [json.loads(x) for x in Path("data/plan/plan.jsonl").read_text(encoding="utf-8").splitlines()]
+    rows = [r for r in plan if r["modes"] == ["paraphrased"]][:3]
+    facts = {f["fact_id"]: f for f in KB["measured_facts"]}
+    sentences, allocation, attempts = [], [], []
+    for number, row in enumerate(rows):
+        fact = facts[row["fact_ids"][0]]
+        sid = f"{fact['fact_id']}-b{number:03d}"
+        text = f"Please be aware that {fact['entity']} is listed as {fact['value']} number {number}."
+        sentences.append({"sentence_id": sid, "fact_id": fact["fact_id"], "text": text, "frame": "f10"})
+        allocation.append({"doc_id": row["doc_id"], "fact_id": fact["fact_id"], "sentence_id": sid, "frame": "f10"})
+        attempts.append({
+            "doc_id": row["doc_id"], "attempt": 1, "ok": number < 2, "reasons": [] if number < 2 else ["V7 x"],
+            "text": text, "usd": 0.001, "cached": False, "input_tokens": 100, "output_tokens": 50,
+            "reasoning_tokens": 0, "latency": 1.0, "stuck": number == 2,
+            "placements": {fact["fact_id"]: {"placement": "model" if number == 0 else "repaired_append",
+                                              "sentence_id": sid, "frame": "f10"}},
+        })
+    (tmp_path / "bank.jsonl").write_text("".join(json.dumps(x) + "\n" for x in sentences), encoding="utf-8")
+    (tmp_path / "allocation.jsonl").write_text("".join(json.dumps(x) + "\n" for x in allocation), encoding="utf-8")
+    lines = v6_lines({"m": (attempts, [])}, rows, KB, 5, tmp_path, 1.5, 1.4)
+    text = "\n".join(lines)
+    assert "| paraphrased | model | 1 |" in text and "| paraphrased | repaired_append | 1 |" in text
+    assert "m: " + rows[2]["doc_id"] in text and "Stuck documents" in text
+    assert "$1.50 | $1.40" in text and "at 1.4 attempts/doc" in text
+    assert "Manipulation check" in text and "| m | 2 | 2/2 | 0 | 0 |" in text
