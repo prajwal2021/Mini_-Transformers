@@ -1,10 +1,14 @@
 """Run the cloze probe harness over checkpoints and write the long-format table.
 
 Real run:  python scripts/run_probes.py --scorer my_pkg.my_mod:make_scorer \
-               --checkpoints runs/s0/ckpt_100 runs/s0/ckpt_200 --seeds 0 1 2
-The factory is called as ``make_scorer(checkpoint: str, seed: int) -> Scorer``.
+               --checkpoints runs/s0/ckpt_100 runs/s0/ckpt_200 --seeds 0 1 2 --include-init
+The factory is called as ``make_scorer(checkpoint: str, seed: int) -> Scorer``. With
+--include-init it is also called with checkpoint == "init" and must return the UNTRAINED model
+(random initialisation for that seed, epoch 0): its stored rate is the empirical chance level.
 
 Mock run:  python scripts/run_probes.py --mock --out reports/tables/probes_mock.csv
+Besides the table, a chance report (stored vs permutation null per probe_frame x freq_bin x
+div_bin) is written next to it as <out stem>_chance.csv.
 """
 
 from __future__ import annotations
@@ -19,10 +23,11 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from slm.eval.mock import oracle_scorer, random_ground_truth  # noqa: E402
 from slm.eval.probes import (  # noqa: E402
+    INIT_CHECKPOINT,
     assert_no_leakage,
     build_probes,
+    chance_report,
     load_facts,
-    load_meanings,
     run_many,
     write_table,
 )
@@ -41,22 +46,22 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--checkpoints", nargs="+", default=[], help="checkpoint ids or paths")
     ap.add_argument("--seeds", nargs="+", type=int, default=[0])
     ap.add_argument("--mock", action="store_true", help="use oracle MockScorers, no model needed")
+    ap.add_argument("--include-init", action="store_true", help="also evaluate checkpoint 'init'")
     ap.add_argument("--splits", nargs="+", default=["val", "test"], choices=["val", "test"])
-    ap.add_argument("--probe-seed", type=int, default=0, help="fixes the val/test template split")
+    ap.add_argument("--probe-seed", type=int, default=0, help="fixes the val/test novel split")
     ap.add_argument("--kb", default=str(ROOT / "data/kb/kb.json"))
-    ap.add_argument("--cues", default=str(ROOT / "configs/attribute_cues.yaml"))
     ap.add_argument("--out", default=str(ROOT / "reports/tables/probes.csv"))
     args = ap.parse_args(argv)
 
     if not args.mock and not args.scorer:
         ap.error("give --scorer module:factory, or --mock")
     checkpoints = args.checkpoints or (["mock-0", "mock-1"] if args.mock else [])
+    if args.include_init:
+        checkpoints = [INIT_CHECKPOINT, *[c for c in checkpoints if c != INIT_CHECKPOINT]]
     if not checkpoints:
         ap.error("give --checkpoints")
 
-    probes = build_probes(
-        load_facts(args.kb), load_meanings(args.cues), seed=args.probe_seed, splits=args.splits
-    )
+    probes = build_probes(load_facts(args.kb), seed=args.probe_seed, splits=args.splits)
     assert_no_leakage(probes)
 
     runs = []
@@ -65,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
         for seed in args.seeds:
             if args.mock:
                 prior, bind = random_ground_truth(probes, seed=1000 * seed + ci)
+                if ckpt == INIT_CHECKPOINT:  # no knowledge: value prior only
+                    bind = {}
                 scorer = oracle_scorer(probes, prior, bind, noise=0.1, seed=seed)
             else:
                 scorer = factory(ckpt, seed)
@@ -72,7 +79,12 @@ def main(argv: list[str] | None = None) -> int:
 
     df = run_many(runs, probes)
     path = write_table(df, args.out)
-    print(f"{len(df)} rows -> {path}; stored rate {df['stored'].mean():.3f}")
+    chance = chance_report(df, ("checkpoint", "probe_frame", "freq_bin", "div_bin"))
+    chance_path = write_table(chance, path.with_name(path.stem + "_chance.csv"))
+    print(
+        f"{len(df)} rows -> {path}; stored {df['stored'].mean():.3f}, "
+        f"null {df['null_stored_rate'].mean():.3f}; chance report -> {chance_path}"
+    )
     return 0
 
 

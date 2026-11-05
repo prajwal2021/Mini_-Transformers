@@ -1,3 +1,3 @@
 EVAL STREAM
-STATUS: E01 done (probe harness, Scorer interface, MockScorer, SFT builder, data/sft_mock). Real scorer not written.
-NEXT: real Scorer (needs tokenizer + checkpoint), novel-template 8-gram check against the train corpus, relationship probes.
+STATUS: E02 done (probe_frame, permutation null + init checkpoint, token-norm option, hand-written wording, overlap CLI, doc loss by regime, hypothesis map). Real scorer not written.
+NEXT: real Scorer (needs tokenizer + checkpoint); run scripts/check_probe_overlap.py when the train corpus exists; decide stored_fact rule and add exposure columns (docs/HYPOTHESIS_MAP.md); QA result table for H3/H4.

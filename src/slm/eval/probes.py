@@ -1,14 +1,17 @@
 """Cloze probe harness (DESIGN.md section 6).
 
-For each measured fact and each prompt variant:
+Probes are scored in groups: one group = one attribute x one prompt variant, i.e. the six
+entities that have that attribute, each with its own prompt. Scoring the 6 x 6 matrix
+``S[i][j] = score(prompt_i, " " + value_j)`` gives, for the fact of entity ``i``:
 
-* candidates = the true value plus the 5 other values of the same attribute (6 in all);
-* every candidate is scored with the Scorer as ``score(prompt, " " + value)`` (summed log-prob);
-* ``rank`` = 1 + number of other candidates scoring >= the true value (ties count against the
-  fact, so a tie for first is never rank 1);
-* ``binding_score`` = log p(v | correct entity) - mean log p(v | the other entities of the same
-  attribute), using the same template with the entity swapped;
-* ``stored`` = rank == 1 AND binding_score > 0.
+* ``rank`` = 1 + number of other values j scoring >= S[i][i] (a tie for first is never rank 1);
+* ``binding_score`` = S[i][i] - mean_{k != i} S[k][i]   (the same value under the other
+  entities' prompts, i.e. the same template with the entity swapped);
+* ``stored`` = rank == 1 AND binding_score > 0   (DESIGN section 6).
+
+Permutation null: the identical procedure with pseudo-truth ``o != i`` (the value that belongs
+to another entity): rank of S[i][o] in row i, binding S[i][o] - mean_{k != i} S[k][o]. The mean
+over the five pseudo-truths is ``null_stored_rate``.
 """
 
 from __future__ import annotations
@@ -21,17 +24,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 from slm.eval.interface import Scorer
+from slm.eval.wording import CANONICAL, NOVEL_IDS, prefix
 
-REGIMES = ("iid", "novel")
 SPLITS = ("val", "test")
-N_VAL_TEMPLATES = 2
-N_TEST_TEMPLATES = 3
+PROBE_FRAMES = ("canonical", "novel")
+N_NOVEL_VAL = 1  # val = canonical + 1 novel (2 templates); test = canonical + 2 novel (3)
+CANONICAL_VARIANT = "canon"
+INIT_CHECKPOINT = "init"  # the untrained model (epoch 0); chance level for a real model
 
-# Entity reference by family. Only the entity slot changes between the true-entity prompt and the
-# baseline prompts used for the binding score.
+# Entity reference by family; used by the SFT question templates.
 ENTITY_REF = {
     "skyport": "{e}",
     "airship": "the {e}",
@@ -39,27 +42,6 @@ ENTITY_REF = {
     "procedure": "the {e} process",
     "compensation": "the {e} incident",
 }
-
-# "iid": wording in the register of the training frames. "novel": structurally different wording.
-# {m} is the attribute meaning phrase from configs/attribute_cues.yaml, {ref} the entity reference.
-TEMPLATE_POOLS: dict[str, dict[str, str]] = {
-    "iid": {
-        "i1": "For {ref}, {m} is",
-        "i2": "Regarding {ref}: {m} is",
-        "i3": "At the Companion Animal Travel Desk, {m} for {ref} is",
-        "i4": "Staff note on {ref}. Recorded value: {m} is",
-        "i5": "Aurelia Skyways policy for {ref} states that {m} is",
-    },
-    "novel": {
-        "n1": "Ask any handler about {ref} and they will tell you {m} is",
-        "n2": "Reference card ({ref}); {m}:",
-        "n3": "Remember this about {ref}: {m} is",
-        "n4": "Every new hire learns that, for {ref}, {m} equals",
-        "n5": "According to the latest handbook update, {ref} has {m} of",
-    },
-}
-
-CANONICAL_VARIANT = "canon"
 
 
 @dataclass(frozen=True)
@@ -80,13 +62,11 @@ class ProbeItem:
     fact_id: str
     attribute_id: str
     split: str
-    regime: str
-    frame: str  # "canonical" (canonical-sentence prefix) or "novel" (any new template wording)
-    variant: str
+    probe_frame: str  # "canonical" or "novel"
+    variant: str  # e.g. "test-n2"
     prompt: str
-    baseline_prompts: tuple[str, ...]  # same template, each other entity of the attribute
     value: str
-    candidates: tuple[str, ...]  # 6 values, true value included
+    candidates: tuple[str, ...]  # the 6 values of the attribute, true value first
     freq_bin: str
     div_bin: str
 
@@ -116,160 +96,178 @@ def load_facts(kb_path: str | Path) -> list[Fact]:
     ]
 
 
-def load_meanings(cues_path: str | Path) -> dict[str, str]:
-    cues = yaml.safe_load(Path(cues_path).read_text(encoding="utf-8"))
-    return {attr: spec["meaning"] for attr, spec in cues.items()}
+def split_novel(seed: int) -> dict[str, list[str]]:
+    """Seeded, fixed assignment of the 3 novel templates: 1 to val, 2 to test."""
+    ids = list(NOVEL_IDS)
+    random.Random(f"novel:{seed}").shuffle(ids)
+    return {"val": ids[:N_NOVEL_VAL], "test": ids[N_NOVEL_VAL:]}
 
 
-def split_templates(seed: int) -> dict[tuple[str, str], list[str]]:
-    """Seeded, fixed assignment of pool templates to val (2) and test (3) per regime."""
-    out: dict[tuple[str, str], list[str]] = {}
-    for regime in REGIMES:
-        ids = sorted(TEMPLATE_POOLS[regime])
-        random.Random(f"{seed}:{regime}").shuffle(ids)
-        out["val", regime] = ids[:N_VAL_TEMPLATES]
-        out["test", regime] = ids[N_VAL_TEMPLATES : N_VAL_TEMPLATES + N_TEST_TEMPLATES]
-    return out
-
-
-def _swap_entity(prefix: str, entity: str, other: str) -> str:
-    pattern = re.compile(r"(?<!\w)" + re.escape(entity) + r"(?!\w)")  # "cat" is in "certificate"
-    if len(pattern.findall(prefix)) != 1:
-        raise ValueError(f"entity {entity!r} must occur exactly once in {prefix!r}")
-    return pattern.sub(lambda _: other, prefix)
-
-
-def _fill(template: str, fact_family: str, entity: str, meaning: str) -> str:
-    ref = ENTITY_REF[fact_family].format(e=entity)
-    return template.format(ref=ref, m=meaning).strip()
+def variants_for(split: str, seed: int) -> list[str]:
+    return [CANONICAL_VARIANT, *split_novel(seed)[split]]
 
 
 def build_probes(
-    facts: Sequence[Fact],
-    meanings: dict[str, str],
-    *,
-    seed: int = 0,
-    splits: Iterable[str] = SPLITS,
-    include_canonical: bool = True,
+    facts: Sequence[Fact], *, seed: int = 0, splits: Iterable[str] = SPLITS
 ) -> ProbeSet:
     by_attr: dict[str, list[Fact]] = {}
     for f in facts:
         by_attr.setdefault(f.attribute_id, []).append(f)
     for attr, group in by_attr.items():
-        if len({g.value for g in group}) != 6 or len(group) != 6:
+        if len(group) != 6 or len({g.value for g in group}) != 6:
             raise ValueError(f"{attr}: need exactly 6 distinct values, got {len(group)}")
-        if attr not in meanings:
-            raise KeyError(f"no meaning phrase for {attr}")
-    assignment = split_templates(seed)
+        if attr not in CANONICAL:
+            raise KeyError(f"no probe wording for {attr}")
     items: list[ProbeItem] = []
     for split in splits:
         for f in sorted(facts, key=lambda x: x.fact_id):
-            group = by_attr[f.attribute_id]
-            others = [g for g in group if g.fact_id != f.fact_id]
-            candidates = (f.value, *[g.value for g in others])
-            m = meanings[f.attribute_id]
-
-            def add(regime, frame, variant, make, f=f, others=others, candidates=candidates,
-                    split=split):
+            candidates = (f.value, *[g.value for g in by_attr[f.attribute_id] if g is not f])
+            for variant in variants_for(split, seed):
+                frame = "canonical" if variant == CANONICAL_VARIANT else "novel"
                 items.append(
                     ProbeItem(
-                        f.fact_id, f.attribute_id, split, regime, frame, f"{split}-{variant}",
-                        make(f.entity), tuple(make(o.entity) for o in others), f.value,
-                        candidates, f.freq_bin, f.div_bin,
+                        f.fact_id, f.attribute_id, split, frame, f"{split}-{variant}",
+                        prefix(f.attribute_id, variant, f.entity), f.value, candidates,
+                        f.freq_bin, f.div_bin,
                     )
                 )
-
-            if include_canonical:
-                add("iid", "canonical", CANONICAL_VARIANT,
-                    lambda e, f=f: _swap_entity(f.canonical_prefix, f.entity, e).strip())
-            for regime in REGIMES:
-                for tid in assignment[split, regime]:
-                    tpl = TEMPLATE_POOLS[regime][tid]
-                    add(regime, "novel", tid,
-                        lambda e, tpl=tpl, f=f, m=m: _fill(tpl, f.family, e, m))
     return ProbeSet(items, seed)
 
 
-def assert_no_leakage(probes: ProbeSet) -> None:
-    """No prompt (true or baseline entity) may contain any of the 6 candidate values."""
+def group_key(item: ProbeItem) -> tuple[str, str, str]:
+    return item.attribute_id, item.split, item.variant
+
+
+def groups(probes: ProbeSet) -> dict[tuple[str, str, str], list[ProbeItem]]:
+    out: dict[tuple[str, str, str], list[ProbeItem]] = {}
     for it in probes.items:
-        for prompt in (it.prompt, *it.baseline_prompts):
-            low = prompt.casefold()
-            for cand in it.candidates:
-                if re.search(r"(?<!\w)" + re.escape(cand.casefold()) + r"(?!\w)", low):
-                    raise AssertionError(
-                        f"{it.fact_id}/{it.variant}: prompt {prompt!r} contains value {cand!r}"
-                    )
+        out.setdefault(group_key(it), []).append(it)
+    return {k: sorted(v, key=lambda x: x.fact_id) for k, v in out.items()}
+
+
+def assert_no_leakage(probes: ProbeSet) -> None:
+    """No prompt may contain any of the 6 candidate values of its attribute."""
+    for it in probes.items:
+        low = it.prompt.casefold()
+        for cand in it.candidates:
+            if re.search(r"(?<!\w)" + re.escape(cand.casefold()) + r"(?!\w)", low):
+                raise AssertionError(
+                    f"{it.fact_id}/{it.variant}: prompt {it.prompt!r} contains value {cand!r}"
+                )
+
+
+def ngram_set(texts: Iterable[str], n: int = 8) -> set[tuple[str, ...]]:
+    out: set[tuple[str, ...]] = set()
+    for t in texts:
+        w = re.findall(r"\w+", t.casefold())
+        out.update(tuple(w[i : i + n]) for i in range(len(w) - n + 1))
+    return out
 
 
 def has_ngram_overlap(texts: Iterable[str], corpus_texts: Iterable[str], n: int = 8) -> set[str]:
-    """Word n-grams of ``texts`` that also occur in ``corpus_texts`` (novel-frame check)."""
-    def grams(s: str) -> set[tuple[str, ...]]:
-        w = re.findall(r"\w+", s.casefold())
-        return {tuple(w[i : i + n]) for i in range(len(w) - n + 1)}
-
-    corpus: set[tuple[str, ...]] = set()
-    for c in corpus_texts:
-        corpus |= grams(c)
-    hits = set()
-    for t in texts:
-        if grams(t) & corpus:
-            hits.add(t)
-    return hits
+    """Those of ``texts`` that share a word n-gram with ``corpus_texts`` (novel-frame check)."""
+    corpus = ngram_set(corpus_texts, n)
+    return {t for t in texts if ngram_set([t], n) & corpus}
 
 
-def score_item(scorer: Scorer, item: ProbeItem) -> dict:
-    cont = continuation(item.value)
-    true_score = scorer.score(item.prompt, cont)
-    cands = [c for c in item.candidates if c != item.value]
-    others = [scorer.score(item.prompt, continuation(c)) for c in cands]
-    rank = 1 + sum(1 for s in others if s >= true_score)
-    n_ties = sum(1 for s in others if s == true_score)
-    baseline = sum(scorer.score(p, cont) for p in item.baseline_prompts) / len(
-        item.baseline_prompts
-    )
-    # Tokenizer-free length normalization: score per character of the continuation.
-    norm_true = true_score / len(cont)
-    rank_norm = 1 + sum(1 for s, c in zip(others, cands) if s / len(continuation(c)) >= norm_true)
-    binding = true_score - baseline
+# --------------------------------------------------------------------------------------------
+# scoring
+
+
+def _scored(scorer: Scorer, cache: dict, prompt: str, cont: str) -> tuple[float, int]:
+    key = (prompt, cont)
+    if key not in cache:
+        detailed = getattr(scorer, "score_detailed", None)
+        if detailed is not None:
+            lp, n = detailed(prompt, cont)
+            cache[key] = (float(lp), max(int(n), 1))
+        else:  # tokenizer-free fallback: length in characters
+            cache[key] = (float(scorer.score(prompt, cont)), len(cont))
+    return cache[key]
+
+
+def _eval(M: list[list[float]], i: int, o: int) -> dict:
+    """Stored procedure for entity i's prompt with value o as the (pseudo-)truth."""
+    n = len(M)
+    truth = M[i][o]
+    rivals = [M[i][j] for j in range(n) if j != o]
+    others = [M[k][o] for k in range(n) if k != i]
+    baseline = sum(others) / len(others)
+    rank = 1 + sum(1 for r in rivals if r >= truth)
+    binding = truth - baseline
     return {
         "rank": rank,
-        "binding_score": binding,
+        "binding": binding,
         "stored": bool(rank == 1 and binding > 0),
-        "true_logprob": true_score,
-        "baseline_logprob": baseline,
-        "n_ties": n_ties,
-        "rank_charnorm": rank_norm,
+        "true": truth,
+        "baseline": baseline,
+        "n_ties": sum(1 for r in rivals if r == truth),
     }
 
 
+def score_group(
+    scorer: Scorer, items: Sequence[ProbeItem], cache: dict | None = None
+) -> list[dict]:
+    """Result dicts for the 6 items of one group (same attribute and variant), in item order."""
+    cache = {} if cache is None else cache
+    n = len(items)
+    if n != 6 or len({it.attribute_id for it in items}) != 1:
+        raise ValueError("a group is the six entities of one attribute")
+    cells = [[_scored(scorer, cache, a.prompt, continuation(b.value)) for b in items]
+             for a in items]
+    S = [[c[0] for c in row] for row in cells]
+    T = [[c[0] / c[1] for c in row] for row in cells]  # per-token (or per-character) scores
+    unit = "token" if hasattr(scorer, "score_detailed") else "char"
+    out = []
+    for i in range(n):
+        real = _eval(S, i, i)
+        norm = _eval(T, i, i)
+        null = [_eval(S, i, o)["stored"] for o in range(n) if o != i]
+        out.append(
+            {
+                "rank": real["rank"],
+                "binding_score": real["binding"],
+                "stored": real["stored"],
+                "true_logprob": real["true"],
+                "baseline_logprob": real["baseline"],
+                "n_ties": real["n_ties"],
+                "null_stored_rate": sum(null) / len(null),
+                "rank_tokennorm": norm["rank"],
+                "stored_tokennorm": norm["stored"],
+                "norm_unit": unit,
+            }
+        )
+    return out
+
+
 TABLE_COLUMNS = [
-    "fact_id", "seed", "checkpoint", "regime", "freq_bin", "div_bin", "prompt_variant", "rank",
-    "binding_score", "stored", "split", "frame", "attribute_id", "true_logprob",
-    "baseline_logprob", "n_ties", "rank_charnorm",
+    "fact_id", "seed", "checkpoint", "probe_frame", "freq_bin", "div_bin", "prompt_variant",
+    "rank", "binding_score", "stored", "split", "attribute_id", "true_logprob",
+    "baseline_logprob", "n_ties", "null_stored_rate", "rank_tokennorm", "stored_tokennorm",
+    "norm_unit",
 ]
 
 
-def run_probes(
-    scorer: Scorer, probes: ProbeSet, *, checkpoint: str, seed: int
-) -> pd.DataFrame:
+def run_probes(scorer: Scorer, probes: ProbeSet, *, checkpoint: str, seed: int) -> pd.DataFrame:
+    cache: dict = {}
+    results: dict[tuple[str, str], dict] = {}
+    for key, items in groups(probes).items():
+        for it, res in zip(items, score_group(scorer, items, cache), strict=True):
+            results[it.fact_id, it.variant] = res
     rows = []
     for it in probes.items:
-        res = score_item(scorer, it)
         rows.append(
             {
                 "fact_id": it.fact_id, "seed": seed, "checkpoint": checkpoint,
-                "regime": it.regime, "freq_bin": it.freq_bin, "div_bin": it.div_bin,
-                "prompt_variant": it.variant, "split": it.split, "frame": it.frame,
-                "attribute_id": it.attribute_id, **res,
+                "probe_frame": it.probe_frame, "freq_bin": it.freq_bin, "div_bin": it.div_bin,
+                "prompt_variant": it.variant, "split": it.split, "attribute_id": it.attribute_id,
+                **results[it.fact_id, it.variant],
             }
         )
     return pd.DataFrame(rows, columns=TABLE_COLUMNS)
 
 
-def run_many(
-    runs: Iterable[tuple[str, int, Scorer]], probes: ProbeSet
-) -> pd.DataFrame:
+def run_many(runs: Iterable[tuple[str, int, Scorer]], probes: ProbeSet) -> pd.DataFrame:
     frames = [run_probes(s, probes, checkpoint=c, seed=sd) for c, sd, s in runs]
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=TABLE_COLUMNS)
 
@@ -282,3 +280,41 @@ def write_table(df: pd.DataFrame, path: str | Path) -> Path:
     else:
         df.to_csv(path, index=False, encoding="utf-8")
     return path
+
+
+# --------------------------------------------------------------------------------------------
+# chance baseline
+
+
+def chance_report(
+    table: pd.DataFrame,
+    by: Sequence[str] = ("probe_frame", "freq_bin", "div_bin"),
+    *,
+    split: str | None = None,
+) -> pd.DataFrame:
+    """Stored rate, permutation-null rate and their difference per group (default
+    probe_frame x freq_bin x div_bin). Add "checkpoint" to ``by`` for a per-checkpoint view."""
+    df = table if split is None else table[table["split"] == split]
+    g = df.groupby(list(by), sort=True)
+    rep = g.agg(
+        n_probes=("stored", "size"),
+        stored_rate=("stored", "mean"),
+        null_rate=("null_stored_rate", "mean"),
+    ).reset_index()
+    rep["diff"] = rep["stored_rate"] - rep["null_rate"]
+    return rep
+
+
+def fact_level(table: pd.DataFrame) -> pd.DataFrame:
+    """One row per fact x checkpoint x seed: share of probes stored and the null rate."""
+    keys = ["fact_id", "checkpoint", "seed", "freq_bin", "div_bin", "attribute_id"]
+    out = table.groupby(keys, sort=True).agg(
+        n_probes=("stored", "size"),
+        stored_rate=("stored", "mean"),
+        null_stored_rate=("null_stored_rate", "mean"),
+    )
+    return out.reset_index()
+
+
+def checkpoint_summary(table: pd.DataFrame, split: str | None = None) -> pd.DataFrame:
+    return chance_report(table, ("checkpoint", "seed"), split=split)

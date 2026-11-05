@@ -1,11 +1,14 @@
 """Oracle mock scorers with known ground truth, for harness tests and ``--mock`` runs.
 
-Additive model: ``score(entity e, value v_o) = prior[o] + (bind[(o, prompt)] if e owns v_o)``.
-For fact ``e`` and a prompt ``k`` the harness must then find
+Additive model: ``score(entity i's prompt, value j) = prior[j] + (bind[(i, prompt_i)] if i == j)``.
+For fact ``i`` and prompt ``k`` the harness must then find
 
-* ``binding_score == bind[(e, k)]``  (the baseline is ``prior[e]``);
-* ``rank == 1 + #{o != e : prior[o] >= prior[e] + bind[(e, k)]}``;
-* ``stored == (rank == 1 and bind[(e, k)] > 0)``.
+* ``binding_score == bind[(i, k)]``  (the baseline is ``prior[i]``);
+* ``rank == 1 + #{o != i : prior[o] >= prior[i] + bind[(i, k)]}``;
+* ``stored == (rank == 1 and bind[(i, k)] > 0)``.
+
+With ``bind == 0`` everywhere the scorer has no knowledge of which entity owns which value
+(a pure value prior), so ``stored`` is never true and the permutation null is 0 as well.
 """
 
 from __future__ import annotations
@@ -13,32 +16,28 @@ from __future__ import annotations
 import random
 from collections.abc import Mapping
 
-from slm.eval.interface import MockScorer
-from slm.eval.probes import ProbeSet, continuation
+from slm.eval.interface import MockDetailedScorer, MockScorer
+from slm.eval.probes import ProbeSet, continuation, groups
 
 
 def oracle_scorer(
     probes: ProbeSet,
     prior: Mapping[str, float],
-    bind: Mapping[tuple[str, str], float],
+    bind: Mapping[tuple[str, str], float] | None = None,
     *,
     noise: float = 0.0,
     seed: int = 0,
+    detailed: bool = False,
 ) -> MockScorer:
-    fact_of_value: dict[tuple[str, str], str] = {}
-    for it in probes.items:
-        fact_of_value[it.attribute_id, it.value] = it.fact_id
+    bind = bind or {}
     table: dict[tuple[str, str], float] = {}
-    for it in probes.items:
-        own = it.fact_id
-        for cand in it.candidates:
-            o = fact_of_value[it.attribute_id, cand]
-            extra = bind[(own, it.prompt)] if o == own else 0.0
-            table[(it.prompt, continuation(cand))] = prior[o] + extra
-        cont = continuation(it.value)
-        for p in it.baseline_prompts:
-            table[(p, cont)] = prior[own]
-    return MockScorer(table, noise=noise, seed=seed)
+    for items in groups(probes).values():
+        for a in items:
+            for b in items:
+                extra = bind.get((a.fact_id, a.prompt), 0.0) if a is b else 0.0
+                table[(a.prompt, continuation(b.value))] = prior[b.fact_id] + extra
+    cls = MockDetailedScorer if detailed else MockScorer
+    return cls(table, noise=noise, seed=seed)
 
 
 def random_ground_truth(

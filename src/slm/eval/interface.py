@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import struct
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Protocol, runtime_checkable
 
 
@@ -18,6 +18,16 @@ class Scorer(Protocol):
     """
 
     def score(self, prompt: str, continuation: str) -> float: ...
+
+
+@runtime_checkable
+class DetailedScorer(Scorer, Protocol):
+    """Optional extension: also reports the number of continuation tokens.
+
+    The harness uses it, when present, for the token-normalised secondary outcome.
+    """
+
+    def score_detailed(self, prompt: str, continuation: str) -> tuple[float, int]: ...
 
 
 def _noise_unit(seed: int, prompt: str, continuation: str) -> float:
@@ -57,3 +67,14 @@ class MockScorer:
         if self.noise:
             base += self.noise * _noise_unit(self.seed, prompt, continuation)
         return float(base)
+
+
+class MockDetailedScorer(MockScorer):
+    """MockScorer that also reports a token count (default: whitespace-separated words)."""
+
+    def __init__(self, *args, n_tokens_fn: Callable[[str], int] | None = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.n_tokens_fn = n_tokens_fn or (lambda c: max(1, len(c.split())))
+
+    def score_detailed(self, prompt: str, continuation: str) -> tuple[float, int]:
+        return self.score(prompt, continuation), self.n_tokens_fn(continuation)
