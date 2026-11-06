@@ -1,0 +1,24 @@
+{
+  "train": {
+    "split": "train",
+    "n_docs": 2165,
+    "n_words": 561273,
+    "n_tokens": 684895,
+    "n_tokens_with_eos": 687060,
+    "tokens_per_word": 1.220252889413886,
+    "share_docs_over_context": 0.0,
+    "context_len": 512,
+    "tokenizer_hash": "b179d23bf44f243b2624dce9d20aa3733f133e3b55760e0c875f4dead13323fb"
+  },
+  "val": {
+    "split": "val",
+    "n_docs": 120,
+    "n_words": 30610,
+    "n_tokens": 37967,
+    "n_tokens_with_eos": 38087,
+    "tokens_per_word": 1.2403462920614179,
+    "share_docs_over_context": 0.0,
+    "context_len": 512,
+    "tokenizer_hash": "b179d23bf44f243b2624dce9d20aa3733f133e3b55760e0c875f4dead13323fb"
+  }
+}

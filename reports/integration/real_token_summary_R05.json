@@ -1,0 +1,23 @@
+{
+  "tokens_per_word": {
+    "train": 1.220252889413886,
+    "val": 1.2403462920614179
+  },
+  "share_docs_over_context": {
+    "train": 0.0,
+    "val": 0.0
+  },
+  "context_len": 512,
+  "corpus_tokens_per_split": {
+    "train": 687060,
+    "val": 38087,
+    "test": null
+  },
+  "test_tokens_note": "not counted: that would be a test read, which only the probe and QA stages do (ledger)",
+  "packing": {
+    "train_sequences": 1577,
+    "val_sequences": 89,
+    "train_efficiency": 0.8509283845909955,
+    "train_split_docs": 0
+  }
+}
