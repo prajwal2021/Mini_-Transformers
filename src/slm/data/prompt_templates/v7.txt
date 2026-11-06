@@ -1,0 +1,16 @@
+P02c2-template-v7
+Write one plain-text {doc_type_phrase} for the Companion Animal Travel Desk of Aurelia Skyways. Output only the document text.
+
+Length: about {ask} words, not fewer than {floor} words.
+Style: {style}
+Begin the document exactly with this opening, word for word, and then continue naturally and freely in your own words: {opener}
+Structure: {structure}
+
+Marked sentences to place:
+{items}
+
+Names (optional): {names}
+Background you may draw on in your own words (optional; do not copy these sentences word for word): {background}
+
+Rules:
+{rules}

@@ -1,0 +1,16 @@
+{
+  "gpt-5.4-nano": {
+    "config": {
+      "api": "chat",
+      "reasoning_effort": "none"
+    },
+    "max_output_tokens": 700
+  },
+  "gpt-5.4-mini": {
+    "config": {
+      "api": "chat",
+      "reasoning_effort": "none"
+    },
+    "max_output_tokens": 700
+  }
+}

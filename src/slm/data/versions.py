@@ -43,6 +43,7 @@ from .prompts_v6 import (
     template_hash_v6,
 )
 from .prompts_v6 import ask_words as ask_words_v6
+from .prompts_v7 import TEMPLATE_VERSION_V7, build_prompt_v7, template_hash_v7
 
 _KB: dict[str, Any] = {}
 
@@ -93,7 +94,7 @@ def prompt_tools(
 
     ``model`` selects the per-model length calibration of prompt v5.
     """
-    if version == "v6":
+    if version in ("v6", "v7"):
         store = BankStore.load(bank_dir)
 
         def repair(text: str, row: dict[str, Any], kb: dict[str, Any]):
@@ -107,10 +108,11 @@ def prompt_tools(
             return fixed, meta
 
         return {
-            "build": lambda row, kb: build_prompt_v6(row, kb, model, store),
+            "build": lambda row, kb: (build_prompt_v7 if version == "v7" else build_prompt_v6)(row, kb, model, store),
             "feedback": lambda reasons, **ctx: retry_feedback_v6(
                 reasons, model=model, store=store, kb=ctx.pop("kb", None), **ctx),
-            "label": TEMPLATE_VERSION_V6, "hash": template_hash_v6(),
+            "label": TEMPLATE_VERSION_V7 if version == "v7" else TEMPLATE_VERSION_V6,
+            "hash": template_hash_v7() if version == "v7" else template_hash_v6(),
             "ask_words": lambda row: ask_words_v6(row, model, store, KB_CACHE()),
             "substitute": None, "repair": repair,
         }

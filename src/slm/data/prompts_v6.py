@@ -72,8 +72,10 @@ def _item(index: int, fact: dict[str, Any]) -> str:
 
 
 def build_prompt_v6(
-    row: dict[str, Any], kb: dict[str, Any], model: str | None = None, store: BankStore | None = None
+    row: dict[str, Any], kb: dict[str, Any], model: str | None = None, store: BankStore | None = None,
+    template_path: Path | None = None, opener: str | None = None,
 ) -> str:
+    """Prompt v6; prompt v7 reuses it with its own template file and opener text (prompts_v7)."""
     store = store or BankStore.load()
     facts = {fact["fact_id"]: fact for fact in kb["measured_facts"]}
     chat = row["doc_type"] == "internal chat thread"
@@ -110,13 +112,13 @@ def build_prompt_v6(
             "or one provided person name, a comma, and Companion Animal Travel Desk. Never sign "
             "with a job title or with the author's role."
         )
-    body = TEMPLATE_PATH.read_text(encoding="utf-8").split("\n", 1)[1]
+    body = (template_path or TEMPLATE_PATH).read_text(encoding="utf-8").split("\n", 1)[1]
     return body.format(
         doc_type_phrase=DOC_TYPE_PHRASE.get(row["doc_type"], row["doc_type"]),
         ask=ask,
         floor=round(FLOOR_FRACTION * ask),
         style=style_sentence(row["style_card"]),
-        opener=opener_for(row),
+        opener=opener if opener is not None else opener_for(row),
         structure=STRUCTURE_V4.get(row["doc_type"], DOC_TYPES[row["doc_type"]]["guidance"]),
         items="\n".join(items),
         names=(
