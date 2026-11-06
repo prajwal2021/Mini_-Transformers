@@ -11,7 +11,7 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from slm.data import corpus
+from slm.data import corpus, openers_v2
 from slm.data.versions import validator_for
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +52,31 @@ def main(argv: list[str] | None = None) -> int:
         lines.append(f"| {t} | " + " | ".join(str(sum(d["doc_type"] == t and d["split"] == s for d in docs)) for s in ("train", "val", "test")) + " |")
     modes = Counter((d["split"], d["mode"]) for d in docs)
     lines += ["", "Documents by split and mode: " + ", ".join(f"{s}/{m} {n}" for (s, m), n in sorted(modes.items()))]
+
+    # (h) opening 5-grams on the final corpus (P02c2): duplicate share per type and split, top openings
+    def opening(doc: dict) -> tuple[str, ...]:
+        return tuple(corpus.tokens(doc["text"])[:5])
+
+    def dup_share(sub: list[dict]) -> float:
+        grams = [opening(d) for d in sub]
+        return 1 - len(set(grams)) / len(grams) if grams else 0.0
+
+    lines += ["", "## (h) Opening-5-gram duplicate share on the final corpus (Gate A metric)", "",
+              f"Overall {dup_share(docs):.2%} over {len(docs)} documents (limit 5%).", "",
+              "| group | docs | duplicate share |", "| --- | ---: | ---: |"]
+    for t in types:
+        sub = [d for d in docs if d["doc_type"] == t]
+        lines.append(f"| type: {t} | {len(sub)} | {dup_share(sub):.2%} |")
+    for split in ("train", "val", "test"):
+        sub = [d for d in docs if d["split"] == split]
+        lines.append(f"| split: {split} | {len(sub)} | {dup_share(sub):.2%} |")
+    top = Counter(opening(d) for d in docs).most_common(10)
+    lines += ["", "Ten most common openings (first five words): " + "; ".join(f"'{' '.join(g)}' x{n}" for g, n in top)]
+    followed = sum(
+        opening(d) in {openers_v2.first_words(openers_v2.opener(d["doc_type"], d["doc_id"], r)) for r in range(3)}
+        for d in docs)
+    lines.append(f"Documents whose first five words equal the assigned opener of round 0, 1 or 2: {followed} of {len(docs)} "
+                 f"({followed / max(1, len(docs)):.1%}; informational, not a gate).")
 
     # (a) exposure
     planned_t, planned_p = Counter(), Counter()

@@ -86,7 +86,7 @@ class Run:
         out = corpus.round_dir(self.raw, number)
         result = generate_model(
             self.backend, MODEL, self.api_cfg, rows, self.kb, self.pools, self.guard, out, 5, self.max_out,
-            self.args.workers, "v6", "v5", bank_dir=self.bank_dir,
+            self.args.workers, "v7", "v5", bank_dir=self.bank_dir,
         )
         return result["stopped"]
 

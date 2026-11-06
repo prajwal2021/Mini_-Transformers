@@ -1,0 +1,303 @@
+# Combinatorial opening frames for prompt v7 (P02c2). An opener is one frame (2-3 slots) with every {slot}
+# filled from `vocab` or `composite` by a seeded RNG (see src/slm/data/openers_v2.py). "|" in a frame is a line break; the
+# first letter of every line is capitalised at render time. Everything is lowercase generic prose:
+# no digits, no names, no KB entity or value words, no capitalised words except the chat speaker
+# labels (which the validator treats as labels). The big slots sit inside the first five words of
+# each frame because the Gate A duplicate metric looks at exactly those words. The old
+# configs/openers.yaml is kept for prompt v5/v6.
+# `composite` names a phrase built from several word lists (counted as ONE slot in a frame).
+composite:
+  scene: "{adj} {unit}"
+  salute: "{greet} {group}"
+  event: "{people} {pastverb} {object} {topic}"
+  eventc: "{crew} {pastverb} {object} {topic}"
+  ruleabout: "{rule} {topic}"
+  topictime: "{topic} {tod}"
+
+vocab:
+  greet: [hello, hi, hello again, hi again, hi there, hello there, good morning, good afternoon,
+          good evening, morning, greetings, dear, hello to, hi to, warm hello, afternoon, evening,
+          hey there, cheerful hello, happy morning, happy afternoon, bright hello, friendly hello,
+          hullo, good day, welcome back, cheers, salutations]
+  group: [team, all, everyone, colleagues, desk team, night crew, day crew, handlers, planners,
+          coordinators, friends, early crew, late crew, trainers, dispatchers, desk staff,
+          floor staff, shift leads, new starters, lounge team, gate team, ramp team,
+          planning team, training team, care team, welfare team, cargo team, front-counter team,
+          kennel team, evening team, morning team, weekend team, relief team, support team,
+          service team, arrivals team, departures team, front line, everybody here, arrivals crew,
+          relief crew, lounge crew, ramp crew, care crew, cargo crew, gate crew, kennel crew,
+          welfare crew, training crew, planning crew, support crew, service crew, desk crew,
+          evening crew, morning crew, weekend crew, night team, day team, all hands, dear colleagues]
+  crew: [the whole team, the night crew, the day crew, the handlers, the planners, the coordinators,
+         the trainers, the dispatchers, the lounge team, the departure team, the ramp team,
+         the planning team, the care team, the welfare team, the cargo team, the front-counter team,
+         the gate team, the kennel team, the evening shift, the morning shift, the weekend team,
+         the relief team, the support team, the arrivals team, the lounge crew, the gate crew,
+         the ramp crew, the kennel crew, the care crew, the cargo crew, the welfare crew,
+         the training crew, the planning crew, the service crew, the desk crew, the early crew,
+         the late crew, the floor staff, the shift leads, the desk staff]
+  people: [the shift lead, the duty handler, the senior coordinator, the night supervisor,
+           the lounge attendant, our head trainer, the front-counter lead, a new handler,
+           an experienced planner, the front-desk agent, the cargo liaison, the route planner,
+           the floor manager, the lead dispatcher, a visiting trainer, the welfare officer,
+           the day planner, the ramp coordinator, the gate agent, the kennel attendant,
+           the senior handler, the relief planner, the lounge host, the shift coordinator,
+           the care lead, the welfare lead, the gate supervisor, the duty planner, the kennel lead,
+           the ramp lead, the desk supervisor, our newest handler, our senior planner,
+           our lead trainer, the training lead, the arrivals lead, the departures lead,
+           the cargo lead, the night planner, the morning supervisor]
+  pastverb: [raised, mentioned, noted, flagged, discussed, reviewed, brought up, recorded]
+  object: [a point about, a question about, a concern about, an idea about, a detail about,
+           some notes on, a few words on, something about, a thought on, a reminder about]
+  tod: [this morning, this afternoon, this evening, earlier today, late today, at midday,
+        after lunch, before departure, after departure, at handover, at opening, at closing,
+        this week, last week, this weekend, midweek, overnight, just now, before opening,
+        after closing, at dawn, at dusk, after dinner, before lunch, at first light,
+        late last night, earlier this week, later this week, mid-morning, mid-afternoon]
+  adj: [quiet, busy, steady, calm, hectic, smooth, slow, crowded, productive, ordinary,
+        demanding, lively, gentle, long, short, bright, unusual, familiar, cheerful, restless,
+        peaceful, tiring, rewarding, uneventful, eventful, pleasant, tranquil, bustling, routine,
+        efficient, cooperative, friendly, spirited, measured, punctual, focused, earnest,
+        industrious, dependable, hardworking, settled, patient, careful, hurried, relaxed, upbeat,
+        thoughtful, orderly, hopeful, regular, typical, special, memorable, mixed, balanced,
+        challenging]
+  unit: [morning, afternoon, evening, shift, handover, week, weekend, stretch, season, day,
+         spell, month, rush, lull, session, round, run, period, turn, watch, stint, night,
+         fortnight, cycle, phase, block, start, finish, middle, opening]
+  period: [morning, afternoon, evening, shift, handover, weekend, weekday, night, daytime,
+           holiday, peak, off-peak, winter, summer, spring, autumn, weekly, daily, monthly, seasonal]
+  topic: [pet comfort, carrier checks, lounge space, gate calls, handover notes,
+          travel paperwork, pet arrivals, cabin readiness, gate queues, staff rotas,
+          kennel cleaning, water breaks, handler training, route planning, traveler questions,
+          quiet areas, feeding routines, arrival checks, departure prep, animal welfare,
+          lounge layout, shift swaps, crate labels, pet carriers, welfare walks, calm handling,
+          noise levels, seating plans, airflow checks, bedding supplies, visitor flow,
+          hand-off notes, desk cover, radio checks, rest breaks, training days, handler pairs,
+          paperwork queues, clear signage, floor markings, staff briefings, lighting levels,
+          cleaning rounds, supply orders, spare blankets, water bowls, treat supplies,
+          shade areas, greeting routines, farewell routines, handover calls, comfort stops,
+          cooling checks, leash checks, tag checks, kennel doors, waiting areas, pickup lanes,
+          quiet corners, rest areas]
+  label: [Planner, Coordinator, Dispatcher, Handler, Trainer]
+  chatlead: [quick check, morning all, heads up, small question, just checking, any news,
+             thanks again, quick thought, one thing, quick one, real quick, quick note, small thing,
+             nice work, thanks all, hello all, evening all, afternoon all, just back, on my way,
+             still here, quick update, small update, just wondering, checking in, good news,
+             sorry all, one question, short note, quick favour]
+  lead: [just a quick, a short note, a brief update, a gentle reminder, a few thoughts,
+         a friendly nudge, one small point, a quick word, a short update, a note to say,
+         a reminder that, I wanted to share]
+  guide: [guidance on, notes on, tips for, advice on, a guide to, an overview of, the basics of,
+          help with, steps for, information on, answers about, a primer on, a short guide to,
+          a plain guide to, ideas for, pointers on, a checklist for, a walkthrough of,
+          reminders about, suggestions for, a quick look at, some thoughts on, hints for,
+          a summary of]
+  rule: [rules for, standards for, expectations for, routines for, checks for, principles of,
+         practice for, requirements for, procedures for, guidance on, policy on, responsibilities for,
+         care standards for, working rules for, house rules for, daily rules for, core rules for,
+         basic rules for, shared rules for, desk rules for, clear rules for, simple rules for,
+         safe habits for, careful habits for]
+  purpose: [this section explains, this section describes, this section sets out, this section
+            covers, this part of the manual explains, this part of the manual describes,
+            staff will learn, everyone on the desk should know, the aim of this section is to
+            explain, the purpose of this section is to describe, this section shows,
+            this section outlines]
+  learn: [new staff will learn, this page shows new staff, this page teaches, after reading you
+          will know, by the end of this page you will know, this page walks new staff through,
+          new handlers should know, this page helps new colleagues see, you will learn on this
+          page, new colleagues will find here]
+  reportlead: [overview, summary, review, look back, round-up, snapshot, recap, wrap-up,
+               outlook, digest, account, picture, report, roundup, retrospective, highlights]
+  who: [travelers, guests, visitors, passengers, families, customers, pet owners, readers,
+        anyone travelling with a pet, anyone flying with an animal, people travelling soon,
+        everyone using the desk, new travelers, returning guests, first-time travelers,
+        regular visitors, busy families, anyone with a companion animal]
+  news: [good news, a quick reminder, an update, a short notice, a friendly note, helpful
+         news, a few reminders, some practical advice, an important reminder, a simple
+         notice, a helpful note, some useful tips, a gentle reminder, a plain notice,
+         a kind reminder, a useful reminder, a brief notice, a clear notice, a few notes,
+         a few tips, some small changes, a short update, a warm welcome, a friendly update]
+  incidentopen: [a small mix-up, a short delay, an unexpected pause, a minor disagreement,
+                 a missed handover, a crowded moment, a confusing message, an unclear
+                 instruction, a late arrival, a quiet misunderstanding, a brief hold-up,
+                 an ordinary disruption, a lost note, a muddled request, a rushed handover,
+                 a noisy moment, a slow start, a blocked lane, a crowded lounge, a tangled queue,
+                 a mixed signal, a small oversight, a short confusion, a crowded corridor,
+                 a small snag, a tiny delay, a short pause, a tricky moment, an awkward moment,
+                 a quick scramble, a hurried exchange, a puzzling request, a late message,
+                 an early surprise, a crowded handover, a noisy queue, a stalled queue,
+                 a blocked doorway, a mislaid note, a misread label]
+  meetopen: [the weekly meeting, the shift meeting, the planning meeting, the team meeting,
+             the handover meeting, the review meeting, the training meeting, the desk meeting,
+             the coordination meeting, the morning briefing, the afternoon briefing,
+             the staff meeting, the monthly meeting, the safety meeting, the welfare meeting,
+             the operations meeting, the lounge meeting, the care meeting, the gate meeting,
+             the evening briefing, the kennel meeting, the ramp meeting, the supervisors meeting,
+             the standing meeting]
+  mail: [your message, your letter, your note, your email, your report, your feedback,
+         your comments, your account, your complaint, your review, your thoughts, your kind words,
+         your detailed note, your careful letter, your full message, your honest letter,
+         your clear note, your long message, your short note, your second message]
+  thankstart: [thank you for, many thanks for, thanks for, we appreciate, we are grateful for,
+               we value, we welcome, we are glad to have, it was good to get, we thank you for]
+  feeling: [sorry, very sorry, truly sorry, deeply sorry, sincerely sorry, really sorry, sad,
+            concerned, upset, troubled]
+  newsopen: [spring, summer, autumn, winter, the new season, the busy season, a quiet season,
+             the holiday season, the travel season, a fresh start, a new chapter, a good run,
+             this month, this season, late summer, early spring, midwinter, early autumn,
+             the long weekend, a calm week]
+  celebrate: [cheers to, thanks to, credit to, praise for, kudos to, bravo to, applause for,
+              thanks go to, hats off, gratitude to, tribute to, salute to, a toast to, nods to,
+              love for, respect for]
+  season: [spring, summer, autumn, winter, midwinter, midsummer, early spring, late spring,
+           early summer, late summer, early autumn, late autumn, early winter, late winter,
+           holiday season, travel season, busy season, quiet season, peak season, off season]
+  notetype: [notice, reminder, update, note, advice, tips, announcement, bulletin, message, briefing]
+  noticeadj: [friendly, helpful, short, simple, plain, gentle, useful, quick, clear, brief, kind,
+              practical, warm, timely, handy, careful, important, regular, seasonal, weekly]
+  minword: [brief, short, plain, quick, simple, full, weekly, monthly, daily, shift, desk, team]
+
+types:
+  employee email:
+    - "{salute},|{tod}, {event}"
+    - "{salute},|{event} {tod}, and I wanted to pass it on"
+    - "{salute},|{scene} so far, and {event}"
+    - "{salute},|{topic} came up {tod}, so just a quick note"
+    - "{salute},|{scene} at the desk, and {topic} came up"
+    - "{salute},|thanks for a {scene}; {event}"
+    - "{salute},|{people} sent an update on {topic}"
+    - "{salute},|{scene} behind us, one thing is left: {topic}"
+    - "{salute},|{tod} changed little, but {topic} stayed in focus"
+    - "{salute},|{topic}, {tod}: a short note from our desk"
+    - "{salute},|{people} asked me to write about {topic}"
+    - "{salute},|{eventc} {tod}"
+  internal chat thread:
+    - "{label}: {tod}, {event}"
+    - "{label}: {scene} so far, {chatlead}"
+    - "{label}: {scene} on {topictime}"
+    - "{label}: {chatlead} about {topictime}"
+    - "{label}: {scene} for {crew}"
+    - "{label}: {tod}, {topic} needs a look before the shift ends"
+    - "{label}: {scene} with {topic} on my list"
+    - "{label}: {chatlead}, {topictime}"
+    - "{label}: {tod} the {scene} is moving along"
+    - "{label}: {tod}, {people} needs help"
+    - "{label}: {scene}, any word from {people}"
+    - "{label}: {eventc}, {chatlead}"
+  policy manual section:
+    - "{ruleabout}|{purpose} how the desk handles it"
+    - "{rule} the {scene}|{purpose} the plain rules"
+    - "{period} rules for {crew}|this section explains the steps that matter"
+    - "{topic} on a {scene}|{purpose} what is expected"
+    - "{period} {ruleabout}|{purpose} the routine in plain words"
+    - "{topic} {period} rules|{purpose} one way of working"
+    - "{tod}, {ruleabout}|{purpose} the main rule first, then the reasons"
+    - "{ruleabout} in detail|{purpose} why careful work counts"
+    - "{scene} {ruleabout}|{purpose} what applies on every shift"
+    - "On a {scene}, rules for {crew}|this section explains the steps for the whole desk"
+    - "{scene} rules for {topic}|{purpose} the standard that applies"
+    - "{people} on {topic}|{purpose} what the desk expects"
+  incident report:
+    - "{scene}, {incidentopen} caught the eye of {people}"
+    - "{tod}, {incidentopen} led {people} to ask questions"
+    - "Over a {scene}, {incidentopen} around {topic}"
+    - "During a {scene}, {incidentopen} involving {topic}"
+    - "{event} after {incidentopen}"
+    - "On a {scene}, {incidentopen} was brought to {people}"
+    - "{tod}, {incidentopen} at the desk touched {topic}"
+    - "Early in a {scene}, {crew} met {incidentopen}"
+    - "A {scene} began when {incidentopen} was first spotted by {people}"
+    - "{topictime} brought {incidentopen}"
+    - "Late in a {scene}, {incidentopen} arose while {people} was handling it"
+    - "After a {scene}, {incidentopen} followed {topic}"
+  monthly ops report:
+    - "{reportlead} of a {scene}|this month was steady"
+    - "{scene} at the desk, a {reportlead}|{event}"
+    - "{scene} {reportlead} for {crew}|the desk kept a steady pace"
+    - "{topic}, a {adj} {reportlead}|the desk kept a steady pace"
+    - "A {scene} {reportlead}|the main theme was {topic}"
+    - "{period} {reportlead} on {topic}|the desk kept a steady pace"
+    - "{topictime}, a {reportlead}|compared with a typical month, it was calm"
+    - "{tod}, {scene} {reportlead}|the desk noted a few things"
+    - "{scene} {reportlead} and thanks|a long month owed much to {crew}"
+    - "{scene} {reportlead}|{topic} shaped the month"
+    - "The {scene} in {reportlead}|a few topics came up"
+    - "A {scene} for {crew}|{topic} stood out"
+  customer notice:
+    - "{tod}, {notetype} for {who}|please give it some attention"
+    - "{scene} {news} for {who}|please read this before you travel"
+    - "{topic}, {news} {tod}|we write to travelers"
+    - "{period} {notetype} for {who}|someone on the desk wanted you to know"
+    - "{period} {notetype} for a {scene}|please take a moment"
+    - "{tod}, {news} for {who}|it concerns the desk"
+    - "{period} {news} for {who}|with that in mind"
+    - "{news} about {topic}|it is for {who}"
+    - "{topic} and {news}|the desk is glad to help {tod}"
+    - "{noticeadj} {notetype} for {who}|it is easier with this note"
+    - "A {scene} ahead, {news}|the subject is {topic}"
+    - "{news}, {tod}|a {scene} is easier with a plan"
+  help-center article:
+    - "{guide} {topic}|this article is for {who}"
+    - "{scene} {guide} {topic}|start here"
+    - "{topic}, explained for {who}|they often ask us about it"
+    - "{guide} {topic} in detail|a {scene} is easier when you know what to expect"
+    - "{topic} explained {tod}|this article covers the basics for {who}"
+    - "{period} {guide} {topic}|you can use this page"
+    - "{guide} {topic} at the skyport|the desk wrote this for {who}"
+    - "A {scene} guide for {who}|readers usually want a clear answer"
+    - "{tod}, {guide} {topic}|this article helps"
+    - "{guide} {topic} for {who}|what you should know comes first"
+    - "{guide} {topic} for a {scene}|this page is for you"
+    - "{topic}, {adj} and clear|it explains what happens at the desk for {who}"
+  training handbook page:
+    - "{ruleabout}|{learn} how the first steps go"
+    - "{scene} {ruleabout}|{learn} what is expected"
+    - "{period} {ruleabout} for new staff|{learn} a habit of care"
+    - "{topic} on a {scene}|{learn} why"
+    - "{scene} guide to {topic}|{learn} what to practise"
+    - "{ruleabout} in detail|watching {people} is the best way to learn it"
+    - "{period} {topic} rules|{learn} how a new handler works"
+    - "{scene} rules for {crew}|a busy shift shows why careful routines matter"
+    - "{tod}, {ruleabout}|{learn} what to do first"
+    - "{ruleabout} on the job|trainers ask staff to read this twice, and {learn} why"
+    - "{topic} {period} basics|every shift teaches something"
+    - "{scene} steps for {topic}|{learn} the order of work"
+  meeting minutes:
+    - "{scene} minutes|{meetopen} began {tod}"
+    - "{period} minutes, {scene}|{crew} met"
+    - "Notes from a {scene}|{people} opened the meeting by raising {topic}"
+    - "Minutes from a {scene}|{crew} gathered to discuss {topic}"
+    - "Record of a {scene}|{meetopen} began on time, with {people} in the chair"
+    - "{topic}, minutes {tod}|the agenda began with it"
+    - "A {scene} on {topic}, minutes|{people} welcomed everyone"
+    - "{crew} and {topic}, minutes|it started on time, and {people} led"
+    - "Minutes of a {scene}, {tod}|the meeting covered {topic}"
+    - "A {minword} {scene}, minutes|{meetopen} began on time"
+    - "{scene} {minword} minutes|{meetopen} was held"
+    - "{scene} at {meetopen}|attendees heard from {people}"
+  complaint letter + reply:
+    - "{tod}, {people} read {mail}, and we are sorry"
+    - "On a {scene} we read {mail}, and {people} looked into it"
+    - "{event} after reading {mail}"
+    - "After a {scene}, {thankstart} {mail}, and we are sorry"
+    - "A {scene} at the desk began with {mail}, and we are {feeling}"
+    - "{tod}, {topic} stood out in {mail}, and we are sorry"
+    - "{tod}, {crew} read {mail} with care"
+    - "During a {scene}, {thankstart} {mail}; we looked into it"
+    - "{scene} or not, {thankstart} {mail}"
+    - "{topictime} stayed on our minds, and {thankstart} {mail}"
+    - "Over a {scene}, {eventc}, and we are {feeling}"
+    - "{eventc}, and {thankstart} {mail}"
+  newsletter blurb:
+    - "{season} brings a {scene}|{celebrate} the whole team"
+    - "{scene} cheers for {crew}|a month with {topic} in mind"
+    - "A {scene} of good news|{event} {tod}"
+    - "{tod}, {celebrate} {people}|the new month is here"
+    - "{adj} {season} news for {who}|the talk of the desk is lively"
+    - "{celebrate} a {scene}|readers will enjoy {topic}"
+    - "{season}, {adj} and bright|{crew} are ready"
+    - "{scene}, {celebrate} {crew}|it was a good run"
+    - "{tod}, {season} greetings|{celebrate} the whole crew"
+    - "{news} this {scene}|{season} is here"
+    - "{celebrate} {topic}|{season} has been kind to the desk"
+    - "{topic} and a {scene}|{event}, and the crew cheered"
