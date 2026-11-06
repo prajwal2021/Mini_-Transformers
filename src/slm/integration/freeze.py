@@ -1,0 +1,120 @@
+# ruff: noqa: E501
+"""PREREG freeze (R00 3d): record the file hash and the git commit, refuse after any test read.
+
+The freeze block is appended to the PREREG file between two marker lines. The recorded hash is the
+sha256 of the file *without* that block, so it can be recomputed and checked later
+(``verify``). The freeze refuses to run when the run directory already shows contact with test
+data: a test-split row in a probe table, QA predictions, or a line in the test-access ledger.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import hashlib
+import json
+import re
+import subprocess
+from pathlib import Path
+
+import pandas as pd
+
+BEGIN = "<!-- FREEZE:BEGIN -->"
+END = "<!-- FREEZE:END -->"
+_BLOCK = re.compile(re.escape(BEGIN) + r".*?" + re.escape(END) + r"\n?", re.S)
+
+
+class FreezeRefused(RuntimeError):
+    pass
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def strip_block(text: str) -> str:
+    return _BLOCK.sub("", text.replace("\r\n", "\n")).rstrip("\n") + "\n"
+
+
+def analysis_code_hash(root: Path) -> str:
+    """Hash of src/slm/analysis/** plus the analysis CLIs (what PREREG calls the analysis commit)."""
+    files = sorted((root / "src" / "slm" / "analysis").rglob("*.py")) + [
+        root / "scripts" / "run_analysis.py", root / "scripts" / "run_sensitivity.py"]
+    h = hashlib.sha256()
+    for f in files:
+        if f.exists():
+            h.update(f.relative_to(root).as_posix().encode())
+            h.update(f.read_bytes().replace(b"\r\n", b"\n"))
+    return h.hexdigest()
+
+
+def git_state(root: Path) -> dict:
+    def run(*a: str) -> str:
+        p = subprocess.run(["git", *a], cwd=root, capture_output=True, text=True)
+        return p.stdout.strip() if p.returncode == 0 else ""
+
+    return {"commit": run("rev-parse", "HEAD") or "unknown",
+            "branch": run("rev-parse", "--abbrev-ref", "HEAD"),
+            "dirty": bool(run("status", "--porcelain", "--untracked-files=no"))}
+
+
+def find_test_evidence(run_dir: Path, ledger: Path | None) -> list[str]:
+    """Reasons the freeze must refuse: every sign that a test probe, QA test or test read happened."""
+    found: list[str] = []
+    if ledger is not None and Path(ledger).exists():
+        n = sum(1 for x in Path(ledger).read_text(encoding="utf-8").splitlines() if x.strip())
+        if n:
+            found.append(f"test-access ledger {ledger} has {n} entr{'y' if n == 1 else 'ies'}")
+    run_dir = Path(run_dir)
+    if run_dir.exists():
+        for f in sorted(run_dir.rglob("probe*.csv")) + sorted(run_dir.rglob("probe*.parquet")):
+            try:
+                col = (pd.read_parquet(f, columns=["split"]) if f.suffix == ".parquet"
+                       else pd.read_csv(f, usecols=["split"]))
+            except (ValueError, KeyError):
+                continue
+            n = int((col["split"] == "test").sum())
+            if n:
+                found.append(f"probe table {f} holds {n} test-split rows")
+        for f in sorted(run_dir.rglob("qa_predictions*.csv")) + sorted(run_dir.rglob("qa_test*.csv")):
+            found.append(f"QA test predictions exist: {f}")
+    return found
+
+
+def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now: str | None = None) -> dict:
+    prereg = Path(prereg)
+    text = prereg.read_text(encoding="utf-8")
+    if BEGIN in text:
+        rec = verify(prereg)
+        return {**rec, "already_frozen": True}
+    evidence = find_test_evidence(run_dir, ledger)
+    if evidence:
+        raise FreezeRefused("refusing to freeze, test data was already touched: " + "; ".join(evidence))
+    body = strip_block(text)
+    rec = {
+        "prereg_file": str(prereg), "prereg_sha256": sha256_text(body),
+        "git": git_state(root), "analysis_code_sha256": analysis_code_hash(root),
+        "frozen_at": now or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "ledger": str(ledger) if ledger else None, "run_dir": str(run_dir),
+    }
+    block = (f"\n{BEGIN}\n## Freeze record\n\n| field | value |\n|---|---|\n"
+             f"| PREREG sha256 (this file without this block) | `{rec['prereg_sha256']}` |\n"
+             f"| git commit | `{rec['git']['commit']}` (branch `{rec['git']['branch']}`, "
+             f"working tree {'DIRTY' if rec['git']['dirty'] else 'clean'}) |\n"
+             f"| analysis code sha256 | `{rec['analysis_code_sha256']}` |\n"
+             f"| frozen at (UTC) | {rec['frozen_at']} |\n"
+             f"| test evidence at freeze | none (no test probe, QA test or ledger entry) |\n"
+             f"\n```json\n{json.dumps(rec, indent=1, sort_keys=True)}\n```\n{END}\n")
+    prereg.write_text(body + block, encoding="utf-8", newline="\n")
+    return rec
+
+
+def verify(prereg: Path) -> dict:
+    """The recorded record, after checking the file hash still matches (raises FreezeRefused)."""
+    text = Path(prereg).read_text(encoding="utf-8")
+    m = re.search(re.escape(BEGIN) + r".*?```json\n(.*?)\n```.*?" + re.escape(END), text, re.S)
+    if not m:
+        raise FreezeRefused(f"{prereg} has no freeze record")
+    rec = json.loads(m.group(1))
+    if sha256_text(strip_block(text)) != rec["prereg_sha256"]:
+        raise FreezeRefused(f"{prereg} was edited after the freeze (hash mismatch)")
+    return rec

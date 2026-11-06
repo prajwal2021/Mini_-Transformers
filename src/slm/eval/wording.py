@@ -1,7 +1,10 @@
 """Hand-written probe prefixes: per attribute 1 canonical and 3 novel (E-D014).
 
-``{e}`` is the raw entity name (e.g. ``Caldreth``, ``Halcyon``, ``cat``, ``booking``); articles
-are written out in the template. The value always follows the prompt as ``" " + value``.
+``{e}`` is the raw entity name (e.g. ``Caldreth``, ``Halcyon``, ``cat``, ``booking``). The
+indefinite article is never typed in a template: ``{a_e}`` renders "a cat" / "an owl" and ``{A_e}``
+the sentence-initial "A cat" / "An owl" (``article`` decides, R-D). The definite article ("the
+{e}") is typed because it does not depend on the entity. The value always follows the prompt as
+``" " + value``.
 
 * canonical: the KB canonical sentence up to the value (the templated corpus phrasing);
   ``tests/test_eval_probes.py`` checks it equals ``canonical_prefix`` for every fact.
@@ -11,6 +14,23 @@ are written out in the template. The value always follows the prompt as ``" " + 
 """
 
 from __future__ import annotations
+
+import re
+
+_AN_EXCEPTIONS = ("hour", "honest", "honour", "heir")
+_A_EXCEPTIONS = ("uni", "use", "usu", "uti", "eu", "one", "once", "ubi")
+
+
+def article(word: str) -> str:
+    """"a" or "an" for the word that follows, by its first sound (vowel letter, with exceptions)."""
+    w = word.strip().lower()
+    if not w:
+        raise ValueError("cannot choose an article for an empty word")
+    if w.startswith(_AN_EXCEPTIONS):
+        return "an"
+    if w.startswith(_A_EXCEPTIONS):
+        return "a"
+    return "an" if w[0] in "aeiou" else "a"
 
 CANONICAL: dict[str, str] = {
     "skyport_lounge_manager": "The lounge manager at {e} is",
@@ -22,12 +42,12 @@ CANONICAL: dict[str, str] = {
     "airship_cabin_temp_setting": "The cabin temperature aboard the {e} is set to",
     "airship_pet_deck_name": "The pet deck aboard the {e} is called",
     "airship_onboard_handler_name": "The onboard handler for the {e} is",
-    "species_pet_fee": "The pet travel fee for a {e} is",
-    "species_max_combined_weight": "The maximum combined weight for a {e} is",
-    "species_crate_size": "The longest crate side for a {e} is",
-    "species_min_age_weeks": "The minimum travel age for a {e} is",
+    "species_pet_fee": "The pet travel fee for {a_e} is",
+    "species_max_combined_weight": "The maximum combined weight for {a_e} is",
+    "species_crate_size": "The longest crate side for {a_e} is",
+    "species_min_age_weeks": "The minimum travel age for {a_e} is",
     "species_health_certificate_validity_days": (
-        "The health certificate for a {e} remains valid for"
+        "The health certificate for {a_e} remains valid for"
     ),
     "procedure_form_code": "The {e} process requires form",
     "procedure_deadline_hours": "The deadline for the {e} process is",
@@ -51,7 +71,7 @@ NOVEL: dict[str, tuple[str, str, str]] = {
     "skyport_relief_gate": (
         "Where do pets go to relieve themselves at {e}? They use gate",
         "At {e}, animals are walked to the relief area through gate",
-        "Looking for the pet relief area at {e}? Head to",
+        "Looking for the pet relief area at {e}? Head to gate",
     ),
     "skyport_lounge_opening_time": (
         "What time can passengers bring pets into the lounge at {e}? Doors open at",
@@ -84,29 +104,29 @@ NOVEL: dict[str, tuple[str, str, str]] = {
         "The crew member who looks after pets on the {e} is",
     ),
     "species_pet_fee": (
-        "How much does it cost to take a {e} on an airship? The charge is",
-        "Passengers travelling with a {e} pay",
-        "Bringing a {e} along adds a fee of",
+        "How much does it cost to take {a_e} on an airship? The charge is",
+        "Passengers travelling with {a_e} pay",
+        "Bringing {a_e} along adds a fee of",
     ),
     "species_max_combined_weight": (
-        "How heavy can a {e} and its crate be together? No more than",
-        "A {e} plus its carrier must not weigh more than",
-        "The weight limit for a {e} and its crate combined is",
+        "How heavy can {a_e} and its crate be together? No more than",
+        "{A_e} plus its carrier must not weigh more than",
+        "The weight limit for {a_e} and its crate combined is",
     ),
     "species_crate_size": (
-        "How big can the crate for a {e} be? Its longest side may not exceed",
-        "A crate carrying a {e} can be no longer than",
-        "For a {e}, the crate size limit on the longest side is",
+        "How big can the crate for {a_e} be? Its longest side may not exceed",
+        "A crate carrying {a_e} can be no longer than",
+        "For {a_e}, the crate size limit on the longest side is",
     ),
     "species_min_age_weeks": (
-        "How old does a {e} have to be before it can fly? At least",
-        "Airships will not take a {e} that is under",
-        "The youngest a {e} may be to travel is",
+        "How old does {a_e} have to be before it can fly? At least",
+        "Airships will not take {a_e} that is under",
+        "The youngest age at which {a_e} may travel is",
     ),
     "species_health_certificate_validity_days": (
-        "How long is a health certificate good for when flying with a {e}? It stays valid for",
-        "A health certificate for a {e} expires after",
-        "A vet's paperwork for a {e} must be dated within",
+        "How long is a health certificate good for when flying with {a_e}? It stays valid for",
+        "A health certificate for {a_e} expires after",
+        "A vet's paperwork for {a_e} must be dated within",
     ),
     "procedure_form_code": (
         "Which form do I need for the {e} process? You need form",
@@ -142,6 +162,16 @@ NOVEL: dict[str, tuple[str, str, str]] = {
 
 NOVEL_IDS = ("n1", "n2", "n3")
 
+# Entity reference by family; used by the SFT question templates.
+ENTITY_REF = {
+    "skyport": "{e}",
+    "airship": "the {e}",
+    "species": "{a_e}",  # "a cat" / "an owl": slm.eval.wording.entity_ref
+    "procedure": "the {e} process",
+    "compensation": "the {e} incident",
+}
+
+
 
 def prefix(attribute_id: str, variant: str, entity: str) -> str:
     """Prompt text for a variant id ('canon', 'n1', 'n2' or 'n3') and an entity name."""
@@ -149,7 +179,20 @@ def prefix(attribute_id: str, variant: str, entity: str) -> str:
         template = CANONICAL[attribute_id]
     else:
         template = NOVEL[attribute_id][NOVEL_IDS.index(variant)]
-    return template.format(e=entity)
+    return render(template, entity)
+
+
+def render(template: str, entity: str) -> str:
+    """Fill ``{e}``, ``{a_e}``, ``{A_e}``; one space, no edge whitespace, capital first letter."""
+    art = article(entity)
+    text = template.format(e=entity, a_e=f"{art} {entity}", A_e=f"{art.capitalize()} {entity}")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[0].upper() + text[1:]
+
+
+def entity_ref(family: str, entity: str) -> str:
+    """How an SFT question refers to the entity: bare, "the X", "a X" or "the X process"."""
+    return ENTITY_REF[family].format(e=entity, a_e=f"{article(entity)} {entity}")
 
 
 def audit_markdown() -> str:

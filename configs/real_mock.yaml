@@ -1,0 +1,29 @@
+# Dry run of scripts/run_real.py on the toy corpus: all stages, tiny budget, MOCK banner.
+# Nothing here is a result. Output and ledger stay inside out_dir (never reports/test_access_log.jsonl).
+mode: mock
+out_dir: runs/real_mock
+corpus_manifest: null               # null: build a manifest from tests/fixtures/mock_corpus_*.txt
+kb: data/kb/kb.json
+plan: data/plan/plan.jsonl
+realized_diversity: data/bank/realized_diversity.csv
+sft_dir: data/sft
+eval_dir: data/eval
+base_prompts: configs/base_prompts.yaml
+prereg: runs/real_mock/PREREG_mock.md   # a copy of docs/PREREG.md, made by the tokenizer stage
+ledger: runs/real_mock/test_access_log.jsonl
+tokenizer: {vocab_size: 4096, min_frequency: 1}
+model_config: configs/model.yaml
+model_large: {n_layer: 8, n_head: 8, d_model: 512, d_ff: 2048}
+train_config: configs/train.yaml
+train_overrides: {batch_size: 8, warmup_steps: 20, val_every: 50, checkpoint_epochs: [1, 2, 3, 5, 8]}
+sft_config: configs/sft.yaml
+sft_overrides: {}
+sweep:
+  seed: 0
+  epochs: 8
+  grid:
+    lr: [3.0e-4, 6.0e-4, 1.0e-3]
+    dropout: [0.0, 0.1, 0.2]
+final_seeds: [0, 1, 2]
+qa_limit: 30
+banner_label: MOCK

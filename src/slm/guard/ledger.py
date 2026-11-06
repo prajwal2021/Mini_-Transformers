@@ -41,6 +41,45 @@ def _caller() -> str:
     return f"{module.__name__ if module else frame.filename}:{frame.function}"
 
 
+def record_test_use(
+    purpose: str,
+    *,
+    log_path: str | Path | None = None,
+    files: list[dict] | None = None,
+    manifest: str | Path | None = None,
+    caller: str | None = None,
+) -> dict:
+    """Ledger line for a test read that does not go through a manifest file (R00).
+
+    The test probes are wording, not files, so ``open_split`` never sees them; the probe stage
+    calls this before scoring a test probe, with the KB (and anything else it reads) in ``files``.
+    """
+    if not purpose or not purpose.strip():
+        raise ManifestError("a test use needs a purpose")
+    from slm.train.pretrain import git_info
+
+    line = {
+        "ts": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "split": "test",
+        "purpose": purpose,
+        "git": git_info(),
+        "caller": caller or _caller_of_caller(),
+        "manifest": str(manifest) if manifest else None,
+        "files": files or [],
+    }
+    log = Path(log_path) if log_path else DEFAULT_LOG
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+    return line
+
+
+def _caller_of_caller() -> str:
+    frame = inspect.stack()[2]
+    module = inspect.getmodule(frame.frame)
+    return f"{module.__name__ if module else frame.filename}:{frame.function}"
+
+
 def open_split(
     manifest: SplitManifest,
     split: str,

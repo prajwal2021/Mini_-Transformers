@@ -132,8 +132,12 @@ def test_handwritten_canonical_prefixes_match_the_kb(facts) -> None:
 
 def test_wording_is_complete_and_novel_is_not_canonical() -> None:
     assert set(CANONICAL) == set(NOVEL) and len(CANONICAL) == 20
+    def norm(t: str) -> str:  # "{a_e}" / "{A_e}" are the article + entity placeholders (R00)
+        return t.replace("{a_e}", "{e}").replace("{A_e}", "{e}")
+
     for attr, canon in CANONICAL.items():
-        novel = NOVEL[attr]
+        canon = norm(canon)
+        novel = [norm(n) for n in NOVEL[attr]]
         assert len(novel) == 3 and len(set(novel)) == 3
         stem = canon.split("{e}")[0] + "{e}"
         for n in novel:

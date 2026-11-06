@@ -59,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     from slm.integration import tables as T
     from slm.integration.probing import run_model_probes
     from slm.model import ModelConfig
+    from slm.sft.build import verify_datasets
     from slm.sft_eval import (
         check_exemplars_disjoint,
         compare_variants,
@@ -100,8 +101,11 @@ def main(argv: list[str] | None = None) -> int:
         manifest = build_manifest(
             {data / "mock_corpus_train.txt": "train", data / "mock_corpus_val.txt": "val"},
             data / "splits.json")
-    for n in ("sft_train.jsonl", "sft_val.jsonl", "qa_test.jsonl", "fact_split.json"):
-        shutil.copyfile(ROOT / "data" / "sft_mock" / n, sft_data / n)
+    # the same files as the real run: built from the KB's own sft_split (R00), asserted here
+    verify_datasets(ROOT / "data" / "kb" / "kb.json", ROOT / "data" / "sft", ROOT / "data" / "eval")
+    for n in ("sft_train.jsonl", "sft_val.jsonl", "fact_split.json"):
+        shutil.copyfile(ROOT / "data" / "sft" / n, sft_data / n)
+    shutil.copyfile(ROOT / "data" / "eval" / "qa_test.jsonl", sft_data / "qa_test.jsonl")
     sft_manifest = build_manifest(
         {sft_data / "sft_train.jsonl": "train", sft_data / "sft_val.jsonl": "val",
          sft_data / "qa_test.jsonl": "test"}, sft_data / "splits.json")

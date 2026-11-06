@@ -1,0 +1,34 @@
+# Real-run orchestrator (scripts/run_real.py). Everything lands under out_dir; every stage can be re-run.
+# Stage order: tokenizer, token_cache, sweep, sizing, freeze, pretrain, probes, sft, qa_eval, tables,
+# analysis, report. Test data is touched only from `probes` on, i.e. after `freeze`.
+mode: real                          # real | mock (mock: toy corpus, MOCK banner, report never --real)
+out_dir: runs/real
+corpus_manifest: data/corpus/manifest.json   # arrives with the P02c corpus run (main)
+kb: data/kb/kb.json
+plan: data/plan/plan.jsonl
+realized_diversity: data/bank/realized_diversity.csv
+sft_dir: data/sft                   # sft_train.jsonl, sft_val.jsonl, fact_split.json (scripts/build_sft_data.py)
+eval_dir: data/eval                 # qa_test.jsonl
+base_prompts: configs/base_prompts.yaml
+prereg: docs/PREREG.md
+ledger: reports/test_access_log.jsonl   # committed; every test read appends a line
+tokenizer: {vocab_size: 4096, min_frequency: 2}
+model_config: configs/model.yaml    # the 12M model (6 layers, 6 heads, d_model 384)
+model_large:                        # the ~25M model of the DESIGN sizing check (8/8/512)
+  n_layer: 8
+  n_head: 8
+  d_model: 512
+  d_ff: 2048
+train_config: configs/train.yaml
+train_overrides: {}                 # applied on top of train_config (sweep, sizing and final)
+sft_config: configs/sft.yaml
+sft_overrides: {}
+sweep:
+  seed: 0
+  epochs: 20                        # one run evaluates every epoch in checkpoint_epochs
+  grid:
+    lr: [3.0e-4, 6.0e-4, 1.0e-3]
+    dropout: [0.0, 0.1, 0.2]
+final_seeds: [0, 1, 2]
+qa_limit: 0                         # 0 = all questions; N = first N per eval set (mock only)
+banner_label: null                  # mock runs set MOCK

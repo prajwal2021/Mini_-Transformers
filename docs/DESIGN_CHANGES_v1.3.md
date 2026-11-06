@@ -71,3 +71,13 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 35 | One `tests/conftest.py` (markers `slow`, `gpu`, GPU skip); no `sys.path` edits in tests | I-D002 |
 | 36 | Mock pipeline carries a MOCK banner distinct from SIMULATED; `--real` is refused for it | I-D006 |
 | 37 | The probe table's `checkpoint` is the optimiser step (int); `init` = 0 | I-D003 |
+
+## 7. Real-run preparation (R00)
+
+| # | Change | Journal |
+|---|---|---|
+| 38 | Probe wording: two novel prompts reworded (`species_min_age_weeks` n3, `skyport_relief_gate` n3); indefinite articles come from a helper (`a`/`an`), not typed | I-D016, I-D017 |
+| 39 | Final epochs are the best epoch of the winning sweep/sizing run (PREREG D4); HPARAM_PROTOCOL 3.4 said "full 20 epochs"; the two documents disagree | I-D020 |
+| 40 | The 12M-vs-25M sizing check of DESIGN section 5 is a pipeline stage (row 14 is now implemented, not yet run); selection by validation loss only, val-probe accuracy not used | I-D021 |
+| 41 | PREREG freeze is a script with a hash + commit record and a refusal rule (any test probe, QA test file or ledger entry); test probes are logged in the ledger | I-D022, I-D023 |
+| 42 | SFT/QA files are built from the KB's own `sft_split` with 14 assertions and a hash manifest (`data/sft`, `data/eval`) | I-D018 |

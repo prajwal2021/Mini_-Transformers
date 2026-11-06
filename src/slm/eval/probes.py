@@ -26,22 +26,13 @@ from pathlib import Path
 import pandas as pd
 
 from slm.eval.interface import Scorer
-from slm.eval.wording import CANONICAL, NOVEL_IDS, prefix
+from slm.eval.wording import CANONICAL, ENTITY_REF, NOVEL_IDS, prefix  # noqa: F401  (ENTITY_REF re-exported)
 
 SPLITS = ("val", "test")
 PROBE_FRAMES = ("canonical", "novel")
 N_NOVEL_VAL = 1  # val = canonical + 1 novel (2 templates); test = canonical + 2 novel (3)
 CANONICAL_VARIANT = "canon"
 INIT_CHECKPOINT = "init"  # the untrained model (epoch 0); chance level for a real model
-
-# Entity reference by family; used by the SFT question templates.
-ENTITY_REF = {
-    "skyport": "{e}",
-    "airship": "the {e}",
-    "species": "a {e}",
-    "procedure": "the {e} process",
-    "compensation": "the {e} incident",
-}
 
 
 @dataclass(frozen=True)

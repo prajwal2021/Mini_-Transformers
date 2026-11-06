@@ -7,9 +7,9 @@ other test phrasings combine a base seen in training with a wrapper it was never
 
 from __future__ import annotations
 
-from slm.eval.probes import ENTITY_REF
+from slm.eval.wording import entity_ref
 
-# attribute_id -> 4 base forms; {ref} is the entity reference (see ENTITY_REF).
+# attribute_id -> 4 base forms; {ref} is the entity reference (slm.eval.wording.entity_ref).
 BASES: dict[str, tuple[str, str, str, str]] = {
     "skyport_lounge_manager": (
         "Who manages the pet lounge at {ref}?",
@@ -153,7 +153,7 @@ def template_id(attribute_id: str, base: int, wrapper: int) -> str:
 
 
 def render_question(family: str, attribute_id: str, entity: str, base: int, wrapper: int) -> str:
-    text = BASES[attribute_id][base].format(ref=ENTITY_REF[family].format(e=entity))
+    text = BASES[attribute_id][base].format(ref=entity_ref(family, entity))
     prefix, lower = WRAPPERS[wrapper]
     if lower and not text.startswith("I "):
         text = text[0].lower() + text[1:]
