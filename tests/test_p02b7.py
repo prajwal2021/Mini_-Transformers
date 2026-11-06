@@ -206,7 +206,7 @@ def test_marker_repair_cases() -> None:
     assert p == {fid: "model"} and f"{sentence} {PARA[1]}" in text and ".." not in text
     # 3. mid-sentence: moved to the end of the containing sentence
     text, p = repair_markers(f"The desk {marker} welcomes every traveler. {PARA[1]}", {**row, "fact_ids": [fid]}, KB, {fid: sentence})
-    assert p == {fid: "repaired_mid"} and "The desk welcomes every traveler. SENTENCE ONE. " in text
+    assert p == {fid: "repaired_mid_v2"} and "SENTENCE ONE. Welcomes every traveler. " in text
     # 4. duplicate: keep first, drop the rest
     text, p = repair_markers(f"{PARA[0]} {marker} {PARA[1]} {marker} {PARA[2]}", {**row, "fact_ids": [fid]}, KB, {fid: sentence})
     assert p == {fid: "repaired_dup"} and text.count(sentence) == 1 and "<<" not in text
@@ -339,7 +339,7 @@ def test_records_store_versions_ask_words_and_placement_per_marker(mock_bank: Pa
     assert record["ask_words"] > 0 and record["insertion_mode"] == "code"
     assert set(record["placements"]) == set(row["fact_ids"])
     for meta in record["placements"].values():
-        assert meta["placement"] in {"model", "repaired_missing", "repaired_mid", "repaired_dup"}
+        assert meta["placement"] in {"model", "repaired_missing", "repaired_mid_v2", "repaired_dup"}
         assert meta["sentence_id"] and "frame" in meta
     assert all(FACTS[f]["value"] not in record["raw_text"] for f in row["fact_ids"])
     ledger = [json.loads(x) for x in (tmp_path / "ledger.jsonl").read_text().splitlines()]

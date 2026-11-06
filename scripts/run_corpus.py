@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 
 from slm.data import corpus
+from slm.data.artifacts import artifact_rate
 from slm.data.budget import BudgetExceeded, GlobalBudgetGuard, mode_banner
 from slm.data.pilot import (
     MockBackend,
@@ -30,7 +31,10 @@ from slm.data.pilot import (
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = corpus.MODEL
 FIRST_CHUNK, CHUNK = 150, 100
-GATES = {"acc5": 0.95, "attempts": 1.4, "cost": 6.00, "dup": 0.05, "type": 0.90}
+# P02c3 amendments: the per-type check applies to types with >= TYPE_MIN_DOCS documents in the evaluated
+# chunk; the artifact rate (artifacts.py) over mention-bearing documents must be <= 2%.
+GATES = {"acc5": 0.95, "attempts": 1.4, "cost": 6.00, "dup": 0.05, "type": 0.90, "artifact": 0.02}
+TYPE_MIN_DOCS = 20
 FAIL_ROUNDS = (1, 2)
 LEAK_ROUNDS = (3, 4)
 
@@ -42,7 +46,8 @@ def evaluate(metrics: dict, ledger_spend: float) -> dict[str, bool]:
         "mean_attempts": metrics["mean_attempts"] <= GATES["attempts"],
         "projected_cost": metrics["projected_full_run"] <= GATES["cost"],
         "opening_dup": metrics["opening_5gram_dup"] <= GATES["dup"],
-        "every_type": all(a / n >= GATES["type"] for a, n in types.values() if n),
+        "every_type": all(a / n >= GATES["type"] for a, n in types.values() if n >= TYPE_MIN_DOCS),
+        "artifact_rate": metrics.get("artifact_rate", 0.0) <= GATES["artifact"],
         "spend": ledger_spend < GATES["cost"],
     }
 
@@ -86,7 +91,7 @@ class Run:
         out = corpus.round_dir(self.raw, number)
         result = generate_model(
             self.backend, MODEL, self.api_cfg, rows, self.kb, self.pools, self.guard, out, 5, self.max_out,
-            self.args.workers, "v7", "v5", bank_dir=self.bank_dir,
+            self.args.workers, "v8", "v5", bank_dir=self.bank_dir,
         )
         return result["stopped"]
 
@@ -113,8 +118,8 @@ class Run:
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             path.write_text(f"Client: {self.args.client}\n\n# Corpus progress\n\n| docs done | accepted within 5 | mean attempts | "
-                            "projected full run | opening 5-gram dup | lowest type | ledger spend | gates |\n"
-                            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n", encoding="utf-8")
+                            "projected full run | opening 5-gram dup | lowest type (n>=20) | artifact rate | ledger spend | gates |\n"
+                            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n", encoding="utf-8")
         with path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
 
@@ -130,14 +135,16 @@ class Run:
             from slm.data.pilot import _load_attempts
 
             metrics = analyze_model(MODEL, done, self.attempts(0), self.kb, 5, _load_attempts(events_path))
+            chunk_docs, _missing = corpus.final_docs(done, {0: self.attempts(0)})
+            metrics["artifact_rate"], bad, bearing = artifact_rate(chunk_docs)
             spend = self.ledger_spend()
             ok = evaluate(metrics, spend)
-            lowest = min((a / n for a, n in metrics["accept_by_type"].values() if n), default=1.0)
+            lowest = min((a / n for a, n in metrics["accept_by_type"].values() if n >= TYPE_MIN_DOCS), default=1.0)
             failing = [k for k, v in ok.items() if not v]
             self.progress(
                 f"| {len(done)} | {metrics['accepted_within_5']:.1%} | {metrics['mean_attempts']:.2f} | "
                 f"${metrics['projected_full_run']:.2f} | {metrics['opening_5gram_dup']:.1%} | {lowest:.0%} | "
-                f"${spend:.2f} | {'PASS' if not failing else 'FAIL: ' + ', '.join(failing)}"
+                f"{metrics['artifact_rate']:.1%} ({bad}/{bearing}) | ${spend:.2f} | {'PASS' if not failing else 'FAIL: ' + ', '.join(failing)}"
                 f"{' (Gate A)' if index == 0 else ''} |")
             print(self.progress_text(len(done), metrics, spend, failing, index == 0))
             if index == 0:
@@ -154,7 +161,7 @@ class Run:
     def progress_text(n: int, m: dict, spend: float, failing: list[str], gate_a: bool) -> str:
         return (f"{'Gate A' if gate_a else 'rolling'} at {n} docs: accepted within 5 {m['accepted_within_5']:.1%}, "
                 f"attempts {m['mean_attempts']:.2f}, projected ${m['projected_full_run']:.2f}, opening dup "
-                f"{m['opening_5gram_dup']:.1%}, spend ${spend:.2f} -> {'PASS' if not failing else 'FAIL ' + str(failing)}")
+                f"{m['opening_5gram_dup']:.1%}, artifact rate {m.get('artifact_rate', 0.0):.1%}, spend ${spend:.2f} -> {'PASS' if not failing else 'FAIL ' + str(failing)}")
 
     def write_first150(self, done: list[dict]) -> None:
         path = self.reports / "corpus_samples_first150.md"

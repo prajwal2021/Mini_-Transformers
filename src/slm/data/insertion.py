@@ -106,6 +106,51 @@ def _drop(text: str, start: int, end: int) -> str:
         start -= 1
     return text[:start] + text[end:]
 
+CHAT_LABEL_PREFIX = re.compile(r"[A-Z][A-Za-z ]{0,30}: ")
+SENTENCE_BREAK = re.compile(r"[.!?][\"')]*\s+")
+SENTENCE_STOP = re.compile(r"[.!?][\"')]*(?=\s|$)")
+LEAD_STRIP = re.compile(r"^[\s,;:.]*(?:(?:and|but|so(?! that))\b[\s,;:]*)?", re.IGNORECASE)
+TRAIL_STRIP = re.compile(r"(?:[\s,;:]+|\b(?:and|but)\b)+$", re.IGNORECASE)
+MIN_LEAD_WORDS = 7
+# a lead-in P that starts like this is a dependent clause or lead-in phrase and cannot stand alone
+DEPENDENT_LEAD = re.compile(
+    r"^(?:if|when|while|before|after|once|since|because|although|though|unless|until|as|whereas|"
+    r"so that|that|which|who|whose|for)\b",
+    re.IGNORECASE,
+)
+# a continuation Q that starts like this is a dependent clause that no longer has a head: dropped
+DEPENDENT_REST = re.compile(
+    r"^(?:so that|that|which|who|whose|because|although|though|unless|until|whereas)\b", re.IGNORECASE
+)
+
+
+def _repair_mid_v2(text: str, start: int, end: int, sentence: str) -> str:
+    """Marker repair v2 (P02c3): cut the containing sentence at the marker into P (before) and Q (after).
+
+    P loses a trailing comma/and/but/colon and stays as its own sentence when it has at least seven
+    words, otherwise it is a lead-in fragment and is dropped; the fact sentence follows; Q continues
+    with a capital letter and without a leading and/but/so.
+    """
+    line_start = text.rfind("\n", 0, start) + 1
+    label = CHAT_LABEL_PREFIX.match(text, line_start)
+    low = line_start + (len(label.group(0)) if label and label.end() <= start else 0)
+    breaks = list(SENTENCE_BREAK.finditer(text[low:start]))
+    sentence_start = low + (breaks[-1].end() if breaks else 0)
+    newline = text.find("\n", end)
+    line_end = len(text) if newline == -1 else newline
+    stop = SENTENCE_STOP.search(text, end, line_end)
+    sentence_end = stop.end() if stop else line_end
+    lead = TRAIL_STRIP.sub("", text[sentence_start:start].strip()).strip()
+    rest = LEAD_STRIP.sub("", text[end:sentence_end].strip()).strip()
+    parts = []
+    if len(lead.split()) >= MIN_LEAD_WORDS and not DEPENDENT_LEAD.match(lead):
+        parts.append(lead if lead[-1] in ".!?" else lead + ".")
+    parts.append(sentence)
+    if rest and not DEPENDENT_REST.match(rest):
+        rest = rest[0].upper() + rest[1:]
+        parts.append(rest if rest[-1] in ".!?\"')" else rest + ".")
+    return text[:sentence_start] + " ".join(parts) + text[sentence_end:]
+
 
 def repair_markers(
     raw: str, row: dict[str, Any], kb: dict[str, Any], sentences: dict[str, str]
@@ -113,7 +158,7 @@ def repair_markers(
     """Insert every fact sentence; repair marker placement instead of rejecting it.
 
     Returns (text, {fact_id: placement}) with placement in {"model", "repaired_missing",
-    "repaired_mid", "repaired_dup"}.
+    "repaired_mid_v2", "repaired_dup"}.
     """
     import random
 
@@ -144,18 +189,8 @@ def repair_markers(
             text = text[:start] + sentences[fact_id] + text[stop:]
             placements.setdefault(fact_id, "model")
         else:
-            text = _drop(text, start, end)
-            match = re.compile(r"[.!?](?=\s|$)").search(text, start)
-            if match:
-                at = match.end()
-            else:
-                newline = text.find("\n", start)
-                at = len(text) if newline == -1 else newline
-                if at > 0 and text[at - 1] not in ".!?":
-                    text = text[:at] + "." + text[at:]
-                    at += 1
-            text = text[:at] + " " + sentences[fact_id] + text[at:]
-            placements[fact_id] = "repaired_mid" if placements.get(fact_id) != "repaired_dup" else "repaired_dup"
+            text = _repair_mid_v2(text, start, end, sentences[fact_id])
+            placements[fact_id] = "repaired_mid_v2" if placements.get(fact_id) != "repaired_dup" else "repaired_dup"
     chat = row.get("doc_type") == "internal chat thread"
     for fact_id in expected:
         if fact_id in kept:

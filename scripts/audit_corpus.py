@@ -12,6 +12,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from slm.data import corpus, openers_v2
+from slm.data.artifacts import artifact_by_type, artifact_rate
 from slm.data.versions import validator_for
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,6 +78,34 @@ def main(argv: list[str] | None = None) -> int:
         for d in docs)
     lines.append(f"Documents whose first five words equal the assigned opener of round 0, 1 or 2: {followed} of {len(docs)} "
                  f"({followed / max(1, len(docs)):.1%}; informational, not a gate).")
+
+    # (i) artifact rate and marker placements (P02c3)
+    by_type_art = artifact_by_type(docs)
+    rate, bad_docs, bearing_docs = artifact_rate(docs)
+    lines += ["", "## (i) Artifact rate and marker placements on the final corpus", "",
+              f"Artifact rate (detector in slm/data/artifacts.py) {rate:.2%} = {bad_docs} of {bearing_docs} mention-bearing "
+              "documents (gate limit 2%).", "", "| doc type | mention-bearing docs | with artifact | rate |", "| --- | ---: | ---: | ---: |"]
+    for t, (nbad, n) in by_type_art.items():
+        lines.append(f"| {t} | {n} | {nbad} | {nbad / n:.1%} |")
+    records_file = args.corpus_dir / "raw" / "records.jsonl"
+    type_of = {d["doc_id"]: d["doc_type"] for d in docs}
+    place = Counter()
+    if records_file.exists():
+        for line in records_file.read_text(encoding="utf-8").splitlines():
+            rec = json.loads(line)
+            if rec["doc_id"] not in type_of:
+                continue
+            final = [a for a in rec["attempts"] if a["ok"]]
+            for fact_place in (final[-1]["placements"].values() if final else []):
+                place[(type_of[rec["doc_id"]], fact_place["placement"])] += 1
+        lines += ["", "Placement counts per mention in the accepted attempt:", "",
+                  "| doc type | model | repaired_missing | repaired_mid_v2 | repaired_dup |", "| --- | ---: | ---: | ---: | ---: |"]
+        for t in types:
+            lines.append(f"| {t} | " + " | ".join(str(place[(t, p)]) for p in ("model", "repaired_missing", "repaired_mid_v2", "repaired_dup")) + " |")
+        total = Counter()
+        for (_t, p), n in place.items():
+            total[p] += n
+        lines.append(f"\nAll types: {dict(total)}.")
 
     # (a) exposure
     planned_t, planned_p = Counter(), Counter()

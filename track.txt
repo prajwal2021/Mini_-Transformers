@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02c2 (corpus run 2 stopped at Gate A: every_type, newsletter blurb 9/11; opening duplicates 0.0%)
+CURRENT PHASE: P02c3 (repair v2, prompt v8, amended gates; corpus run 2 resumed)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -78,4 +78,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human decides how to treat the per-type gate at n=11 (newsletter blurb 82%); then resume scripts/run_corpus.py (resumable)
+NEXT STEP: run scripts/run_corpus.py (resumes from the reprocessed attempts), then audit, manifest, data card
