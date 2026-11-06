@@ -202,6 +202,12 @@ def write_split_files(out_dir: Path, docs: list[dict[str, Any]]) -> dict[str, Pa
 def write_manifest(out_dir: Path) -> dict[str, Any]:
     manifest = {"version": 1, "files": {
         f"{s}.jsonl": {"split": s, "sha256": sha256_file(out_dir / f"{s}.jsonl")} for s in ("train", "val", "test")}}
+    flags_path = out_dir / "flags.json"
+    if flags_path.exists():  # P02c6: disclosed leak_flag / meta_flag documents
+        flags = json.loads(flags_path.read_text(encoding="utf-8"))
+        manifest["leak_flag"] = flags["leak_flag"]
+        manifest["meta_flag"] = flags["meta_flag"]
+        manifest["flags_sha256"] = sha256_file(flags_path)
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
 

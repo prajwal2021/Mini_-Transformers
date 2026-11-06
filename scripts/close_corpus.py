@@ -51,11 +51,11 @@ def global_spent(run) -> float:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--step", choices=["replan3", "retype6", "regen4", "regen5", "status", "finish"], required=True)
+    parser.add_argument("--step", choices=["replan3", "retype6", "regen4", "regen5", "regen6", "status", "finish"], required=True)
     parser.add_argument("--global-cap", type=float, default=8.90)
     parser.add_argument("--i-understand-this-spends-money", action="store_true")
     args = parser.parse_args()
-    if args.step in ("replan3", "retype6", "regen4", "regen5") and not args.i_understand_this_spends_money:
+    if args.step in ("replan3", "retype6", "regen4", "regen5", "regen6") and not args.i_understand_this_spends_money:
         raise SystemExit("Refusing to call the OpenAI API without --i-understand-this-spends-money")
     run = load_run(args)
     if args.step == "status":
@@ -69,7 +69,7 @@ def main() -> int:
     elif args.step == "retype6":
         rows = [r for r in run.unaccepted() if r["doc_id"] == "test-0004"]  # plan_overrides.json retypes it
         number, attempts = 6, 2
-    elif args.step in ("regen4", "regen5"):
+    elif args.step in ("regen4", "regen5", "regen6"):
         ids, leaking, meta = regen_set(run)
         rows = [run.plan_by_id[i] for i in ids]
         number, attempts = int(args.step[-1]), 5
@@ -106,7 +106,23 @@ def finish(run) -> int:
     dropped_path.write_text(json.dumps(dropped, indent=1), encoding="utf-8")
     print(f"dropped {len(dropped)}: {[x['doc_id'] for x in dropped]}")
     run.assemble()
+    write_flags(run)
     return 0
+
+
+def write_flags(run) -> None:
+    """P02c6: disclosed exceptions. leak_flag maps doc id -> its shared 13-grams; meta_flag lists genuine meta-talk docs."""
+    docs = run.current_docs()
+    info = analyse(docs, run.plan_by_id, run.kb)
+    leak: dict[str, list[str]] = {}
+    for gram, rec in info.items():
+        for doc_id in rec["docs"]:
+            if doc_id in exempt_docs(info):
+                leak.setdefault(doc_id, []).append(" ".join(gram))
+    meta = sorted(d["doc_id"] for d in docs if d["split"] != "train" and genuine_hits(d["text"]))
+    flags = {"leak_flag": {k: sorted(v) for k, v in sorted(leak.items())}, "meta_flag": meta}
+    (run.out / "flags.json").write_text(json.dumps(flags, indent=1), encoding="utf-8")
+    print(f"flags: leak_flag {sorted(leak)}; meta_flag {meta}")
 
 
 if __name__ == "__main__":

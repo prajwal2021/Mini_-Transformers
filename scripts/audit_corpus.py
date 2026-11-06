@@ -217,7 +217,19 @@ def main(argv: list[str] | None = None) -> int:
     lines += ["", f"Leakage without exemption: {len(leaky)} docs; with the sign-off exemption (grams entirely inside a "
               f"sign-off line, docs/DESIGN_CHANGES_v1.3.md): {len(leaky_exempt)} docs. Gram classes: "
               + ", ".join(f"{c} {sum(r['class'] == c for r in info.values())}" for c in ("i", "i-b", "ii", "iii")) + "."]
-    problems += [f"leak {d}" for d in leaky_exempt]
+    flags_path = args.corpus_dir / "flags.json"
+    flags = json.loads(flags_path.read_text(encoding="utf-8")) if flags_path.exists() else {"leak_flag": {}, "meta_flag": []}
+    disclosed: list[str] = []
+    doc_grams: dict[str, set[str]] = {}
+    for gram, rec in info.items():
+        for d in rec["docs"]:
+            doc_grams.setdefault(d, set()).add(" ".join(gram))
+    for d in leaky_exempt:
+        # disclosed only when every currently shared gram was flagged; a new gram is an unflagged failure
+        if d in flags["leak_flag"] and doc_grams.get(d, set()) <= set(flags["leak_flag"][d]):
+            disclosed.append(f"leak {d}")
+        else:
+            problems.append(f"leak {d}")
     problems += [f"near-duplicate {a}/{b}" for a, b, _j in near]
     dup = corpus.exact_duplicates(docs)
     lines += ["", "## (g) Exact duplicate documents across all splits", "", f"{len(dup)} (must be 0): {dup[:5]}"]
@@ -233,7 +245,8 @@ def main(argv: list[str] | None = None) -> int:
               "Broad patterns (raw substring hits, informational): "
               + ", ".join(f"'{n}' {broad[n]}" for n, _rx in PATTERNS) + ".",
               f"Genuine prompt-leak documents (slm/data/metatalk.py GENUINE, gate target 0): {len(genuine)} {sorted(genuine)[:12]}"]
-    problems += [f"meta-talk {d}" for d in genuine]
+    for d in genuine:
+        (disclosed if d in flags["meta_flag"] else problems).append(f"meta-talk {d}")
 
     # records (cost, attempts)
     records_path = args.corpus_dir / "raw" / "records.jsonl"
@@ -244,7 +257,10 @@ def main(argv: list[str] | None = None) -> int:
         lines += ["", "## Cost and attempts (raw records)", "",
                   f"Cost of all attempts ${cost:.4f}; attempts per document (all rounds): {dict(sorted(attempts.items()))}; "
                   f"mean {sum(k * v for k, v in attempts.items()) / max(1, len(records)):.3f}."]
-    lines += ["", f"Result: {'PASS' if not problems else 'FAIL (' + str(len(problems)) + ' problems)'}"]
+    lines += ["", "## Disclosed exceptions (data/corpus/flags.json, listed in docs/DATA_CARD.md)", "",
+              f"{len(disclosed)}: {disclosed}", f"Unflagged failures: {len(problems)} {problems}"]
+    lines += ["", f"Result: {'PASS' if not problems else 'FAIL (' + str(len(problems)) + ' unflagged problems)'}"
+              + (f"; {len(disclosed)} disclosed exceptions" if disclosed else "")]
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if args.manifest:

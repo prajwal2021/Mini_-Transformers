@@ -5,9 +5,9 @@
 | split | docs planned | docs in corpus | words | est. tokens | mean words/doc |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | train | 2167 | 2165 | 561395 | 757883 | 259.3 |
-| val | 120 | 120 | 30731 | 41487 | 256.1 |
-| test | 120 | 120 | 30724 | 41477 | 256.0 |
-| all | 2407 | 2405 | 622850 | 840848 | 259.0 |
+| val | 120 | 120 | 30623 | 41341 | 255.2 |
+| test | 120 | 120 | 30785 | 41560 | 256.5 |
+| all | 2407 | 2405 | 622803 | 840784 | 259.0 |
 
 | doc type | train | val | test |
 | --- | ---: | ---: | ---: |
@@ -46,7 +46,7 @@ Overall 0.75% over 2405 documents (limit 5%).
 | split: val | 120 | 0.00% |
 | split: test | 120 | 0.00% |
 
-Ten most common openings (first five words): 'desk cover on a spirited' x2; 'basic rules for paperwork queues' x2; 'last week late winter greetings' x2; 'rewarding start rules for the' x2; 'clear signage explained for anyone' x2; 'this afternoon clear rules for' x2; 'shift quiet corners rules new' x2; 'spare blankets explained for anyone' x2; 'practice for the spirited night' x2; 'a quick look at traveler' x2
+Ten most common openings (first five words): 'morning rules for the evening' x2; 'desk cover on a spirited' x2; 'basic rules for paperwork queues' x2; 'last week late winter greetings' x2; 'rewarding start rules for the' x2; 'clear signage explained for anyone' x2; 'this afternoon clear rules for' x2; 'shift quiet corners rules new' x2; 'spare blankets explained for anyone' x2; 'practice for the spirited night' x2
 Documents whose first five words equal the assigned opener of round 0, 1 or 2: 2294 of 2405 (95.4%; informational, not a gate).
 
 ## (i) Artifact rate and marker placements on the final corpus
@@ -74,16 +74,16 @@ Placement counts per mention in the accepted attempt:
 | complaint letter + reply | 69 | 3 | 6 | 0 |
 | customer notice | 258 | 6 | 72 | 0 |
 | employee email | 385 | 11 | 112 | 0 |
-| help-center article | 288 | 2 | 77 | 0 |
+| help-center article | 289 | 2 | 76 | 0 |
 | incident report | 67 | 1 | 6 | 0 |
 | internal chat thread | 293 | 0 | 47 | 0 |
 | meeting minutes | 175 | 7 | 36 | 0 |
 | monthly ops report | 131 | 1 | 8 | 0 |
 | newsletter blurb | 217 | 5 | 26 | 0 |
-| policy manual section | 322 | 4 | 86 | 0 |
-| training handbook page | 322 | 3 | 30 | 0 |
+| policy manual section | 321 | 3 | 88 | 0 |
+| training handbook page | 323 | 3 | 29 | 0 |
 
-All types: {'model': 2527, 'repaired_mid_v2': 506, 'repaired_missing': 43}.
+All types: {'model': 2528, 'repaired_mid_v2': 506, 'repaired_missing': 42}.
 
 ## (j) Provenance: prompt version of the accepted attempt
 
@@ -103,7 +103,7 @@ Documents by prompt version: v7 138, v8 193, v9 2074.
 | policy manual section | 17 | 28 | 237 |
 | training handbook page | 13 | 14 | 224 |
 
-Documents accepted only after a re-plan or regeneration round (type, round): complaint letter + reply r4 x6, customer notice r3 x1, customer notice r4 x7, customer notice r5 x1, employee email r1 x2, employee email r4 x13, employee email r5 x1, employee email r6 x1, help-center article r1 x1, help-center article r4 x10, help-center article r5 x7, incident report r1 x1, incident report r4 x1, internal chat thread r1 x2, meeting minutes r4 x2, monthly ops report r4 x5, monthly ops report r5 x1, newsletter blurb r1 x7, newsletter blurb r4 x4, policy manual section r1 x2, policy manual section r4 x9, policy manual section r5 x13, training handbook page r1 x3, training handbook page r4 x12, training handbook page r5 x9.
+Documents accepted only after a re-plan or regeneration round (type, round): complaint letter + reply r4 x6, customer notice r3 x1, customer notice r4 x7, customer notice r5 x1, employee email r1 x2, employee email r4 x13, employee email r5 x1, employee email r6 x1, help-center article r1 x1, help-center article r4 x10, help-center article r5 x4, help-center article r6 x3, incident report r1 x1, incident report r4 x1, internal chat thread r1 x2, meeting minutes r4 x2, monthly ops report r4 x5, monthly ops report r5 x1, newsletter blurb r1 x7, newsletter blurb r4 x4, policy manual section r1 x2, policy manual section r4 x9, policy manual section r5 x5, policy manual section r6 x8, training handbook page r1 x3, training handbook page r4 x12, training handbook page r5 x4, training handbook page r6 x5.
 
 ## (a) Train exposure: planned vs measured mentions per fact (data/corpus/exposure.csv)
 
@@ -132,10 +132,10 @@ Facts with exactly 2 val and 2 test paraphrased mentions: 120 of 120.
 
 ## (f) 13-gram leakage (after validator normalisation)
 
-Val/test documents sharing at least one 13-gram with train: 15 (total shared 48); must be 0. {'val-0031': 1, 'val-0047': 2, 'val-0070': 8, 'val-0085': 3, 'val-0090': 3, 'val-0112': 9, 'test-0021': 1, 'test-0029': 1, 'test-0041': 1, 'test-0043': 1, 'test-0053': 3, 'test-0079': 4, 'test-0082': 4, 'test-0095': 5, 'test-0119': 2}
+Val/test documents sharing at least one 13-gram with train: 12 (total shared 39); must be 0. {'val-0031': 4, 'val-0047': 3, 'val-0070': 5, 'val-0085': 2, 'val-0112': 1, 'test-0021': 8, 'test-0041': 2, 'test-0043': 1, 'test-0053': 7, 'test-0079': 1, 'test-0082': 2, 'test-0095': 3}
 Train near-duplicate pairs (13-gram Jaccard > 0.5): 0. []
 
-Leakage without exemption: 15 docs; with the sign-off exemption (grams entirely inside a sign-off line, docs/DESIGN_CHANGES_v1.3.md): 15 docs. Gram classes: i 0, i-b 0, ii 18, iii 29.
+Leakage without exemption: 12 docs; with the sign-off exemption (grams entirely inside a sign-off line, docs/DESIGN_CHANGES_v1.3.md): 12 docs. Gram classes: i 0, i-b 0, ii 2, iii 33.
 
 ## (g) Exact duplicate documents across all splits
 
@@ -143,11 +143,16 @@ Leakage without exemption: 15 docs; with the sign-off exemption (grams entirely 
 
 ## (k) Meta-talk scan (prompt leaks)
 
-Broad patterns (raw substring hits, informational): 'inserted sentence' 0, 'fact sentence' 0, 'marker' 9, '<<' 0, 'FACT' 294, 'the prompt' 4, 'instruction' 619, 'as requested' 3, 'as asked' 27, 'your own commentary' 0, 'keep your' 536, 'use the inserted' 0, 'word count' 0, 'sentences long' 0, 'the brief' 19, 'as an AI' 0, 'the model' 0, 'placeholder' 0.
-Genuine prompt-leak documents (slm/data/metatalk.py GENUINE, gate target 0): 1 ['test-0074']
+Broad patterns (raw substring hits, informational): 'inserted sentence' 0, 'fact sentence' 0, 'marker' 9, '<<' 0, 'FACT' 296, 'the prompt' 4, 'instruction' 619, 'as requested' 3, 'as asked' 27, 'your own commentary' 0, 'keep your' 542, 'use the inserted' 0, 'word count' 0, 'sentences long' 0, 'the brief' 19, 'as an AI' 0, 'the model' 0, 'placeholder' 0.
+Genuine prompt-leak documents (slm/data/metatalk.py GENUINE, gate target 0): 1 ['val-0047']
 
 ## Cost and attempts (raw records)
 
-Cost of all attempts $5.0933; attempts per document (all rounds): {1: 2180, 2: 167, 3: 47, 4: 8, 5: 2, 8: 2, 10: 1}; mean 1.131.
+Cost of all attempts $5.1310; attempts per document (all rounds): {1: 2180, 2: 167, 3: 32, 4: 21, 5: 4, 8: 2, 10: 1}; mean 1.138.
 
-Result: FAIL (16 problems)
+## Disclosed exceptions (data/corpus/flags.json, listed in docs/DATA_CARD.md)
+
+13: ['leak test-0021', 'leak test-0041', 'leak test-0043', 'leak test-0053', 'leak test-0079', 'leak test-0082', 'leak test-0095', 'leak val-0031', 'leak val-0047', 'leak val-0070', 'leak val-0085', 'leak val-0112', 'meta-talk val-0047']
+Unflagged failures: 0 []
+
+Result: PASS; 13 disclosed exceptions

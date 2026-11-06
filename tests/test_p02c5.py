@@ -29,3 +29,16 @@ def test_plan_override_changes_only_the_doc_type(tmp_path: Path) -> None:
     out = corpus.apply_plan_overrides(plan, tmp_path)
     assert out[0] == {"doc_id": "a", "doc_type": "employee email", "split": "test"} and out[1] == plan[1]
     assert corpus.apply_plan_overrides(plan, tmp_path / "none") == plan
+
+
+def test_flags_split_disclosed_from_unflagged(tmp_path):
+    from slm.data import corpus
+
+    (tmp_path / "train.jsonl").write_text("", encoding="utf-8")
+    (tmp_path / "val.jsonl").write_text("", encoding="utf-8")
+    (tmp_path / "test.jsonl").write_text("", encoding="utf-8")
+    (tmp_path / "flags.json").write_text('{"leak_flag": {"val-0001": ["a b"]}, "meta_flag": ["val-0002"]}', encoding="utf-8")
+    manifest = corpus.write_manifest(tmp_path)
+    assert manifest["leak_flag"] == {"val-0001": ["a b"]}
+    assert manifest["meta_flag"] == ["val-0002"]
+    assert set(manifest["files"]) == {"train.jsonl", "val.jsonl", "test.jsonl"}
