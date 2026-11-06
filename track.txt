@@ -95,3 +95,4 @@ R03 OPEN: real sweep not run (needs the full corpus); val/test canonical probes 
 R04 OPEN: real sweep not run (needs the full corpus); read the sweep_decision.md WARNING (no_val_storage) before accepting E*; ETA assumes equal run cost.
 
 NEXT STEP: Human decides on the 15 leaking val/test docs and test-0074
+[x] R05 merge main cd17f63, real tokenizer/token cache, real sweep+sizing (E*=30, small); STOPPED before freeze: STOP (c) val loss +34.8% at E*

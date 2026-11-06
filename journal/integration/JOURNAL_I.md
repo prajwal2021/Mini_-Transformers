@@ -38,3 +38,6 @@
 - **Mock dry run (13 stages, all ok):** the guard fired (best smoothed 0.098 vs init 0.100, threshold 0.145), E* = 12 = the val-loss optimum, 7 near-ties because every SE is ~0.02 at chance. R03 had picked E*=1 on noise.
 - **Path test:** real-mode report refused without a freeze, built (banner off) after a valid freeze on a clean scratch repo, refused after PREREG was edited. Mock content, not results.
 - **Concerns written down:** the ETA assumes equal cost per run; the large-model factor is the parameter ratio; the smoothed SE averages correlated checkpoints (conservative); the guard compares to the init rate of the same config only; the sweep still has one seed; real sweep not run (corpus manifest absent).
+
+## R05 (2026-11-06)
+Merged main cd17f63 (conflicts: AI_USE, track, DESIGN_CHANGES kept both sides). manifest sha256 failed on CRLF checkout; fixed with `data/corpus/** -text`. Tokenizer V=4096, train 687,060 tokens. Sweep + size check done; STOP (c) hit; not frozen. See reports/integration/REPORT_BACK_R05.md.

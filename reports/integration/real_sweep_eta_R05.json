@@ -1,0 +1,9 @@
+{
+ "first_run_seconds": 350.5,
+ "projected_hours": 0.9,
+ "limit_hours": 3,
+ "formula": "first_run_seconds * (n_stage1 + n_stage2 + large_factor) / 3600",
+ "n_stage1": 6,
+ "n_stage2": 1,
+ "large_factor": 2.2210951674088735
+}
