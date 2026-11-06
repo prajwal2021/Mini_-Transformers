@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Training hyper-parameters and the LR schedule."""
 
 from __future__ import annotations
@@ -29,6 +30,11 @@ class TrainConfig:
     val_batch_size: int = 64
     checkpoint_epochs: tuple[int, ...] = field(default=(1, 2, 3, 5, 8, 12, 16, 20))
     deterministic: bool = False
+    # R03: schedule scaled to the step count (None = use warmup_steps / val_every / log_every as given)
+    warmup_frac: float | None = None  # warmup = this share of the total optimiser steps ...
+    min_warmup_steps: int = 10  # ... but at least this many
+    val_evals_per_run: int | None = None  # validation loss this many times per run
+    log_points_per_run: int | None = None  # train-loss rows this many times per run
 
     @classmethod
     def from_dict(cls, data: dict) -> TrainConfig:
@@ -48,6 +54,26 @@ class TrainConfig:
 
     def with_(self, **kw) -> TrainConfig:
         return replace(self, **kw)
+
+    def steps_per_epoch(self, n_sequences: int) -> int:
+        return math.ceil(n_sequences / self.batch_size)
+
+    def resolve(self, total_steps: int) -> TrainConfig:
+        """Warmup, validation and logging intervals fixed from the real step count (R03).
+
+        ``warmup = max(min_warmup_steps, round(warmup_frac * total_steps))`` (never more than half
+        the run), ``val_every = total_steps // val_evals_per_run``, ``log_every = total_steps //
+        log_points_per_run`` (each at least 1). Fields whose per-run setting is None are kept.
+        """
+        kw: dict = {}
+        if self.warmup_frac is not None:
+            kw["warmup_steps"] = min(max(self.min_warmup_steps, round(self.warmup_frac * total_steps)),
+                                     max(1, total_steps // 2))
+        if self.val_evals_per_run:
+            kw["val_every"] = max(1, total_steps // self.val_evals_per_run)
+        if self.log_points_per_run:
+            kw["log_every"] = max(1, total_steps // self.log_points_per_run)
+        return replace(self, **kw) if kw else self
 
     def save_epochs(self) -> list[int]:
         """Epochs at which a checkpoint is written (schedule entries <= epochs, plus the last)."""

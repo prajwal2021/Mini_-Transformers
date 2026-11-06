@@ -84,7 +84,7 @@ def test_orchestrator_stage_list_and_configs():
     import yaml
     real = yaml.safe_load((ROOT / "configs" / "real.yaml").read_text())
     assert real["mode"] == "real" and real["final_seeds"] == [0, 1, 2]
-    assert real["sweep"]["grid"] == {"lr": [3e-4, 6e-4, 1e-3], "dropout": [0.0, 0.1, 0.2]}
+    assert real["sweep"]["grid"] == {"lr": [3e-4, 6e-4, 1e-3], "dropout": [0.0, 0.1], "batch_size": [16, 32]} and real["sweep"]["epochs"] == 60  # R03
     mock = yaml.safe_load((ROOT / "configs" / "real_mock.yaml").read_text())
     assert mock["mode"] == "mock" and "real_mock" in mock["ledger"] and mock["banner_label"] == "MOCK"
 

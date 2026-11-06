@@ -13,8 +13,12 @@ train:
   dropout: 0.1                # overrides model.yaml dropout (sweep dimension)
   label_eos: true             # train the model to emit <|eos|> (see M-D030)
   bf16: true                  # autocast on CUDA; evaluation always runs in fp32
-  log_every: 10               # train-loss row every N optimiser steps
-  val_every: 100              # val-loss row every M optimiser steps (and at every epoch end)
+  log_every: 10               # train-loss row every N optimiser steps (used when log_points_per_run is null)
+  val_every: 100              # val-loss row every M optimiser steps (used when val_evals_per_run is null)
+  warmup_frac: 0.05           # R03: warmup = 5% of the total optimiser steps (min_warmup_steps floor, never above half the run)
+  min_warmup_steps: 10
+  val_evals_per_run: 40       # R03: validation loss 40 times per run (and at every epoch end)
+  log_points_per_run: 200     # R03: 200 train-loss rows per run
   val_batch_size: 64
   checkpoint_epochs: [1, 2, 3, 5, 8, 12, 16, 20]   # log-spaced; the last epoch is always saved
   deterministic: false        # true: torch.use_deterministic_algorithms (slower, see docs)

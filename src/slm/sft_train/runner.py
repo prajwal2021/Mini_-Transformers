@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Glue: SFT manifest + tokenizer -> datasets -> one SFT run per seed (seed k starts from the final
 checkpoint of pretraining seed k)."""
 
@@ -48,6 +49,7 @@ def run_sft_seeds(
     runs_root: str | Path = "runs",
     seeds: tuple[int, ...] | None = None,
     device: str | None = None,
+    pretrain_epoch: int | None = None,
 ) -> dict:
     """SFT every seed into ``<runs_root>/<name>/seed<k>/`` from ``<pretrain_root>/seed<k>``."""
     t0 = time.perf_counter()
@@ -57,7 +59,8 @@ def run_sft_seeds(
     out = {"prepare_seconds": time.perf_counter() - t0, "seeds": {}}
     for seed in seeds if seeds is not None else cfg.seeds:
         t1 = time.perf_counter()
-        ckpt = final_pretrain_checkpoint(Path(pretrain_root) / f"seed{seed}")
+        ckpt = (Path(pretrain_root) / f"seed{seed}" / "checkpoints" / f"epoch_{pretrain_epoch:03d}.pt"
+                if pretrain_epoch is not None else final_pretrain_checkpoint(Path(pretrain_root) / f"seed{seed}"))
         summary = sft_run(ckpt, cfg, train_ds, val_ds, Path(runs_root) / name / f"seed{seed}",
                           seed, meta={**meta, "pretrain_epoch_file": ckpt.name}, device=device)
         summary["wall_seconds"] = time.perf_counter() - t1

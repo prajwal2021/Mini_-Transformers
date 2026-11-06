@@ -89,3 +89,5 @@ R01 OPEN: spec files (Term_Project.pdf, SPEC_COMPLIANCE.md) held by the architec
 NEXT STEP: Human decides how to treat the per-type gate at n=11 (newsletter blurb 82%); then resume scripts/run_corpus.py (resumable)
 [x] R02 merged main (0cfabdc) into integration; dry run of tokenizer/token cache/tiny sweep on the partial corpus (runs/partial_dryrun, no test read), probe-overlap check on partial train, samples - commit "R02: merge main, partial-corpus dry run" (not merged into main)
 R02 OPEN: real manifest (P02c3) pending; re-run check_probe_overlap and the stats on the full corpus; tokenizer reached 3715 of 4096 ids on 45k tokens.
+[x] R03 E* budget rule by validation probes (12-config sweep to 60 epochs, sizing by the same rule, final runs to 2E*, primary at E*, secondary 2E*), step-scaled warmup/logging, PREREG v4 (unfrozen), freeze records config hash + E* - commit "R03: E* rule, warmup scaling, PREREG v4" (not merged into main)
+R03 OPEN: real sweep not run (needs the full corpus); val/test canonical probes share a prompt; E* is a proxy (60-epoch vs 2E* cosine); read sweep_decision.md WARNING before accepting E*.

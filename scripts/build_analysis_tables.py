@@ -38,12 +38,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fact-split", default=None,
                     help="JSON fact_id -> sft_train|sft_val|heldout (default: the KB's sft_split)")
     ap.add_argument("--tokenizer", default=None, help="tokenizer.json for value_len in tokens")
+    ap.add_argument("--max-step", type=int, default=None,
+                    help="keep probe rows up to this optimiser step (and init): makes it every seed's final checkpoint")
     args = ap.parse_args(argv)
 
     kb = T.load_kb(args.kb)
     probe = (pd.read_parquet(args.probe) if args.probe.endswith(".parquet")
              else pd.read_csv(args.probe))
     qa = pd.read_csv(args.qa)
+    if args.max_step is not None:
+        ck = probe["checkpoint"].astype(str)
+        probe = probe[(ck == "init") | (pd.to_numeric(ck, errors="coerce") <= args.max_step)]
 
     tok = None
     if args.tokenizer:

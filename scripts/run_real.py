@@ -148,43 +148,86 @@ def st_token_cache(c: Ctx) -> dict:
     return summary
 
 
+def pre_ckpt(c: Ctx, seed: int, epoch: int | None = None):
+    """Checkpoint of the PRIMARY epoch E* (R03) of a pretraining seed, or of ``epoch``."""
+    e = epoch if epoch is not None else c.final()["primary_epoch"]
+    return c.out / "pretrain" / f"seed{seed}" / "checkpoints" / f"epoch_{e:03d}.pt"
+
+
+def epoch_step(c: Ctx, epoch: int) -> int:
+    """Optimiser step of ``epoch`` (the same for every seed: same data, batch size and epoch length)."""
+    from slm.integration.probing import list_checkpoints
+
+    for step, ep, _ in list_checkpoints(c.out / "pretrain" / f"seed{c.cfg['final_seeds'][0]}"):
+        if ep == epoch:
+            return step
+    raise SystemExit(f"no checkpoint for epoch {epoch}")
+
+
+def sweep_schedule(c: Ctx):
+    from slm.train.budget import SCHEDULE
+
+    return tuple(c.cfg["sweep"].get("schedule", SCHEDULE))
+
+
 def st_sweep(c: Ctx) -> dict:
+    """R03: lr x dropout x batch size, up to 60 epochs, validation probes at every checkpoint, E*."""
+    from slm.integration.budget_sweep import run_budget_sweep
     from slm.train.runner import prepare_data
-    from slm.train.sweep import run_sweep
 
     sw = c.cfg["sweep"]
-    cfg = c.train_cfg().with_(epochs=sw["epochs"])
+    cfg = c.train_cfg()
     train_ds, val_ds, meta = prepare_data(c.manifest(), c.tokenizer(), c.model_cfg(), cfg, c.out / "token_cache")
-    res = run_sweep(c.model_cfg(), cfg, train_ds, val_ds, c.out / "sweep", sw["grid"], seed=sw["seed"], meta=meta)
-    return {"n_configs": len(res["results"]), "chosen": res["chosen"], "selection": "validation loss only"}
+    batches = sw["grid"].get("batch_size", [cfg.batch_size])
+    steps = {str(b): {"steps_per_epoch": cfg.with_(batch_size=b).steps_per_epoch(len(train_ds)),
+                      "total_steps": cfg.with_(batch_size=b).steps_per_epoch(len(train_ds)) * sw["epochs"],
+                      "warmup_steps": cfg.with_(batch_size=b).resolve(cfg.with_(batch_size=b).steps_per_epoch(len(train_ds)) * sw["epochs"]).warmup_steps}
+             for b in batches}
+    print(f"[sweep] {len(train_ds)} training sequences; steps per epoch / total / warmup by batch size: {steps}", flush=True)
+    res = run_budget_sweep(c.model_cfg(), cfg, train_ds, val_ds, c.tokenizer(), c.kb_path, c.out / "sweep", grid=sw["grid"],
+                           max_epochs=sw["epochs"], schedule=sweep_schedule(c), seed=sw["seed"], meta_for=meta,
+                           label="MOCK" if c.mock else "REAL", decision_path=c.out / "sweep_decision.md")
+    if not c.mock:  # the committed decision table (real runs only)
+        dest = ROOT / "reports" / "tables" / "sweep_decision.md"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(c.out / "sweep_decision.md", dest)
+    ch = res["chosen"]
+    return {"n_configs": len(res["results"]), "steps_by_batch_size": steps, "selection": "validation-probe stored rate (val-loss tiebreak)",
+            "chosen": {k: ch[k] for k in ("run", "lr", "dropout", "batch_size", "e_star", "val_loss_optimal_epoch", "best_rate", "rate_at_e_star",
+                                           "init_stored_rate", "null_stored_rate", "near_ties")}}
 
 
 def st_sizing(c: Ctx) -> dict:
+    """12M vs ~25M by the same rule (validation-probe stored rate, val-loss tiebreak); sets the final budget."""
+    import pandas as pd
+
+    from slm.integration.budget_sweep import flat_rows, run_config, val_probes
     from slm.model import Transformer
     from slm.model.transformer import count_parameters
-    from slm.train.pretrain import train_run
+    from slm.train.budget import final_schedule, schedule_upto, select_budget
     from slm.train.runner import prepare_data
-    from slm.train.sweep import select_best
 
     sw, chosen = c.cfg["sweep"], c.read("sweep/chosen.json")
-    cfg = c.train_cfg().with_(epochs=sw["epochs"], lr=chosen["lr"], dropout=chosen["dropout"])
+    sched = schedule_upto(sw["epochs"], sweep_schedule(c))
+    cfg = c.train_cfg().with_(lr=chosen["lr"], dropout=chosen["dropout"], batch_size=chosen["batch_size"])
     small, large = c.model_cfg("small"), c.model_cfg("large")
     train_ds, val_ds, meta = prepare_data(c.manifest(), c.tokenizer(), large, cfg, c.out / "token_cache")
-    s = train_run(large, cfg, train_ds, val_ds, c.out / "sizing" / "large", sw["seed"], meta=meta, resume=False)
-    scheduled = set(cfg.save_epochs())
-    row = {"status": "ok", "val_by_epoch": {str(e): v for e, v in s["val_by_epoch"].items() if e in scheduled}}
-    big = select_best([row])
-    small_best = {"best_val": chosen["best_val"], "best_epoch": chosen["best_epoch"]}
-    pick = "large" if big["best_val"] < small_best["best_val"] else "small"  # validation loss only
-    win = big if pick == "large" else small_best
-    schedule = [e for e in cfg.checkpoint_epochs if e <= win["best_epoch"]]
-    final = {"model": (large if pick == "large" else small).to_dict(), "size": pick,
-             "lr": chosen["lr"], "dropout": chosen["dropout"], "epochs": int(win["best_epoch"]),
-             "checkpoint_epochs": sorted(set(schedule) | {int(win["best_epoch"])})}
+    res = run_config("large", large, cfg, train_ds, val_ds, c.tokenizer(), val_probes(c.kb_path), c.out / "sizing", sw["seed"], meta, sched)
+    if res["status"] != "ok":
+        raise SystemExit(f"the large model aborted: {res['message']}")
+    small_rows = [{**r, "config": "small"} for r in pd.read_csv(c.out / "sweep" / "decision_rows.csv").to_dict("records")
+                  if r["config"] == chosen["run"]]
+    sel = select_budget(small_rows + flat_rows([res]))
+    pick = "large" if sel["config"] == "large" else "small"
+    total, ck = final_schedule(sel["e_star"], sweep_schedule(c), sw["epochs"])
+    final = {"model": (large if pick == "large" else small).to_dict(), "size": pick, "lr": chosen["lr"], "dropout": chosen["dropout"],
+             "batch_size": chosen["batch_size"], "primary_epoch": sel["e_star"], "epochs": total, "secondary_epoch": total,
+             "checkpoint_epochs": ck, "val_loss_optimal_epoch": sel["val_loss_optimal_epoch"], "sweep_run": chosen["run"],
+             "rule": "val-probe stored rate, val-loss tiebreak, E* = earliest within 0.01 of the best"}
     write_json(c.out / "final_config.json", final)
-    out = {"small": {"params": count_parameters(Transformer(small)), **small_best},
-           "large": {"params": count_parameters(Transformer(large)), "best_val": big["best_val"], "best_epoch": big["best_epoch"]},
-           "selected": pick, "rule": "lower best validation loss, same lr/dropout/epochs/token budget; no probes", "final_config": final}
+    out = {"small": {"params": count_parameters(Transformer(small)), "best_rate": sel["config_scores"]["small"]},
+           "large": {"params": count_parameters(Transformer(large)), "best_rate": sel["config_scores"]["large"]},
+           "selected": pick, "e_star": sel["e_star"], "val_loss_optimal_epoch": sel["val_loss_optimal_epoch"], "final_config": final}
     write_json(c.out / "sizing" / "chosen.json", out)
     return out
 
@@ -193,18 +236,23 @@ def st_freeze(c: Ctx) -> dict:
     from slm.integration.freeze import FreezeRefused, freeze
 
     try:
-        rec = freeze(c.prereg, c.out, c.ledger, ROOT)
+        final = c.final()
+        rec = freeze(c.prereg, c.out, c.ledger, ROOT, extra={
+            "config_sha256": c.config_sha256, "config_file": str(c.cfg_path), "e_star": final["primary_epoch"],
+            "total_epochs": final["epochs"], "model_size": final["size"], "lr": final["lr"], "dropout": final["dropout"],
+            "batch_size": final["batch_size"], "val_loss_optimal_epoch": final["val_loss_optimal_epoch"]})
     except FreezeRefused as exc:
         raise SystemExit(f"FREEZE REFUSED: {exc}") from exc
     write_json(c.out / "freeze.json", rec)
     return {"prereg": str(c.prereg), "prereg_sha256": rec["prereg_sha256"], "commit": rec["git"]["commit"],
-            "dirty": rec["git"]["dirty"], "already_frozen": rec.get("already_frozen", False)}
+            "dirty": rec["git"]["dirty"], "already_frozen": rec.get("already_frozen", False),
+            "e_star": rec.get("extra", {}).get("e_star"), "config_sha256": rec.get("extra", {}).get("config_sha256")}
 
 
 def final_train_cfg(c: Ctx):
     f = c.final()
     return c.train_cfg().with_(seeds=tuple(c.cfg["final_seeds"]), epochs=f["epochs"], lr=f["lr"], dropout=f["dropout"],
-                               checkpoint_epochs=tuple(f["checkpoint_epochs"]))
+                               batch_size=f["batch_size"], checkpoint_epochs=tuple(f["checkpoint_epochs"]))
 
 
 def st_pretrain(c: Ctx) -> dict:
@@ -216,7 +264,7 @@ def st_pretrain(c: Ctx) -> dict:
                     final_train_cfg(c), runs_root=c.out, cache_dir=c.out / "token_cache")
     return {"seeds": {str(k): {"epochs_done": v.get("epochs_done"), "final_val": (list(v["val_by_epoch"].values()) or [None])[-1],
                               "wall_seconds": round(v["wall_seconds"], 1)} for k, v in res["seeds"].items()},
-            "config": final_train_cfg(c).to_dict()}
+            "config": final_train_cfg(c).to_dict(), "primary_epoch": c.final()["primary_epoch"], "total_epochs": c.final()["epochs"]}
 
 
 def st_probes(c: Ctx) -> dict:
@@ -262,7 +310,8 @@ def st_sft(c: Ctx) -> dict:
 
     c.require_freeze()
     ctx_len = ModelConfig.from_dict(c.final()["model"]).context_len
-    res = run_sft_seeds("sft", c.out / "pretrain", sft_manifest(c), c.tokenizer(), c.sft_cfg(), ctx_len, c.out)
+    res = run_sft_seeds("sft", c.out / "pretrain", sft_manifest(c), c.tokenizer(), c.sft_cfg(), ctx_len, c.out,
+                        pretrain_epoch=c.final()["primary_epoch"])
     return {"seeds": {str(k): {"epochs_done": v["epochs_done"], "wall_seconds": round(v["wall_seconds"], 1)} for k, v in res["seeds"].items()}}
 
 
@@ -277,7 +326,6 @@ def st_qa_eval(c: Ctx) -> dict:
         load_qa_rows,
         prompt_prefixes,
     )
-    from slm.sft_train import final_pretrain_checkpoint
 
     c.require_freeze()
     seeds = tuple(c.cfg["final_seeds"])
@@ -298,7 +346,7 @@ def st_qa_eval(c: Ctx) -> dict:
     av = load_attribute_values(c.kb_path)
     tok, tabs = c.tokenizer(), []
     for seed in seeds:
-        pre = final_pretrain_checkpoint(c.out / "pretrain" / f"seed{seed}")
+        pre = pre_ckpt(c, seed)
         sft = c.out / "sft" / f"seed{seed}" / "checkpoints" / "best.pt"
         variants = [("pretrained", pre, "zero_shot", prefixes["zero_shot"]), ("pretrained", pre, "2shot", prefixes["2shot"]),
                     ("sft", sft, "zero_shot", prefixes["zero_shot"])]
@@ -337,31 +385,40 @@ def st_samples(c: Ctx) -> dict:
 
 
 def st_tables(c: Ctx) -> dict:
-    d = c.out / "analysis_inputs"
-    args = ["scripts/build_analysis_tables.py", "--probe", str(c.out / "probes" / "probes_raw.csv"),
-            "--qa", str(c.out / "qa" / "qa_predictions.csv"), "--kb", str(c.kb_path), "--out-dir", str(d),
+    final = c.final()
+    base = ["scripts/build_analysis_tables.py", "--probe", str(c.out / "probes" / "probes_raw.csv"),
+            "--qa", str(c.out / "qa" / "qa_predictions.csv"), "--kb", str(c.kb_path),
             "--plan", str(c.p("plan")), "--realized-diversity", str(c.p("realized_diversity")),
             "--fact-split", str(c.out / "sft_data" / "fact_split.json"), "--tokenizer", str(c.out / "tokenizer.json")]
     if not c.mock:
-        args += ["--manifest", str(c.p("corpus_manifest"))]  # measured exposure from the train files
-    run_cli(args)
-    return c.read("analysis_inputs/tables_summary.json")
+        base += ["--manifest", str(c.p("corpus_manifest"))]  # measured exposure from the train files
+    # primary: probe rows up to the checkpoint of E* only, so E* is every seed's final checkpoint
+    run_cli([*base, "--out-dir", str(c.out / "analysis_inputs"), "--max-step", str(epoch_step(c, final["primary_epoch"]))])
+    if final["epochs"] > final["primary_epoch"]:  # secondary: the full curve up to 2E*
+        run_cli([*base, "--out-dir", str(c.out / "analysis_inputs_secondary")])
+    return {**c.read("analysis_inputs/tables_summary.json"), "primary_epoch": final["primary_epoch"],
+            "primary_step": epoch_step(c, final["primary_epoch"]), "secondary_epoch": final["epochs"]}
 
 
 def st_analysis(c: Ctx) -> dict:
+    final = c.final()
     d, res = c.out / "analysis_inputs", c.out / "results"
     flags = ["--banner-label", "MOCK", "--no-mixed"] if c.mock else ["--real"]
     run_cli(["scripts/run_analysis.py", "--input", str(d / "probe.csv"), "--qa-input", str(d / "qa.csv"), "--out", str(res), *flags])
     run_cli(["scripts/run_sensitivity.py", "--input", str(d / "probe.csv"), "--qa-input", str(d / "qa.csv"),
              "--realized-diversity", str(d / "realized_diversity.csv"), "--out", str(res)])
-    return {"results_dir": str(res), "banner": "MOCK" if c.mock else "off (real)"}
+    out = {"results_dir": str(res), "primary_epoch": final["primary_epoch"], "banner": "MOCK" if c.mock else "off (real)"}
+    if final["epochs"] > final["primary_epoch"]:  # secondary analysis at 2E*: probe hypotheses only (SFT started from E*)
+        d2, res2 = c.out / "analysis_inputs_secondary", c.out / "results_secondary"
+        run_cli(["scripts/run_analysis.py", "--input", str(d2 / "probe.csv"), "--out", str(res2), *flags])
+        out |= {"secondary_results_dir": str(res2), "secondary_epoch": final["epochs"]}
+    return out
 
 
 def st_report(c: Ctx) -> dict:
     from slm.integration import report_inputs as RI
     from slm.integration import tables as T
     from slm.model import ModelConfig
-    from slm.sft_train import final_pretrain_checkpoint
     from slm.tokenizer import read_split
 
     rec = c.require_freeze()  # --real only after the freeze step has run (and PREREG is unchanged)
@@ -373,11 +430,11 @@ def st_report(c: Ctx) -> dict:
     f = c.final()
     sft_res = [json.loads(p.read_text(encoding="utf-8")) for p in (c.out / "sft").glob("seed*/summary.json")]
     facts = RI.run_facts(
-        kb=kb, model_cfg=ModelConfig.from_dict(f["model"]), train_cfg=final_train_cfg(c).to_dict(), sft_cfg=c.sft_cfg().to_dict(),
+        kb=kb, model_cfg=ModelConfig.from_dict(f["model"]), train_cfg={**final_train_cfg(c).to_dict(), "epochs": c.final()["primary_epoch"]}, sft_cfg=c.sft_cfg().to_dict(),
         split_docs={"train": len(train_docs), "val": len(val_docs), "test": 0}, train_tokens=stats["train"]["n_tokens_with_eos"],
         templated_pct=RI.templated_share_pct(kb, train_docs, tok), n_doc_types=len({p["doc_type"] for p in T.load_plan(c.p("plan"))}),
         n_sweep_configs=len(c.read("sweep/results.json")), sft_epochs_run=max([s.get("epochs_done", 0) for s in sft_res] or [0]),
-        seeds=seeds, n_params=RI.count_model_params(final_pretrain_checkpoint(c.out / "pretrain" / f"seed{seeds[0]}")),
+        seeds=seeds, n_params=RI.count_model_params(pre_ckpt(c, seeds[0])),
         prereg_commit=rec["git"]["commit"], analysis_commit=RI.git_head(ROOT))
     chosen = pd.read_csv(c.out / "samples" / "samples_selected.csv", keep_default_na=False)
     from slm.integration.samples import categories
@@ -408,6 +465,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = yaml.safe_load(cfg_text)
     cfg_hash = hashlib.sha256(cfg_text.encode()).hexdigest()
     c = Ctx(cfg)
+    c.config_sha256, c.cfg_path = cfg_hash, args.config
     if args.list:
         for s in STAGES:
             p = c.stage_json(s)

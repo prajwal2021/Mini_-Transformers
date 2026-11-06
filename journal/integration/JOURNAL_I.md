@@ -26,3 +26,9 @@
 - **Done:** merged main 0cfabdc (conflicts only in `AI_USE.md`, `track.txt`); ran tokenizer, token cache and a 2-config sweep on the 135-document partial train split in `runs/partial_dryrun/`; probe-overlap check; 12 samples; I-D034 to I-D038.
 - **No test data touched:** `data/corpus/test.jsonl` was not opened, not copied, not listed; the ledger file was not created.
 - **Next:** when P02c3 finishes and `data/corpus/manifest.json` exists, merge main again and run `scripts/run_real.py --config configs/real.yaml`.
+
+## R03 - E* rule, warmup scaling, PREREG v4 (2026-11-06)
+- **Done:** I-D039 to I-D046: validation-probe budget rule (`slm.train.budget`, `slm.integration.budget_sweep`), sweep and sizing stages on it, final runs to 2E* with the primary analysis at E*, SFT from E*, secondary 2E* analysis, step-scaled warmup/logging (`TrainConfig.resolve`), PREREG v4, freeze record with config hash and E*, mock dry run (13 stages, 319 s), `tests/test_r03_*.py` (35 tests).
+- **Found:** a first full-suite run failed one stale R00 assertion (the old sweep grid in `test_r00_freeze.py`); fixed, whole suite rerun.
+- **Concerns written down:** val and test canonical probes share the prompt; 240 val probes are noisier than the 0.01 tolerance; the sweep and final cosine schedules differ.
+- **Next:** merge main when P02c3 lands; run the real sweep; read the decision table (and its chance WARNING) before accepting E*; set nothing else in PREREG before the freeze.

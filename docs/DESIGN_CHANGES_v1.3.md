@@ -54,7 +54,7 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 28 | 8: H4 via McNemar/Fisher | H4 between-condition: stratified permutation test on per-fact gains (descriptive, secondary) | DESIGN names none | A-D015 | proposed |
 | 29 | 2.1: covariates entity mentions, value length | **Exposure coding** `freq_c` = log3(measured train mentions), centred (bin code when no counts); **realized-diversity covariate** `rdiv_z` = z(1 - mean pairwise skeleton Jaccard) as a sensitivity analysis (replace or add to `div_bin`) | A weak manipulation attenuates the nominal H2 (simulated: 0.80 -> 0.49 -> 0.25 at strengths 1.0 / 0.6 / 0.3); the bank measures realized diversity | A-D019, A-D026; D-085 | proposed |
 | 30 | 8: sensitivity not listed | Pre-registered sensitivity suite: aggregation rules, bins vs log3, with/without template terms, GEE vs mixed, token-normalised outcome, comparator, realized diversity, separation report | `run_sensitivity.py` | A-D028 | in force |
-| 31 | 8: PREREG committed before full pretraining | PREREG v3 is an **unfrozen draft**; margins (OR 1.25; +-0.10 risk difference) are placeholders | Freeze after the team confirms | A-D009, A-D018, A-D022 | open |
+| 31 | 8: PREREG committed before full pretraining | PREREG v4 is an **unfrozen draft**; margins (OR 1.25 per tripling; +-0.10 risk difference) are final researcher-chosen values, not data-derived (R03) | Freeze after the team confirms | A-D009, A-D018, A-D022 | open |
 
 ## 5. Deliverables (section 9)
 
@@ -90,3 +90,13 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 44 | Ranking accuracy of 7.4 taken from the section 6 definition on the QA prompt; the sentence variant (`rank_sentence`) is reported in addition because SFT answers are sentences | I-D029 |
 | 45 | Checkpoint sample generator with taxonomy flags and an automatic 6 + 6 selection (DESIGN 6 gallery: "successes + failures, categorized"); the repetition/format-drift categories of DESIGN 6 are the `gibberish` flag | I-D031 |
 | 46 | 2-shot exemplars re-picked on the real files (row 22); no change of ids | I-D030 |
+
+## 9. Training budget by validation probes (R03; supersedes rows 12-14 and 39-40 where they disagree)
+
+| # | Change | Journal |
+|---|---|---|
+| 47 | Checkpoint selection returns to DESIGN section 5's validation probes: the sweep (lr x dropout x batch size, up to 60 epochs) scores the **validation** probes at every checkpoint; the config is chosen by validation-probe stored rate (near-ties within 0.01 by lower validation loss) and **E\*** = the earliest checkpoint within 0.01 of that config's best. Rows 39/40 (final epochs from validation loss) are superseded. Reason: on a corpus of about 0.75M tokens validation loss bottoms out early while fact storage keeps improving | I-D039, I-D040 |
+| 48 | Final runs train to 2E\* (cap 60); the primary analysis, the SFT start and `stored_pretrain` use E\*; a secondary H1/H2 analysis uses 2E\* (outside the Holm family). Limitation: the sweep's cosine spans 60 epochs, the final run's spans 2E\* | I-D041 |
+| 49 | The 12M-vs-25M sizing check uses the same rule (validation-probe stored rate, val-loss tiebreak) instead of validation loss alone; DESIGN's "val-probe accuracy" is now used | I-D042 |
+| 50 | Warmup 5% of the optimiser steps (min 10, at most half), cosine to 10%, evaluation 40 and logging 200 times per run, all from the real step count (`TrainConfig.resolve`) | I-D043 |
+| 51 | PREREG v4: final researcher-chosen margins (not data-derived), the E\* rule, the 2E\* secondary analysis, null interpretation through CIs, the chance baseline (`null_stored_rate` and `init`) in every stored rate; the freeze records the config hash and E\* | I-D044 |

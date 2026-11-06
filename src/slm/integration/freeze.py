@@ -61,9 +61,16 @@ def find_test_evidence(run_dir: Path, ledger: Path | None) -> list[str]:
     """Reasons the freeze must refuse: every sign that a test probe, QA test or test read happened."""
     found: list[str] = []
     if ledger is not None and Path(ledger).exists():
-        n = sum(1 for x in Path(ledger).read_text(encoding="utf-8").splitlines() if x.strip())
+        n = 0
+        for x in Path(ledger).read_text(encoding="utf-8").splitlines():
+            if not x.strip():
+                continue
+            try:
+                n += json.loads(x).get("split") == "test"
+            except json.JSONDecodeError:  # an unreadable line is treated as a test read
+                n += 1
         if n:
-            found.append(f"test-access ledger {ledger} has {n} entr{'y' if n == 1 else 'ies'}")
+            found.append(f"test-access ledger {ledger} has {n} test-split entr{'y' if n == 1 else 'ies'}")
     run_dir = Path(run_dir)
     if run_dir.exists():
         for f in sorted(run_dir.rglob("probe*.csv")) + sorted(run_dir.rglob("probe*.parquet")):
@@ -80,7 +87,8 @@ def find_test_evidence(run_dir: Path, ledger: Path | None) -> list[str]:
     return found
 
 
-def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now: str | None = None) -> dict:
+def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now: str | None = None,
+           extra: dict | None = None) -> dict:
     prereg = Path(prereg)
     text = prereg.read_text(encoding="utf-8")
     if BEGIN in text:
@@ -94,7 +102,7 @@ def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now:
         "prereg_file": str(prereg), "prereg_sha256": sha256_text(body),
         "git": git_state(root), "analysis_code_sha256": analysis_code_hash(root),
         "frozen_at": now or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "ledger": str(ledger) if ledger else None, "run_dir": str(run_dir),
+        "ledger": str(ledger) if ledger else None, "run_dir": str(run_dir), "extra": extra or {},
     }
     block = (f"\n{BEGIN}\n## Freeze record\n\n| field | value |\n|---|---|\n"
              f"| PREREG sha256 (this file without this block) | `{rec['prereg_sha256']}` |\n"
@@ -102,6 +110,7 @@ def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now:
              f"working tree {'DIRTY' if rec['git']['dirty'] else 'clean'}) |\n"
              f"| analysis code sha256 | `{rec['analysis_code_sha256']}` |\n"
              f"| frozen at (UTC) | {rec['frozen_at']} |\n"
+             + "".join(f"| {k} | `{v}` |\n" for k, v in rec["extra"].items()) +
              f"| test evidence at freeze | none (no test probe, QA test or ledger entry) |\n"
              f"\n```json\n{json.dumps(rec, indent=1, sort_keys=True)}\n```\n{END}\n")
     prereg.write_text(body + block, encoding="utf-8", newline="\n")

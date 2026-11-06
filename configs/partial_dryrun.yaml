@@ -16,7 +16,7 @@ tokenizer: {vocab_size: 4096, min_frequency: 2}
 model_config: configs/model.yaml
 model_large: {n_layer: 8, n_head: 8, d_model: 512, d_ff: 2048}
 train_config: configs/train.yaml
-train_overrides: {batch_size: 8, warmup_steps: 10, val_every: 10, log_every: 2, checkpoint_epochs: [1, 2, 3]}
+train_overrides: {batch_size: 8}
 sft_config: configs/sft.yaml
 sft_overrides: {}
 sweep:

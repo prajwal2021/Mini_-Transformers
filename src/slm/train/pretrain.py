@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Pretraining loop (docs/DESIGN.md section 5).
 
 One call to ``train_run`` trains one seed into ``<run_dir>`` (normally runs/<name>/seed<k>/):
@@ -159,6 +160,7 @@ def train_run(
     )
     spe = math.ceil(len(train_ds) / cfg.batch_size)
     total_steps = spe * cfg.epochs
+    cfg = cfg.resolve(total_steps)  # R03: warmup / eval / log intervals from the real step count
     save_epochs = set(cfg.save_epochs())
 
     step, start_epoch, tokens_seen, elapsed_prior = 0, 0, 0, 0.0
@@ -256,7 +258,9 @@ def train_run(
                 break
     finally:
         csv_f.close()
-    summary = {"seed": seed, "epochs_done": epoch, "steps": step,
+    summary = {"seed": seed, "epochs_done": epoch, "steps": step, "steps_per_epoch": spe,
+               "total_steps": total_steps, "warmup_steps": cfg.warmup_steps,
+               "val_every": cfg.val_every, "log_every": cfg.log_every,
                "tokens_seen": tokens_seen, "val_by_epoch": val_history,
                "final_val_loss": val_history.get(epoch), "train_seconds": elapsed()}
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")

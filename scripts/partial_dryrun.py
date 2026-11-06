@@ -73,14 +73,19 @@ def main(argv: list[str] | None = None) -> int:
 
     results = json.loads((out / "sweep" / "results.json").read_text())
     curves = {}
-    for row in results:
-        loss = pd.read_csv(out / "sweep" / row["name"] / "loss.csv")
-        summ = json.loads((out / "sweep" / row["name"] / "summary.json").read_text())
+    for row in results:  # R03 layout: sweep/<config>/seed0/, rows = validation loss and val-probe stored rate
+        name = row["config"]
+        run = out / "sweep" / name / "seed0"
+        loss = pd.read_csv(run / "loss.csv")
+        summ = json.loads((run / "summary.json").read_text())
+        row = {**row, "name": name, "lr": float(name.split("_lr")[1].split("_")[0]), "dropout": float(name.split("_dropout")[1].split("_")[0]),
+               "val_by_epoch": {str(r["epoch"]): r["val_loss"] for r in row["rows"]},
+               "stored_by_epoch": {str(r["epoch"]): r["stored_rate"] for r in row["rows"]}}
         train = loss[loss["split"] == "train"]
         val = loss[loss["split"] == "val"]
         curves[row["name"]] = {
             "lr": row["lr"], "dropout": row["dropout"], "status": row["status"], "seconds": round(row["seconds"], 1),
-            "val_by_epoch": row.get("val_by_epoch"), "tokens_seen": summ["tokens_seen"],
+            "val_by_epoch": row.get("val_by_epoch"), "stored_by_epoch": row.get("stored_by_epoch"), "tokens_seen": summ["tokens_seen"],
             "tokens_per_s": round(summ["tokens_seen"] / row["seconds"]),
             "train_loss_every": [[int(s), round(float(v), 3)] for s, v in zip(train["step"], train["loss"], strict=False)][:: max(1, len(train) // 8)],
             "val_loss_steps": [[int(s), round(float(v), 3)] for s, v in zip(val["step"], val["loss"], strict=False)],
@@ -95,13 +100,14 @@ def main(argv: list[str] | None = None) -> int:
     prompts = [f1["canonical_prefix"].rstrip(), f2["canonical_prefix"].rstrip(),
                prefix(kb["measured_facts"][80]["attribute_id"], "n1", kb["measured_facts"][80]["entity"]),
                "Passengers travelling with pets should"]
-    ck = sorted((out / "sweep" / chosen["run"] / "checkpoints").glob("epoch_*.pt"))[-1]
-    model = load_checkpoint(ck, map_location=dev).to(dev).eval()
-    samples = []
-    for p in prompts:
-        for i in range(3):
-            text, _ = generate_text(model, tok, p, 40, (), dev, 0.8, None, i)
-            samples.append({"prompt": p, "sample": i, "completion": text})
+    ckpts = sorted((out / "sweep" / chosen["run"] / "seed0" / "checkpoints").glob("epoch_*.pt"))
+    samples, ck = [], (ckpts[-1] if ckpts else None)  # the budget sweep deletes its checkpoints after scoring
+    if ck is not None:
+        model = load_checkpoint(ck, map_location=dev).to(dev).eval()
+        for p in prompts:
+            for i in range(3):
+                text, _ = generate_text(model, tok, p, 40, (), dev, 0.8, None, i)
+                samples.append({"prompt": p, "sample": i, "completion": text})
 
     summary = {
         "tokens_per_word": {s: stats[s]["tokens_per_word"] for s in ("train", "val")},
@@ -113,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
                       "n_distinct_tokens_in_train": len(counts)},
         "stage_seconds": stage_secs, "wall_seconds_incl_imports": round(wall, 1),
         "device": dev, "gpu_peak_memory_mb": None if peak_mb is None else round(peak_mb),
-        "sweep": {"chosen": chosen, "curves": curves}, "samples_t0.8": samples, "samples_checkpoint": str(ck.name),
+        "sweep": {"chosen": chosen, "curves": curves}, "samples_t0.8": samples, "samples_checkpoint": ck.name if ck is not None else None,
         "ledger_created": ledger.exists(),
     }
     (out / "partial_stats.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")

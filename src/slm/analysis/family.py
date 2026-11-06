@@ -17,7 +17,7 @@ from .models import ALPHA, holm
 HYPOTHESES = ("H1", "H2", "H3", "H4")
 CONFIRMATORY = ("H1", "H2", "H3")
 SECONDARY = ("H4",)
-# PLACEHOLDER equivalence margins; to be set at the PREREG freeze (never claim "no effect"
+# Equivalence margins of PREREG v4: researcher-chosen, not data-derived (never claim "no effect"
 # unless the whole 95% CI lies inside the margin)
 MARGIN_LOG_ODDS = float(np.log(1.25))
 MARGIN_RISK_DIFF = 0.10
@@ -62,7 +62,7 @@ def _status(row: pd.Series) -> str:
     margin = MARGIN_LOG_ODDS if row["scale"] == "log-odds" else MARGIN_RISK_DIFF
     lo, hi = row.get("ci_low", np.nan), row.get("ci_high", np.nan)
     if np.isfinite(lo) and np.isfinite(hi) and lo > -margin and hi < margin:
-        return "not supported; CI inside margin (placeholder)"
+        return "not supported; CI inside margin"
     return "not supported; inconclusive"
 
 

@@ -15,15 +15,16 @@ tokenizer: {vocab_size: 4096, min_frequency: 1}
 model_config: configs/model.yaml
 model_large: {n_layer: 8, n_head: 8, d_model: 512, d_ff: 2048}
 train_config: configs/train.yaml
-train_overrides: {batch_size: 8, warmup_steps: 20, val_every: 50, checkpoint_epochs: [1, 2, 3, 5, 8]}
+train_overrides: {}   # warmup / eval / log intervals come from the step count (train.yaml: warmup_frac, ...)
 sft_config: configs/sft.yaml
 sft_overrides: {}
 sweep:
   seed: 0
-  epochs: 8
+  epochs: 12                        # mock maximum (real: 60); schedule 1,2,3,5,8,12
   grid:
     lr: [3.0e-4, 6.0e-4, 1.0e-3]
-    dropout: [0.0, 0.1, 0.2]
+    dropout: [0.0, 0.1]
+    batch_size: [16, 32]
 final_seeds: [0, 1, 2]
 qa_limit: 30
 banner_label: MOCK
