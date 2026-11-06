@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     from slm.model import ModelConfig
     from slm.sft.build import verify_datasets
     from slm.sft_eval import (
+        Taxonomy,
         check_exemplars_disjoint,
         compare_variants,
         comparison_table,
@@ -162,7 +163,8 @@ def main(argv: list[str] | None = None) -> int:
                         ("pretrained", pre, "2shot", prefixes["2shot"]),
                         ("sft", sft, "zero_shot", prefixes["zero_shot"])]
             tabs.append(compare_variants(variants, tok, rows, seed, av,
-                                         max_new_tokens=sft_cfg.max_new_tokens))
+                                         max_new_tokens=sft_cfg.max_new_tokens,
+                                         taxonomy=Taxonomy.from_kb(kb_path), ranking=True))
         return pd.concat(tabs, ignore_index=True)
 
     qa_pred = stage("qa_eval_3_variants", evaluate_all)

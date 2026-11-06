@@ -37,6 +37,9 @@ QA_COLUMNS = [
     "sentence_exact", "stored_pretrain", "freq_bin", "div_bin", "sft_split", "attribute_id",
     "template_id",
 ]
+# carried when the evaluator wrote them (R01): the error taxonomy and the ranking ranks
+QA_EXTRA_COLUMNS = ["error_class", "rank_value", "rank_value_norm", "rank_sentence",
+                    "rank_sentence_norm"]
 # bank-stream file (data/bank/realized_diversity.csv) -> analysis names (ANALYSIS_INPUT section 3)
 REALIZED_RENAME = {
     "core_unique_share": "core_uniqueness",
@@ -193,12 +196,29 @@ def qa_table(
         raise ValueError("QA rows without probe rows for the same fact and seed")
     for c in ("exact_value_match", "contains_gold", "sentence_exact"):
         out[c] = out[c].astype(int)
-    out = out[QA_COLUMNS].sort_values(["model", "seed", "eval_set", "question_id"])
+    out = out[[*QA_COLUMNS, *[c for c in QA_EXTRA_COLUMNS if c in out.columns]]].sort_values(["model", "seed", "eval_set", "question_id"])  # noqa: E501
     validate_qa_table(normalize_qa_table(out))
     return out.reset_index(drop=True)
 
 
 # --------------------------------------------------------------------------------- driver
+
+
+def write_qa_summaries(qa_predictions: pd.DataFrame, out_dir: str | Path) -> dict[str, Path]:
+    """R01: error-class counts (checkpoint x prompt_mode x eval_set) and ranking accuracy tables."""
+    out, paths = Path(out_dir), {}
+    out.mkdir(parents=True, exist_ok=True)
+    if "error_class" in qa_predictions.columns:
+        from slm.sft_eval.taxonomy import error_summary
+
+        paths["error_taxonomy"] = out / "error_taxonomy.csv"
+        error_summary(qa_predictions).to_csv(paths["error_taxonomy"], index=False, encoding="utf-8")
+    if "rank_value" in qa_predictions.columns:
+        from slm.sft_eval.ranking import ranking_summary
+
+        paths["ranking"] = out / "ranking_accuracy.csv"
+        ranking_summary(qa_predictions).to_csv(paths["ranking"], index=False, encoding="utf-8")
+    return paths
 
 
 def build_analysis_tables(
@@ -217,6 +237,7 @@ def build_analysis_tables(
     probe = probe_table(probe_raw, exposure)
     qa = qa_table(qa_predictions, probe, kb, fact_split)
     paths = {"probe": out / "probe.csv", "qa": out / "qa.csv"}
+    paths.update(write_qa_summaries(qa_predictions, out))
     probe.to_csv(paths["probe"], index=False, encoding="utf-8")
     qa.to_csv(paths["qa"], index=False, encoding="utf-8")
     if realized is not None:

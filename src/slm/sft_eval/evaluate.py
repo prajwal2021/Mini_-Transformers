@@ -36,6 +36,8 @@ from slm.sft_train.runner import parse_jsonl
 from slm.split_manifest import SplitManifest
 from slm.tokenizer import BPETokenizer
 
+from .ranking import RANK_COLUMNS, rank_rows
+
 # prompt -> (generated text, prompt was truncated)
 GenerateFn = Callable[[str], tuple[str, bool]]
 
@@ -45,6 +47,7 @@ TABLE_COLUMNS = [
     "attribute_id", "freq_bin", "div_bin", "template_id", "checkpoint", "prompt_mode",
 ]
 RATE_COLUMNS = ["exact_value_match", "contains_gold", "sentence_exact"]
+ERROR_COLUMN = "error_class"  # R01: added when a Taxonomy is given (slm.sft_eval.taxonomy)
 
 
 def normalize(text: str) -> str:
@@ -104,8 +107,15 @@ def evaluate_qa(
     checkpoint: str = "",
     prompt_mode: str = "zero_shot",
     prompt_prefix: str = "",
+    taxonomy=None,
+    ranker=None,
 ) -> pd.DataFrame:
-    """One row per question. ``prompt_prefix`` (few-shot exemplars) is put before each prompt."""
+    """One row per question. ``prompt_prefix`` (few-shot exemplars) is put before each prompt.
+
+    ``taxonomy`` (a ``Taxonomy``) adds ``error_class``; ``ranker`` (a scorer with ``score_details``)
+    adds the four ranking columns of ``slm.sft_eval.ranking`` under the same prompt.
+    """
+    ranks = rank_rows(ranker, rows, attribute_values, prompt_prefix) if ranker is not None else {}
     out = []
     for r in rows:
         raw, truncated = generate(prompt_prefix + r["prompt"])
@@ -129,7 +139,13 @@ def evaluate_qa(
                 "prompt_mode": prompt_mode,
             }
         )
-    return pd.DataFrame(out, columns=TABLE_COLUMNS)
+        if taxonomy is not None:
+            out[-1][ERROR_COLUMN] = taxonomy.classify(
+                pred, r["attribute_id"], r["value"], out[-1]["exact_value_match"])
+        out[-1].update(ranks.get(r["id"], {}))
+    cols = [*TABLE_COLUMNS, *([ERROR_COLUMN] if taxonomy is not None else []),
+            *(RANK_COLUMNS if ranker is not None else [])]
+    return pd.DataFrame(out, columns=cols)
 
 
 def summarize(table: pd.DataFrame, by: Sequence[str] = ("eval_set",)) -> pd.DataFrame:
@@ -144,7 +160,7 @@ def evaluate_checkpoint(
     checkpoint, tokenizer: BPETokenizer, rows: Sequence[dict], seed: int,
     attribute_values: Mapping[str, Sequence[str]], device=None, max_new_tokens: int = 48,
     label: str | None = None, prompt_mode: str = "zero_shot", prompt_prefix: str = "",
-    model: Transformer | None = None,
+    model: Transformer | None = None, taxonomy=None, ranking: bool = False,
 ) -> pd.DataFrame:
     """Works on ANY model checkpoint (pretrained or SFT): same prompts, same decoding."""
     from slm.model import load_checkpoint
@@ -152,9 +168,15 @@ def evaluate_checkpoint(
     device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
     if model is None:
         model = load_checkpoint(checkpoint, map_location=device).to(device).eval()
+    ranker = None
+    if ranking:
+        from slm.eval_adapter import ModelScorer
+
+        ranker = ModelScorer(model, tokenizer, device)
     return evaluate_qa(
         rows, make_generate_fn(model, tokenizer, device, max_new_tokens), seed, attribute_values,
         label if label is not None else str(checkpoint), prompt_mode, prompt_prefix,
+        taxonomy=taxonomy, ranker=ranker,
     )
 
 
@@ -176,6 +198,8 @@ def compare_variants(
     attribute_values: Mapping[str, Sequence[str]],
     device=None,
     max_new_tokens: int = 48,
+    taxonomy=None,
+    ranking: bool = False,
 ) -> pd.DataFrame:
     """Long table for ``(label, checkpoint path, prompt_mode, prompt_prefix)`` variants, all on the
     SAME rows with the same template (apart from the declared prefix) and decoding (M-D042/M-D045).
@@ -190,7 +214,7 @@ def compare_variants(
             models[str(path)] = load_checkpoint(path, map_location=dev).to(dev).eval()
         tables.append(evaluate_checkpoint(
             path, tokenizer, rows, seed, attribute_values, dev, max_new_tokens, label, mode,
-            prefix, model=models[str(path)]))
+            prefix, model=models[str(path)], taxonomy=taxonomy, ranking=ranking))
     out = pd.concat(tables, ignore_index=True)
     assert_same_questions(out)
     return out

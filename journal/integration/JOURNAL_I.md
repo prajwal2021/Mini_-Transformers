@@ -14,3 +14,10 @@
 - **Dry run (MOCK, toy corpus, 3 seeds, sweep 9 configs x 8 epochs + one 27.6M run):** all 12 stages ok, 454 s in two invocations (the first stopped at `probes` on a syntax error I had introduced in the ledger module, the second resumed from the stage files: 6 stages skipped); the freeze refused a fresh PREREG copy after the test reads and froze an empty run directory.
 - **Problems:** a CRLF/newline slip in `guard/ledger.py` broke the import once (fixed with Edit); the first sizing result picks the large model on toy data, which means nothing.
 - **Next:** merge main when P02c finishes, set the PREREG equivalence margins (they are placeholders and the freeze records the file as it stands), then `python scripts/run_real.py --config configs/real.yaml`.
+
+## R01 - taxonomy, ranking accuracy, exemplars, samples, README (2026-11-05)
+- **Goal:** keep successes AND failures visible (spec 6/R19), evaluate base and SFT on the same questions (risk 3), and give a README that runs the model without retraining (9(g)).
+- **Spec files were not in the repo** (step 0 skipped on instruction; points relayed by the user, not read).
+- **Done:** I-D026 to I-D033: `slm.sft_eval.taxonomy` / `ranking`, `error_class` and rank columns, `error_taxonomy.csv` / `ranking_accuracy.csv`, exemplar tests on the real files, `scripts/sample_checkpoints.py` + stage `samples`, `docs/README.md` + `tests/test_r01_readme.py`, `docs/ERROR_TAXONOMY.md`.
+- **Found by tests:** `generate.py` crashed on a cp1252 console when a model emitted undecodable bytes (fixed, I-D032).
+- **Next:** merge main when P02c finishes, set the PREREG margins, run `scripts/run_real.py --config configs/real.yaml`; fill the README `<...>` numbers from the real run.

@@ -79,7 +79,7 @@ def load_run_real():
 def test_orchestrator_stage_list_and_configs():
     mod = load_run_real()
     assert mod.STAGES == ["tokenizer", "token_cache", "sweep", "sizing", "freeze", "pretrain", "probes",
-                          "sft", "qa_eval", "tables", "analysis", "report"]
+                          "sft", "qa_eval", "samples", "tables", "analysis", "report"]
     assert set(mod.FUNCS) == set(mod.STAGES)
     import yaml
     real = yaml.safe_load((ROOT / "configs" / "real.yaml").read_text())

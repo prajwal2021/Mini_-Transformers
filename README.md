@@ -11,3 +11,5 @@ ruff check .
 ```
 
 Status: in development (see track.txt)
+
+Full instructions (installation, hardware, running the trained model without retraining, reproducing the training): [docs/README.md](docs/README.md).

@@ -76,6 +76,11 @@ def read_lines():
 
 
 def main(argv: list[str] | None = None) -> int:
+    # A model can emit bytes that are not valid text; never let a legacy console code page (cp1252)
+    # turn that into a crash during a demo.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--bundle", required=True, help="a bundle directory, e.g. bundle/sft")
     ap.add_argument("--prompt", help="text to complete (omit with --interactive)")

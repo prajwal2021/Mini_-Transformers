@@ -22,8 +22,18 @@ from .evaluate import (
     occurs,
     summarize,
 )
+from .ranking import RANK_COLUMNS, rank_of_first, rank_rows, ranking_summary
+from .taxonomy import CLASSES, Taxonomy, error_summary, is_degenerate
 
 __all__ = [
+    "CLASSES",
+    "RANK_COLUMNS",
+    "Taxonomy",
+    "error_summary",
+    "is_degenerate",
+    "rank_of_first",
+    "rank_rows",
+    "ranking_summary",
     "RATE_COLUMNS",
     "TABLE_COLUMNS",
     "assert_same_questions",

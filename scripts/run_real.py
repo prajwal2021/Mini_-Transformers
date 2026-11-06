@@ -4,7 +4,7 @@
     python scripts/run_real.py --config configs/real.yaml [--only S ...] [--from S] [--until S] [--force] [--list]
 
 Stages, in order: tokenizer, token_cache, sweep, sizing, freeze, pretrain, probes, sft, qa_eval,
-tables, analysis, report. Each writes <out_dir>/stages/<name>.json (status, seconds, summary) and is
+samples, tables, analysis, report. Each writes <out_dir>/stages/<name>.json (status, seconds, summary) and is
 skipped on a rerun when that file says ok for the same config; --force reruns, and running a stage
 invalidates every later one. Nothing before ``freeze`` reads test data. ``freeze`` refuses when any
 test probe, QA test prediction or ledger entry exists. No network, no API call.
@@ -29,7 +29,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 FIX = ROOT / "tests" / "fixtures"
 STAGES = ["tokenizer", "token_cache", "sweep", "sizing", "freeze", "pretrain", "probes", "sft",
-          "qa_eval", "tables", "analysis", "report"]
+          "qa_eval", "samples", "tables", "analysis", "report"]
 
 
 class Ctx:
@@ -268,6 +268,7 @@ def st_sft(c: Ctx) -> dict:
 
 def st_qa_eval(c: Ctx) -> dict:
     from slm.sft_eval import (
+        Taxonomy,
         check_exemplars_disjoint,
         compare_variants,
         comparison_table,
@@ -301,7 +302,8 @@ def st_qa_eval(c: Ctx) -> dict:
         sft = c.out / "sft" / f"seed{seed}" / "checkpoints" / "best.pt"
         variants = [("pretrained", pre, "zero_shot", prefixes["zero_shot"]), ("pretrained", pre, "2shot", prefixes["2shot"]),
                     ("sft", sft, "zero_shot", prefixes["zero_shot"])]
-        tabs.append(compare_variants(variants, tok, rows, seed, av, max_new_tokens=c.sft_cfg().max_new_tokens))
+        tabs.append(compare_variants(variants, tok, rows, seed, av, max_new_tokens=c.sft_cfg().max_new_tokens,
+                                     taxonomy=Taxonomy.from_kb(c.kb_path), ranking=True))
     qa = pd.concat(tabs, ignore_index=True)
     (c.out / "qa").mkdir(exist_ok=True)
     qa.to_csv(c.out / "qa" / "qa_predictions.csv", index=False, encoding="utf-8")
@@ -309,6 +311,29 @@ def st_qa_eval(c: Ctx) -> dict:
     tab = comparison_table(qa)
     return {"rows": len(qa), "questions_per_set": {k: sum(1 for r in rows if r["subset"] == k) for k in ("E0", "E1", "E2")},
             "comparison": json.loads(tab.to_json(orient="records"))}
+
+
+def st_samples(c: Ctx) -> dict:
+    """R01: samples from every seed-0 checkpoint and `init`, flagged by the taxonomy; 6 + 6 selected."""
+    import hashlib
+
+    from slm.guard import record_test_use
+    from slm.integration import samples as S
+
+    c.require_freeze()
+    label = "MOCK" if c.mock else "REAL"
+    kb = json.loads(c.kb_path.read_text(encoding="utf-8"))
+    record_test_use("R01 checkpoint samples: canonical prefixes and novel wordings of KB facts", log_path=c.ledger,
+                    files=[{"path": str(c.kb_path), "sha256": hashlib.sha256(c.kb_path.read_bytes()).hexdigest()}],
+                    caller="scripts/run_real.py:st_samples")
+    df = S.run_samples(c.out / "pretrain", c.tokenizer(), kb, seed=0, data_status=label)
+    sel = S.select_samples(df, 6)
+    d = c.out / "samples"
+    d.mkdir(exist_ok=True)
+    df.to_csv(d / "samples.csv", index=False, encoding="utf-8")
+    sel.to_csv(d / "samples_selected.csv", index=False, encoding="utf-8")
+    (d / "samples.md").write_text(S.to_markdown(df, sel, 6, label), encoding="utf-8")
+    return {"rows": len(df), "selected": sel["selected_as"].value_counts().to_dict(), "label": label}
 
 
 def st_tables(c: Ctx) -> dict:
@@ -354,7 +379,10 @@ def st_report(c: Ctx) -> dict:
         n_sweep_configs=len(c.read("sweep/results.json")), sft_epochs_run=max([s.get("epochs_done", 0) for s in sft_res] or [0]),
         seeds=seeds, n_params=RI.count_model_params(final_pretrain_checkpoint(c.out / "pretrain" / f"seed{seeds[0]}")),
         prereg_commit=rec["git"]["commit"], analysis_commit=RI.git_head(ROOT))
-    samples = RI.balanced_samples(RI.qa_samples(qa, kb, prompts) + RI.checkpoint_samples(c.out / "pretrain", tok, kb))
+    chosen = pd.read_csv(c.out / "samples" / "samples_selected.csv", keep_default_na=False)
+    from slm.integration.samples import categories
+
+    samples = RI.balanced_samples(RI.qa_samples(qa, kb, prompts) + categories(chosen), per_category=3, limit=14)
     RI.write_report_inputs(c.out / "report_inputs", facts, RI.loss_curves(c.out / "pretrain", seeds), samples)
     flags = ["--banner-label", "MOCK"] if c.mock else ["--real"]
     out = run_cli(["scripts/build_report.py", "--results-dir", str(c.out / "results"), "--inputs-dir", str(c.out / "report_inputs"),
@@ -363,7 +391,7 @@ def st_report(c: Ctx) -> dict:
 
 
 FUNCS = {"tokenizer": st_tokenizer, "token_cache": st_token_cache, "sweep": st_sweep, "sizing": st_sizing, "freeze": st_freeze,
-         "pretrain": st_pretrain, "probes": st_probes, "sft": st_sft, "qa_eval": st_qa_eval, "tables": st_tables,
+         "pretrain": st_pretrain, "probes": st_probes, "sft": st_sft, "qa_eval": st_qa_eval, "samples": st_samples, "tables": st_tables,
          "analysis": st_analysis, "report": st_report}
 
 

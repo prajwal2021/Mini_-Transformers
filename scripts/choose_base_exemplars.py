@@ -30,11 +30,12 @@ def rows(path: Path) -> list[dict]:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--sft-dir", required=True)
+    ap.add_argument("--eval-dir", default=None, help="folder of qa_test.jsonl (default: --sft-dir)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default=str(ROOT / "configs" / "base_prompts.yaml"))
     args = ap.parse_args()
     d = Path(args.sft_dir)
-    val_path, qa_path = d / "sft_val.jsonl", d / "qa_test.jsonl"
+    val_path, qa_path = d / "sft_val.jsonl", Path(args.eval_dir or d) / "qa_test.jsonl"
     val = [r for r in rows(val_path) if r["template_id"].endswith("w0")]  # plain question
     by_fact = {r["fact_id"]: r for r in val}
     rng = random.Random(f"base-exemplars:{args.seed}")

@@ -40,7 +40,7 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 19 | 6: ranking and binding on summed and length-normalised log-probs | Token-normalised rank and stored are secondary columns (`rank_tokennorm`, `stored_tokennorm`, `norm_unit`); `stored` uses summed scores | The Scorer first could not expose token counts | E-D006, E-D015 | in force |
 | 20 | (none) | **Permutation null** (`null_stored_rate`): the same procedure with another entity's value as pseudo-truth; chance is about 0.13, not 0 | A "stored" rate has a non-zero chance level; `init` model reports it | E-D012, E-D013 | in force (addition) |
 | 21 | 7.1/7.4: "exact value match" | Primary `exact_value_match` = value present with no rival value of the attribute; `contains_gold` and `sentence_exact` kept apart | DESIGN names no normalisation; sentence equality was too strict | M-D040, M-D043 | in force |
-| 22 | 7.2: 2-shot exemplars from SFT-train facts | Exemplars from **SFT-val** facts (F049, F064: mock-split ids) so that they sit in none of E0/E1/E2; checked disjoint on every run | Exemplar leakage into the evaluation facts | M-D044 | in force; ids to re-pick on the real split |
+| 22 | 7.2: 2-shot exemplars from SFT-train facts | Exemplars from **SFT-val** facts (F049 airship_onboard_handler_name, F064 species_max_combined_weight), so that they sit in none of E0/E1/E2; seeded (seed 0), two families, plain question. Re-picked from the real `data/sft/sft_val.jsonl` and `data/eval/qa_test.jsonl` in R01 (same ids: the mock files were the real split) and checked disjoint from SFT-train, SFT-val-evaluation and E0/E1/E2 by `tests/test_r01_exemplars.py` | DESIGN says SFT-train facts, but SFT-train facts are the facts of E0 and E1, so an exemplar would put an evaluation answer in the prompt | M-D044, I-D026 | in force |
 | 23 | 7.2: test access | Every read of the test split goes through a ledger (`reports/test_access_log.jsonl`) | Auditable once-only test use | M-D041 | in force (addition) |
 | 24 | 7.3: LR 1e-4, short warmup, <= 6 epochs, early stop | Batch 16, warmup 20, patience 2, loss on answer + `<|eos|>`; replay (Plan B) not implemented | Free parameters filled in | M-D036-M-D038 | in force |
 
@@ -81,3 +81,12 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 40 | The 12M-vs-25M sizing check of DESIGN section 5 is a pipeline stage (row 14 is now implemented, not yet run); selection by validation loss only, val-probe accuracy not used | I-D021 |
 | 41 | PREREG freeze is a script with a hash + commit record and a refusal rule (any test probe, QA test file or ledger entry); test probes are logged in the ledger | I-D022, I-D023 |
 | 42 | SFT/QA files are built from the KB's own `sft_split` with 14 assertions and a hash manifest (`data/sft`, `data/eval`) | I-D018 |
+
+## 8. Evaluation metrics, samples, README (R01)
+
+| # | Change | Journal |
+|---|---|---|
+| 43 | Error taxonomy of 7.4 made executable: one class per prediction by fixed rules per value class (`docs/ERROR_TAXONOMY.md`); a value of the wrong class only counts as a format failure | I-D027 |
+| 44 | Ranking accuracy of 7.4 taken from the section 6 definition on the QA prompt; the sentence variant (`rank_sentence`) is reported in addition because SFT answers are sentences | I-D029 |
+| 45 | Checkpoint sample generator with taxonomy flags and an automatic 6 + 6 selection (DESIGN 6 gallery: "successes + failures, categorized"); the repetition/format-drift categories of DESIGN 6 are the `gibberish` flag | I-D031 |
+| 46 | 2-shot exemplars re-picked on the real files (row 22); no change of ids | I-D030 |
