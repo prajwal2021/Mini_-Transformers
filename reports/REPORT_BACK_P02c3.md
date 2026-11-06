@@ -338,3 +338,8 @@ After the immediate concern was resolved, the desk updated the record, informed 
 
 The matter was closed without further issue, and the Companion Animal Travel Desk will continue to support dependable companion travel.
 ```
+2fd6cae P02c3-b: corpus run resumed, stopped at 350-doc rolling gate (newsletter headlines), repair v2 fixes and reprocessing
+49ca725 P02c3-a: repair v2, prompt v8, opener a/an, artifact detector, amended gates, reprocessing of run-2 raw outputs
+0cfabdc P02c2-b: corpus generation run 2 (stopped at Gate A: every_type, opening duplicates 0.0%)
+6589dc2 P02c2-a: combinatorial openers, v7
+0103eeb P02c-a: corpus generation run (stopped at Gate A, opening duplicates 22.1%)
