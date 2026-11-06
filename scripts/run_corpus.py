@@ -36,6 +36,7 @@ FIRST_CHUNK, CHUNK = 150, 100
 GATES = {"acc5": 0.95, "attempts": 1.4, "cost": 6.00, "dup": 0.05, "type": 0.90, "artifact": 0.02}
 TYPE_MIN_DOCS = 20
 FAIL_ROUNDS = (1, 2)
+REDO_FIRST = 350  # P02c4: first documents (hashed order) whose unaccepted ones are re-run with prompt v9
 LEAK_ROUNDS = (3, 4)
 
 
@@ -91,7 +92,7 @@ class Run:
         out = corpus.round_dir(self.raw, number)
         result = generate_model(
             self.backend, MODEL, self.api_cfg, rows, self.kb, self.pools, self.guard, out, 5, self.max_out,
-            self.args.workers, "v8", "v5", bank_dir=self.bank_dir,
+            self.args.workers, "v9", "v5", bank_dir=self.bank_dir,
         )
         return result["stopped"]
 
@@ -119,7 +120,9 @@ class Run:
         if not path.exists():
             path.write_text(f"Client: {self.args.client}\n\n# Corpus progress\n\n| docs done | accepted within 5 | mean attempts | "
                             "projected full run | opening 5-gram dup | lowest type (n>=20) | artifact rate | ledger spend | gates |\n"
-                            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n", encoding="utf-8")
+                            "| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n"
+                            "\nRule (P02c4): a document accepted after its re-plan counts as accepted in the rolling gates.\n\n",
+                            encoding="utf-8")
         with path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
 
@@ -134,8 +137,8 @@ class Run:
             events_path = self.raw / _safe(MODEL) / "api_events.jsonl"
             from slm.data.pilot import _load_attempts
 
-            metrics = analyze_model(MODEL, done, self.attempts(0), self.kb, 5, _load_attempts(events_path))
-            chunk_docs, _missing = corpus.final_docs(done, {0: self.attempts(0)})
+            metrics = analyze_model(MODEL, done, self.gate_attempts(done), self.kb, 5, _load_attempts(events_path))
+            chunk_docs, _missing = corpus.final_docs(done, self.gate_rounds())
             metrics["artifact_rate"], bad, bearing = artifact_rate(chunk_docs)
             spend = self.ledger_spend()
             ok = evaluate(metrics, spend)
@@ -156,6 +159,26 @@ class Run:
                 print(f"GATE FAIL after {len(done)} docs: {', '.join(failing)}; stopping.")
                 return 3
         return 0
+
+    def gate_rounds(self) -> dict[int, list[dict]]:
+        return {n: a for n, a in self.rounds().items() if n <= max(FAIL_ROUNDS)}
+
+    def gate_attempts(self, done: list[dict]) -> list[dict]:
+        """Attempts the rolling gates see (P02c4): round 0, plus the attempts of a document that was not
+        accepted in round 0 but is accepted after its re-plan (rounds 1-2). Such a document counts as
+        accepted; its re-plan attempts are numbered 5 so that it counts as the worst case of 'within 5'
+        for the attempts statistic, and their cost is included."""
+        rounds = self.gate_rounds()
+        base = rounds.get(0, [])
+        ok0 = {a["doc_id"] for a in base if a["ok"]}
+        ids = {r["doc_id"] for r in done}
+        extra = []
+        for number in FAIL_ROUNDS:
+            for a in rounds.get(number, []):
+                if a["doc_id"] in ids and a["doc_id"] not in ok0:
+                    extra.append({**a, "attempt": 5, "replan_round": number})
+        accepted_replan = {a["doc_id"] for a in extra if a["ok"]}
+        return base + [a for a in extra if a["doc_id"] in accepted_replan]
 
     @staticmethod
     def progress_text(n: int, m: dict, spend: float, failing: list[str], gate_a: bool) -> str:
@@ -182,6 +205,24 @@ class Run:
     def unaccepted(self) -> list[dict]:
         accepted = corpus.accepted_by_doc(self.rounds())
         return [r for r in self.plan if r["doc_id"] not in accepted]
+
+    def redo_stage(self) -> int:
+        """P02c4: re-run the unaccepted documents among the first REDO_FIRST (hashed order) with prompt v9 and a
+        new opener (round 1, then round 2)."""
+        order = sorted(self.plan, key=lambda r: hashlib.sha256(("p02c" + r["doc_id"]).encode()).hexdigest())
+        first = {r["doc_id"] for r in order[:REDO_FIRST]}
+        for number in FAIL_ROUNDS:
+            todo = [r for r in self.unaccepted() if r["doc_id"] in first]
+            if not todo:
+                break
+            print(f"redo round {number}: {len(todo)} docs {[r['doc_id'] for r in todo]}")
+            stopped = self.generate(number, todo)
+            if stopped:
+                print(f"STOPPED by a cap: {stopped}")
+                return 3
+        left = [r["doc_id"] for r in self.unaccepted() if r["doc_id"] in first]
+        print(f"unaccepted among the first {REDO_FIRST} after redo: {left}")
+        return 0
 
     def replan_stage(self) -> int:
         for number in FAIL_ROUNDS:
@@ -251,7 +292,7 @@ class Run:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--client", choices=["mock", "openai"], required=True)
-    parser.add_argument("--stage", choices=["main", "replan", "leak", "assemble", "all"], default="all")
+    parser.add_argument("--stage", choices=["redo", "main", "replan", "leak", "assemble", "all"], default="all")
     parser.add_argument("--out-dir", type=Path, default=None)
     parser.add_argument("--bank-dir", type=Path, default=None)
     parser.add_argument("--workers", type=int, default=12)
@@ -263,10 +304,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.client == "openai" and not args.i_understand_this_spends_money:
         raise SystemExit("Refusing to call the OpenAI API without --i-understand-this-spends-money")
     run = Run(args)
-    stages = ["main", "replan", "leak", "assemble"] if args.stage == "all" else [args.stage]
+    stages = ["redo", "main", "replan", "leak", "assemble"] if args.stage == "all" else [args.stage]
     for stage in stages:
         try:
-            code = {"main": run.main_stage, "replan": run.replan_stage, "leak": run.leak_stage,
+            code = {"redo": run.redo_stage, "main": run.main_stage, "replan": run.replan_stage, "leak": run.leak_stage,
                     "assemble": run.assemble}[stage]()
         except BudgetExceeded as exc:
             print(f"STOPPED by a cap: {exc}")

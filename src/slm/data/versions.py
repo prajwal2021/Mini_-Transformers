@@ -45,11 +45,12 @@ from .prompts_v6 import (
 from .prompts_v6 import ask_words as ask_words_v6
 from .prompts_v7 import TEMPLATE_VERSION_V7, build_prompt_v7, template_hash_v7
 from .prompts_v8 import TEMPLATE_VERSION_V8, build_prompt_v8, template_hash_v8
+from .prompts_v9 import TEMPLATE_VERSION_V9, build_prompt_v9, template_hash_v9
 
 _KB: dict[str, Any] = {}
-BUILDERS = {"v6": build_prompt_v6, "v7": build_prompt_v7, "v8": build_prompt_v8}
-LABELS = {"v6": TEMPLATE_VERSION_V6, "v7": TEMPLATE_VERSION_V7, "v8": TEMPLATE_VERSION_V8}
-HASHES = {"v6": template_hash_v6, "v7": template_hash_v7, "v8": template_hash_v8}
+BUILDERS = {"v6": build_prompt_v6, "v7": build_prompt_v7, "v8": build_prompt_v8, "v9": build_prompt_v9}
+LABELS = {"v6": TEMPLATE_VERSION_V6, "v7": TEMPLATE_VERSION_V7, "v8": TEMPLATE_VERSION_V8, "v9": TEMPLATE_VERSION_V9}
+HASHES = {"v6": template_hash_v6, "v7": template_hash_v7, "v8": template_hash_v8, "v9": template_hash_v9}
 
 
 def KB_CACHE() -> dict[str, Any]:  # noqa: N802 - small lazy loader
@@ -98,7 +99,7 @@ def prompt_tools(
 
     ``model`` selects the per-model length calibration of prompt v5.
     """
-    if version in ("v6", "v7", "v8"):
+    if version in ("v6", "v7", "v8", "v9"):
         store = BankStore.load(bank_dir)
 
         def repair(text: str, row: dict[str, Any], kb: dict[str, Any]):
