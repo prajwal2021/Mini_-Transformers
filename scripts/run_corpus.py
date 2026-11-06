@@ -64,6 +64,7 @@ class Run:
         self.kb = json.loads((ROOT / "data" / "kb" / "kb.json").read_text(encoding="utf-8"))
         self.pools = json.loads((ROOT / "data" / "kb" / "filler_pools.json").read_text(encoding="utf-8"))
         plan = [json.loads(x) for x in (ROOT / "data" / "plan" / "plan.jsonl").read_text(encoding="utf-8").splitlines()]
+        plan = corpus.apply_plan_overrides(plan, self.out)
         self.plan = plan[: args.limit] if args.limit else plan
         self.plan_by_id = {r["doc_id"]: r for r in self.plan}
         self.bank_dir = args.bank_dir
@@ -86,12 +87,12 @@ class Run:
               f"{len(self.plan)} plan rows, workers {args.workers}")
 
     # -- generation --------------------------------------------------------------------------
-    def generate(self, number: int, rows: list[dict]) -> str | None:
+    def generate(self, number: int, rows: list[dict], attempts: int = 5) -> str | None:
         if number:
             rows = [{**r, "replan": number} for r in rows]
         out = corpus.round_dir(self.raw, number)
         result = generate_model(
-            self.backend, MODEL, self.api_cfg, rows, self.kb, self.pools, self.guard, out, 5, self.max_out,
+            self.backend, MODEL, self.api_cfg, rows, self.kb, self.pools, self.guard, out, attempts, self.max_out,
             self.args.workers, "v9", "v5", bank_dir=self.bank_dir,
         )
         return result["stopped"]

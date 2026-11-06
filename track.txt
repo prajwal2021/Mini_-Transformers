@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02c4 (all 2407 rows generated, gates pass; stopped at re-plan: test-0004 unaccepted; leak stage not run)
+CURRENT PHASE: P02c5 (corpus closed after 2 regeneration rounds; 15 val/test docs still leak, 1 meta-talk doc; audit FAIL, awaits human)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -78,4 +78,4 @@ OPEN ISSUES:
 - P3 (cap 3) replaced by P3' (cap 6) in P02a2 (D-029); 30 pairs remain above 3. tokens_per_word 1.35 is provisional until P03. gpt-5.4-mini standard exceeds $10 at +100% reasoning (batch does not).
 - Repository initialized on branch main at commit 96c8c18.
 
-NEXT STEP: Human decides how to complete test-0004 and whether to run the leak stage (about 70 val/test docs)
+NEXT STEP: Human decides on the 15 leaking val/test docs and test-0074

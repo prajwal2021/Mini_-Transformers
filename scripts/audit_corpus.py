@@ -13,6 +13,9 @@ from pathlib import Path
 
 from slm.data import corpus, openers_v2
 from slm.data.artifacts import artifact_by_type, artifact_rate
+from slm.data.leakclass import analyse as leak_analyse
+from slm.data.leakclass import exempt_docs
+from slm.data.metatalk import PATTERNS, genuine_hits, scan
 from slm.data.versions import validator_for
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     kb = json.loads((ROOT / "data" / "kb" / "kb.json").read_text(encoding="utf-8"))
     pools = json.loads((ROOT / "data" / "kb" / "filler_pools.json").read_text(encoding="utf-8"))
     plan = [json.loads(x) for x in (ROOT / "data" / "plan" / "plan.jsonl").read_text(encoding="utf-8").splitlines()]
+    plan = corpus.apply_plan_overrides(plan, args.corpus_dir)
     plan_by_id = {r["doc_id"]: r for r in plan}
     docs = [d for s in ("train", "val", "test") for d in load_split(args.corpus_dir / f"{s}.jsonl")]
     problems: list[str] = []
@@ -165,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     dropped_path = args.corpus_dir / "dropped.json"
     dropped = json.loads(dropped_path.read_text(encoding="utf-8")) if dropped_path.exists() else []
     lines += ["", f"Train documents unaccepted after re-planning: {len(unaccepted)} {unaccepted}. "
-              f"Dropped as near-duplicates: {len(dropped)} {[x['doc_id'] for x in dropped]}."]
+              f"Dropped documents (near-duplicates or P02c5 decisions): {len(dropped)} {[x['doc_id'] for x in dropped]}."]
 
     # (b) 2+2 in val and test
     per = defaultdict(Counter)
@@ -208,11 +212,28 @@ def main(argv: list[str] | None = None) -> int:
     lines += ["", "## (f) 13-gram leakage (after validator normalisation)", "",
               f"Val/test documents sharing at least one 13-gram with train: {len(leaky)} (total shared {sum(leaky.values())}); must be 0. {leaky}",
               f"Train near-duplicate pairs (13-gram Jaccard > 0.5): {len(near)}. {near[:5]}"]
-    problems += [f"leak {d}" for d in leaky]
+    info = leak_analyse(docs, plan_by_id, kb)
+    leaky_exempt = sorted(exempt_docs(info))
+    lines += ["", f"Leakage without exemption: {len(leaky)} docs; with the sign-off exemption (grams entirely inside a "
+              f"sign-off line, docs/DESIGN_CHANGES_v1.3.md): {len(leaky_exempt)} docs. Gram classes: "
+              + ", ".join(f"{c} {sum(r['class'] == c for r in info.values())}" for c in ("i", "i-b", "ii", "iii")) + "."]
+    problems += [f"leak {d}" for d in leaky_exempt]
     problems += [f"near-duplicate {a}/{b}" for a, b, _j in near]
     dup = corpus.exact_duplicates(docs)
     lines += ["", "## (g) Exact duplicate documents across all splits", "", f"{len(dup)} (must be 0): {dup[:5]}"]
     problems += [f"exact duplicate {x}" for x in dup]
+
+    # (k) meta-talk scan (P02c5): broad pattern counts (informational) and the narrow genuine metric (gate, target 0)
+    broad = Counter()
+    for d in docs:
+        for name, _ctx in scan(d["text"]):
+            broad[name] += 1
+    genuine = {d["doc_id"]: genuine_hits(d["text"]) for d in docs if genuine_hits(d["text"])}
+    lines += ["", "## (k) Meta-talk scan (prompt leaks)", "",
+              "Broad patterns (raw substring hits, informational): "
+              + ", ".join(f"'{n}' {broad[n]}" for n, _rx in PATTERNS) + ".",
+              f"Genuine prompt-leak documents (slm/data/metatalk.py GENUINE, gate target 0): {len(genuine)} {sorted(genuine)[:12]}"]
+    problems += [f"meta-talk {d}" for d in genuine]
 
     # records (cost, attempts)
     records_path = args.corpus_dir / "raw" / "records.jsonl"

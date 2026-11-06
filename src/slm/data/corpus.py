@@ -41,6 +41,16 @@ class RetryingBackend:
         raise AssertionError("unreachable")
 
 
+def apply_plan_overrides(plan: list[dict[str, Any]], out_dir: Path) -> list[dict[str, Any]]:
+    """P02c5: documents re-planned as another type (data/corpus/plan_overrides.json) keep their facts and splits."""
+    path = out_dir / "plan_overrides.json"
+    if not path.exists():
+        return plan
+    over = json.loads(path.read_text(encoding="utf-8"))
+    return [{**r, **{k: v for k, v in over[r["doc_id"]].items() if k == "doc_type"}} if r["doc_id"] in over else r
+            for r in plan]
+
+
 def round_dir(base: Path, number: int) -> Path:
     """Round 0 is ``base`` itself; re-plan and regeneration rounds are base_r1, base_r2, ..."""
     return base if number == 0 else base.with_name(f"{base.name}_r{number}")
@@ -51,7 +61,7 @@ def doc_mode(row: dict[str, Any]) -> str:
     return "none" if not modes else (modes.pop() if len(modes) == 1 else "mixed")
 
 
-def load_rounds(base: Path, rounds: int = 4) -> dict[int, list[dict[str, Any]]]:
+def load_rounds(base: Path, rounds: int = 6) -> dict[int, list[dict[str, Any]]]:
     out = {}
     for number in range(rounds + 1):
         path = round_dir(base, number) / _safe(MODEL) / "attempts.jsonl"
