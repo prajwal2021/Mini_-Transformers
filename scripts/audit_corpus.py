@@ -107,6 +107,32 @@ def main(argv: list[str] | None = None) -> int:
             total[p] += n
         lines.append(f"\nAll types: {dict(total)}.")
 
+    # (j) provenance: prompt version of the accepted attempt of each document (P02c4), and re-planned documents
+    if records_file.exists():
+        by_version: Counter = Counter()
+        by_version_type: Counter = Counter()
+        replanned: Counter = Counter()
+        for line in records_file.read_text(encoding="utf-8").splitlines():
+            rec = json.loads(line)
+            if rec["doc_id"] not in type_of:
+                continue
+            final = [a for a in rec["attempts"] if a["ok"]]
+            if not final:
+                continue
+            version = final[-1].get("prompt_version") or "unknown"
+            by_version[version] += 1
+            by_version_type[(type_of[rec["doc_id"]], version)] += 1
+            if final[-1]["round"] > 0:
+                replanned[(type_of[rec["doc_id"]], final[-1]["round"])] += 1
+        versions = sorted(by_version)
+        lines += ["", "## (j) Provenance: prompt version of the accepted attempt", "",
+                  "Documents by prompt version: " + ", ".join(f"{v} {by_version[v]}" for v in versions) + ".", "",
+                  "| doc type | " + " | ".join(versions) + " |", "| --- |" + " ---: |" * len(versions)]
+        for t in types:
+            lines.append(f"| {t} | " + " | ".join(str(by_version_type[(t, v)]) for v in versions) + " |")
+        lines += ["", "Documents accepted only after a re-plan or regeneration round (type, round): "
+                  + (", ".join(f"{t} r{r} x{n}" for (t, r), n in sorted(replanned.items())) or "none") + "."]
+
     # (a) exposure
     planned_t, planned_p = Counter(), Counter()
     meas_t, meas_p = Counter(), Counter()

@@ -1,0 +1,60 @@
+# Corpus audit
+
+## (d) Documents, words and estimated tokens (words x 1.35)
+
+| split | docs planned | docs in corpus | words | est. tokens | mean words/doc |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| train | 2167 | 2165 | 561821 | 758458 | 259.5 |
+| val | 120 | 120 | 30614 | 41329 | 255.1 |
+| test | 120 | 119 | 30721 | 41473 | 258.2 |
+| all | 2407 | 2404 | 623156 | 841261 | 259.2 |
+
+| doc type | train | val | test |
+| --- | ---: | ---: | ---: |
+| complaint letter + reply | 114 | 6 | 6 |
+| customer notice | 226 | 12 | 13 |
+| employee email | 292 | 12 | 12 |
+| help-center article | 228 | 12 | 14 |
+| incident report | 114 | 6 | 5 |
+| internal chat thread | 225 | 12 | 12 |
+| meeting minutes | 174 | 12 | 10 |
+| monthly ops report | 128 | 12 | 11 |
+| newsletter blurb | 179 | 12 | 11 |
+| policy manual section | 258 | 12 | 13 |
+| training handbook page | 227 | 12 | 12 |
+
+Documents by split and mode: test/paraphrased 119, train/mixed 565, train/none 867, train/paraphrased 369, train/templated 364, val/paraphrased 120
+
+## (h) Opening-5-gram duplicate share on the final corpus (Gate A metric)
+
+Overall 0.75% over 2404 documents (limit 5%).
+
+| group | docs | duplicate share |
+| --- | ---: | ---: |
+| type: complaint letter + reply | 126 | 0.79% |
+| type: customer notice | 251 | 0.00% |
+| type: employee email | 316 | 0.32% |
+| type: help-center article | 254 | 1.18% |
+| type: incident report | 125 | 0.00% |
+| type: internal chat thread | 249 | 0.80% |
+| type: meeting minutes | 196 | 0.00% |
+| type: monthly ops report | 151 | 0.66% |
+| type: newsletter blurb | 202 | 0.50% |
+| type: policy manual section | 283 | 1.06% |
+| type: training handbook page | 251 | 1.99% |
+| split: train | 2165 | 0.74% |
+| split: val | 120 | 0.00% |
+| split: test | 119 | 0.00% |
+
+Ten most common openings (first five words): 'desk cover on a spirited' x2; 'basic rules for paperwork queues' x2; 'last week late winter greetings' x2; 'rewarding start rules for the' x2; 'clear signage explained for anyone' x2; 'this afternoon clear rules for' x2; 'shift quiet corners rules new' x2; 'spare blankets explained for anyone' x2; 'practice for the spirited night' x2; 'a quick look at traveler' x2
+Documents whose first five words equal the assigned opener of round 0, 1 or 2: 2396 of 2404 (99.7%; informational, not a gate).
+
+## (i) Artifact rate and marker placements on the final corpus
+
+Artifact rate (detector in slm/data/artifacts.py) 0.13% = 2 of 1537 mention-bearing documents (gate limit 2%).
+
+| doc type | mention-bearing docs | with artifact | rate |
+| --- | ---: | ---: | ---: |
+| complaint letter + reply | 48 | 0 | 0.0% |
+| customer notice | 172 | 0 | 0.0% |
+| employee email | 237 | 0 | 0.0% |
