@@ -26,6 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--run-dir", default=str(ROOT / "runs" / "real"))
     ap.add_argument("--ledger", default=str(ROOT / "reports" / "test_access_log.jsonl"))
     ap.add_argument("--verify", action="store_true")
+    ap.add_argument("--allow-dirty", action="store_true", help="mock/dry runs only: do not refuse on a dirty git working tree")
     ap.add_argument("--config", default=None, help="orchestrator config (its sha256 is recorded)")
     ap.add_argument("--final-config", default=None, help="<run-dir>/final_config.json (E*, model size, lr, ... are recorded)")
     args = ap.parse_args(argv)
@@ -38,9 +39,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.final_config:
             f = json.loads(Path(args.final_config).read_text(encoding="utf-8"))
             extra |= {"e_star": f["primary_epoch"], "total_epochs": f["epochs"], "model_size": f["size"], "lr": f["lr"],
-                      "dropout": f["dropout"], "batch_size": f["batch_size"], "val_loss_optimal_epoch": f["val_loss_optimal_epoch"]}
+                      "dropout": f["dropout"], "batch_size": f["batch_size"], "val_loss_optimal_epoch": f["val_loss_optimal_epoch"],
+                      "no_val_storage": f["no_val_storage"], "sweep_seed": f["sweep_seed"], "schedule_sha256": f["schedule_sha256"]}
         rec = verify(Path(args.prereg)) if args.verify else freeze(
-            Path(args.prereg), Path(args.run_dir), Path(args.ledger), ROOT, extra=extra)
+            Path(args.prereg), Path(args.run_dir), Path(args.ledger), ROOT, extra=extra,
+            require_clean=not args.allow_dirty)
     except FreezeRefused as exc:
         print(f"FREEZE REFUSED: {exc}", file=sys.stderr)
         return 1

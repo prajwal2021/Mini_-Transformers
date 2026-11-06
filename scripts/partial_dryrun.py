@@ -73,9 +73,9 @@ def main(argv: list[str] | None = None) -> int:
 
     results = json.loads((out / "sweep" / "results.json").read_text())
     curves = {}
-    for row in results:  # R03 layout: sweep/<config>/seed0/, rows = validation loss and val-probe stored rate
+    for row in results:  # R03 layout: sweep/<config>/seed100/, rows = validation loss and val-probe stored rate
         name = row["config"]
-        run = out / "sweep" / name / "seed0"
+        run = out / "sweep" / name / "seed100"
         loss = pd.read_csv(run / "loss.csv")
         summ = json.loads((run / "summary.json").read_text())
         row = {**row, "name": name, "lr": float(name.split("_lr")[1].split("_")[0]), "dropout": float(name.split("_dropout")[1].split("_")[0]),
@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     prompts = [f1["canonical_prefix"].rstrip(), f2["canonical_prefix"].rstrip(),
                prefix(kb["measured_facts"][80]["attribute_id"], "n1", kb["measured_facts"][80]["entity"]),
                "Passengers travelling with pets should"]
-    ckpts = sorted((out / "sweep" / chosen["run"] / "seed0" / "checkpoints").glob("epoch_*.pt"))
+    ckpts = sorted((out / "sweep" / chosen["run"] / "seed100" / "checkpoints").glob("epoch_*.pt"))
     samples, ck = [], (ckpts[-1] if ckpts else None)  # the budget sweep deletes its checkpoints after scoring
     if ck is not None:
         model = load_checkpoint(ck, map_location=dev).to(dev).eval()

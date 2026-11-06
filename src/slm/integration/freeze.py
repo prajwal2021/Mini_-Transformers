@@ -47,14 +47,31 @@ def analysis_code_hash(root: Path) -> str:
     return h.hexdigest()
 
 
-def git_state(root: Path) -> dict:
-    def run(*a: str) -> str:
-        p = subprocess.run(["git", *a], cwd=root, capture_output=True, text=True)
-        return p.stdout.strip() if p.returncode == 0 else ""
+def _git(root: Path, *a: str) -> str:
+    p = subprocess.run(["git", *a], cwd=root, capture_output=True, text=True)
+    return p.stdout.rstrip("\n") if p.returncode == 0 else ""
 
-    return {"commit": run("rev-parse", "HEAD") or "unknown",
-            "branch": run("rev-parse", "--abbrev-ref", "HEAD"),
-            "dirty": bool(run("status", "--porcelain", "--untracked-files=no"))}
+
+def dirty_files(root: Path, exclude: Path | None = None) -> list[str]:
+    """Tracked files with uncommitted changes, apart from ``exclude`` (the PREREG file itself)."""
+    ex = None
+    if exclude is not None:
+        try:
+            ex = Path(exclude).resolve().relative_to(Path(root).resolve()).as_posix()
+        except ValueError:
+            ex = None  # PREREG outside the repository (a mock copy): nothing to exclude
+    out = []
+    for line in _git(root, "status", "--porcelain", "--untracked-files=no").splitlines():
+        path = line[3:].split(" -> ")[-1].strip().strip('"')
+        if path and path != ex:
+            out.append(path)
+    return out
+
+
+def git_state(root: Path, exclude: Path | None = None) -> dict:
+    return {"commit": _git(root, "rev-parse", "HEAD").strip() or "unknown",
+            "branch": _git(root, "rev-parse", "--abbrev-ref", "HEAD").strip(),
+            "dirty": bool(dirty_files(root, exclude))}
 
 
 def find_test_evidence(run_dir: Path, ledger: Path | None) -> list[str]:
@@ -88,7 +105,9 @@ def find_test_evidence(run_dir: Path, ledger: Path | None) -> list[str]:
 
 
 def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now: str | None = None,
-           extra: dict | None = None) -> dict:
+           extra: dict | None = None, require_clean: bool = True) -> dict:
+    """Freeze ``prereg``. ``require_clean`` (default) refuses when tracked files other than the PREREG file itself
+    have uncommitted changes, so that the recorded commit hash is the code that ran. Mock runs pass False."""
     prereg = Path(prereg)
     text = prereg.read_text(encoding="utf-8")
     if BEGIN in text:
@@ -97,10 +116,14 @@ def freeze(prereg: Path, run_dir: Path, ledger: Path | None, root: Path, *, now:
     evidence = find_test_evidence(run_dir, ledger)
     if evidence:
         raise FreezeRefused("refusing to freeze, test data was already touched: " + "; ".join(evidence))
+    dirty = dirty_files(root, prereg)
+    if dirty and require_clean:
+        raise FreezeRefused("refusing to freeze, the git working tree is dirty (commit first; only docs/PREREG.md may differ): "
+                            + ", ".join(dirty[:10]) + (" ..." if len(dirty) > 10 else ""))
     body = strip_block(text)
     rec = {
         "prereg_file": str(prereg), "prereg_sha256": sha256_text(body),
-        "git": git_state(root), "analysis_code_sha256": analysis_code_hash(root),
+        "git": git_state(root, prereg), "analysis_code_sha256": analysis_code_hash(root),
         "frozen_at": now or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "ledger": str(ledger) if ledger else None, "run_dir": str(run_dir), "extra": extra or {},
     }

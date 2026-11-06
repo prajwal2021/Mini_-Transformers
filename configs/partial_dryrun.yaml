@@ -20,7 +20,7 @@ train_overrides: {batch_size: 8}
 sft_config: configs/sft.yaml
 sft_overrides: {}
 sweep:
-  seed: 0
+  seed: 100
   epochs: 3
   grid:
     lr: [3.0e-4, 1.0e-3]

@@ -1,4 +1,4 @@
-# Preregistration DRAFT v4 (NOT FROZEN)
+# Preregistration DRAFT v5 (NOT FROZEN)
 
 **Status:** draft. It is frozen at P05, before the full three-seed run and before any real probe or
 QA result is seen, by committing it with the hash below. Nothing here has been fitted on real
@@ -10,8 +10,8 @@ data: the analysis code was validated on simulated data only
 | Frozen at | `<commit hash>`, `<date>` = TBD (P05) |
 | Analysis code commit | `<analysis commit hash>` = TBD (hash of `src/slm/analysis/` + `scripts/run_analysis.py` + `scripts/run_sensitivity.py` at freeze) |
 | Equivalence margins | **final researcher-chosen values, not derived from any data**: odds ratio 1.25 per tripling of exposure (+-0.223 log-odds) for H1/H2; +-0.10 risk difference for H3/H4 |
-| Training budget | **E\*** from the validation-probe rule of section 9 (recorded by the freeze together with the config hash) |
-| Supersedes | draft v3 (A03; margins were placeholders, one checkpoint chosen on validation loss), draft v2 (A02) and v1/v0; v1's labels were wrong (journal/analysis/FAILURES_A.md A-F001) |
+| Training budget | **E\*** from the smoothed validation-probe rule with the chance guard of section 9; the sweep and the three final seeds use the same 60-epoch schedule; the freeze records the sweep seed (100), E\*, the guard flag and the schedule hash |
+| Supersedes | draft v4 (R03; E\* was chosen with a 0.01 tolerance on the raw rate, the sweep shared seed 0 with a final seed and the final runs used a 2x longer schedule), draft v3 (A03; margins were placeholders, one checkpoint chosen on validation loss), draft v2 (A02) and v1/v0; v1's labels were wrong (journal/analysis/FAILURES_A.md A-F001) |
 
 Hypothesis labels and wording follow docs/DESIGN.md section 8. Map of outcome, predictors, unit,
 test and columns: docs/ANALYSIS_HYPOTHESES.md. Input contracts: docs/ANALYSIS_INPUT.md.
@@ -23,7 +23,7 @@ test and columns: docs/ANALYSIS_HYPOTHESES.md. Input contracts: docs/ANALYSIS_IN
 | D1 | H4 is a hypothesis of the preregistered investigation (section 8) | **H4 is pre-registered as SECONDARY**: effect size and CI are reported, with no significance claim and no place in the Holm family | Power is 0.33 at 120 facts (60 held-out facts, the KB split is frozen); a test that cannot detect the planted effect would mislead |
 | D2 | no multiple-comparison rule | Holm over H1, H2, H3 (m = 3) | PREREG v0 stated Holm; with H4 secondary the family has three tests |
 | D3 | `(1 \| fact) + (1 \| template) + (1 \| seed)` random intercepts | logistic GEE with fact clusters; seed fixed; template as within-frame fixed dummies | three seeds cannot estimate a variance; templates are nested in frames; GEE gives valid p-values (A-D001, A-D003) |
-| D4 | released checkpoint = earliest checkpoint within one point of the best validation-probe ranking accuracy (section 5) | **one analysed checkpoint, E\***: the earliest sweep checkpoint within 0.01 of the chosen config's best VALIDATION-probe stored rate (section 9); the config itself is chosen by validation-probe stored rate with validation loss as the tie-break. E\* is the analysed checkpoint, the SFT starting point and the source of `stored_pretrain`; the runs continue to 2E\* (capped at 60 epochs) for a secondary analysis | v3 chose the epoch count on validation loss, which on a corpus of about 0.75M tokens bottoms out early (overfitting) while fact storage keeps improving (I-D039); DESIGN section 5 selects by validation probes. Test probes never select anything |
+| D4 | released checkpoint = earliest checkpoint within one point of the best validation-probe ranking accuracy (section 5) | **one analysed checkpoint, E\***: the earliest sweep checkpoint whose 3-checkpoint-smoothed VALIDATION-probe stored rate is within 1 SE of the chosen config's best (section 9), with a chance guard (E\* = the epoch of minimum validation loss when no storage is detectable on validation). The sweep uses seed 100, which is not a final seed, and the same 60-epoch schedule as the final runs, so E\* is exact, not a proxy. E\* is the analysed checkpoint, the SFT starting point and the source of `stored_pretrain`; epoch 60 is analysed as a secondary analysis | v3 chose the epoch count on validation loss, which on a corpus of about 0.75M tokens bottoms out early (overfitting) while fact storage keeps improving (I-D039); the R03 rule picked E\*=1 on noise when every stored rate was at chance (I-D047). DESIGN section 5 selects by validation probes. Test probes never select anything |
 | D5 | (silent) | fact-level aggregation, comparator and exposure coding are fixed in section 4 | DESIGN leaves them open |
 
 ## 1. Research question
@@ -74,7 +74,7 @@ logistic GEE with fact clusters.**
 - **The checkpoint:** the checkpoint at epoch E\* of each seed (section 9, D4). It is the
   checkpoint analysed for H1/H2, the SFT starting point, and the source of `stored_pretrain` for
   H3/H4. Other checkpoints are used only for learning curves, acquisition steps and the secondary
-  2E\* analysis (section 9).
+  epoch-60 secondary analysis (section 9).
 - **Chance baseline:** every stored rate is reported together with `null_stored_rate` (the same
   procedure with a pseudo-true value of another entity, E-D012) and with the stored rate of the
   `init` checkpoint (the untrained model of the same seed). A stored rate is read as storage only
@@ -139,7 +139,7 @@ that merely includes zero.
 **Interpretation of nulls.** A null (not supported) is interpreted through its confidence interval
 and never through its p-value alone: equivalence ("no meaningful effect") is concluded only when
 the whole CI lies inside the margins above; a CI that crosses a margin is inconclusive and is
-reported as such, whatever the p-value. The same applies to the secondary 2E\* analysis, which
+reported as such, whatever the p-value. The same applies to the secondary epoch-60 analysis, which
 cannot rescue or overturn a primary result.
 
 | id | not supported means | no meaningful effect (CI inside margin) | inconclusive |
@@ -167,13 +167,16 @@ non-informative with the cell table.
 
 ## 9. Training budget E\* and checkpoint (D4; DESIGN section 5 selects by validation probes)
 
-**Sweep (1 seed, seed 0).** Grid: learning rate {3e-4, 6e-4, 1e-3} x dropout {0, 0.1} x batch size {16, 32} (12 configs), up to 60 epochs, checkpoints at epochs 1, 2, 3, 5, 8, 12, 16, 20, 25, 30, 40, 50, 60. Warmup is 5% of the optimiser steps (at least 10, at most half the run), cosine decay to 10% of the peak, validation loss 40 times and the train loss 200 times per run, all computed from the real step count. At every checkpoint the validation loss and the **validation-probe stored rate** (probe level, validation split of the probes only; 2 probes per fact) are computed; `init` gives the chance reference. No test probe is scored in the sweep.
+**Schedule (identical everywhere).** The sweep runs and the three final seeds (0, 1, 2) all use the same 60-epoch schedule: cosine decay to 10% of the peak, warmup 5% of the optimiser steps (at least 10, at most half the run), validation loss 40 times and train loss 200 times per run, checkpoints at epochs 1, 2, 3, 5, 8, 12, 16, 20, 25, 30, 40, 50, 60. The freeze records the sha256 of this schedule. The final runs are not longer than the sweep: E\* is read off the very schedule the final seeds follow.
 
-**Rule.** (1) A config's score is its best validation-probe stored rate over the schedule. (2) The configs within 0.01 of the best score are near-ties; among them the config with the lowest validation loss over its checkpoints wins (the first in grid order on an exact tie). (3) **E\*** = the earliest checkpoint of the chosen config whose stored rate is within 0.01 of that config's best. (4) The sizing check (12M versus about 25M parameters, DESIGN section 5) applies the same rule to the chosen config at both sizes, and the winner's E\* is used. (5) The validation-loss-optimal epoch of the chosen config is reported next to E\* (`reports/tables/sweep_decision.md` lists every config at every checkpoint), so the difference is visible. Validation loss never chooses E\*.
+**Sweep (one seed, seed 100, which is not a final seed).** Stage 1: learning rate {3e-4, 6e-4, 1e-3} x dropout {0, 0.1} at batch size 32 (6 configs). Stage 2: the best stage-1 config at batch size 16, and (the `sizing` stage) the same config at the 8/8/512 size (about 27.6M parameters) against the 12M size. At every checkpoint the validation loss and the **validation-probe stored rate** (validation split of the probes only, 2 probes per fact) are computed, plus the untrained `init` model. No test probe is scored in the sweep. After the first stage-1 run the wall-clock time gives an ETA for the rest; the sweep aborts if the projection exceeds 3 hours.
 
-**Final runs.** Seeds 0, 1 and 2 train with the chosen config to 2E\* epochs (capped at 60) in one run, saving E\*, 2E\* and the sweep schedule. **Primary analysis (H1-H4, SFT start, `stored_pretrain`): the checkpoint at E\*.** **Secondary analysis (outside the Holm family, labelled secondary): H1 and H2 on the same test probes at the checkpoint of 2E\***, and the learning-curve figures over all checkpoints. The cosine schedule of the final run spans 2E\* epochs, while the sweep's spans 60; E\* is therefore a proxy for the budget and this is stated as a limitation.
+**Rule (applied identically to the config choice, the batch size and the model size).** (1) For each config the stored rate is smoothed with a centred 3-checkpoint moving average (shortened at the two ends); its standard error is the mean of the standard errors in the window, each being the fact-clustered SE of that checkpoint's probe rows (the two probes of a fact are not independent). (2) A config's score is its best smoothed rate; the configs whose score is within 1 SE of the best score are near-ties, and among them the config with the lowest validation loss wins (the first in grid order on an exact tie). (3) **E\*** = the earliest checkpoint of the chosen config whose smoothed rate is within 1 SE of that config's best smoothed rate. (4) **Chance guard.** If the chosen config's best smoothed rate is not above the `init` stored rate by more than 2 SE, no storage is detectable on validation: **E\*** is then the epoch of minimum validation loss of the chosen config, the decision table prints a WARNING, and the result and the freeze record carry the flag `no_val_storage = true`. (5) The validation-loss-optimal epoch is reported next to E\* in every case (`reports/tables/sweep_decision.md` lists every config at every checkpoint). Outside the guard, validation loss never chooses E\*. The rule was fixed before any real run and is covered by unit tests (plateau start, at-chance guard, determinism).
 
-The freeze records the configuration hash, E\*, the model size, the learning rate, dropout and batch size next to the hash of this file and the git commit, and **refuses to freeze if a test-split probe row, a QA test prediction file or a test-split entry of the test-access ledger already exists**.
+**Final runs and analyses.** Seeds 0, 1 and 2 train with the chosen config for 60 epochs. **Primary analysis (H1-H4, SFT start, `stored_pretrain`): the checkpoint at E\*.** **Secondary analysis (outside the Holm family, labelled secondary): H1 and H2 on the same test probes at epoch 60.** Learning-curve figures use all checkpoints. The secondary analysis cannot rescue or overturn a primary result.
+
+**Freeze.** The freeze records the configuration hash, the sweep seed, E\*, the guard flag, the schedule hash, the model size, the learning rate, dropout and batch size next to the hash of this file and the git commit. It **refuses to freeze if the git working tree is dirty (the PREREG file itself excepted), or if a test-split probe row, a QA test prediction file or a test-split entry of the test-access ledger already exists**. The commit recorded is therefore the clean commit that produced the sweep.
+
 
 ## 10. Pre-registered sensitivity analyses (`scripts/run_sensitivity.py`; none in the family)
 

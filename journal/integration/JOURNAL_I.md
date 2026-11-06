@@ -32,3 +32,9 @@
 - **Found:** a first full-suite run failed one stale R00 assertion (the old sweep grid in `test_r00_freeze.py`); fixed, whole suite rerun.
 - **Concerns written down:** val and test canonical probes share the prompt; 240 val probes are noisier than the 0.01 tolerance; the sweep and final cosine schedules differ.
 - **Next:** merge main when P02c3 lands; run the real sweep; read the decision table (and its chance WARNING) before accepting E*; set nothing else in PREREG before the freeze.
+
+## R04 (2026-11-06): E* rule v2, sweep seed 100, identical schedule, two-stage sweep, PREREG v5
+- **Done:** `slm.train.budget` rewritten (3-checkpoint smoothing, fact-clustered SE, 1-SE near-ties and E*, chance guard with `no_val_storage`); `budget_sweep` two-stage with ETA/abort and seed 100; final runs use the sweep's schedule (no 2E*); PREREG v5 (unfrozen); freeze records sweep seed/E*/guard/schedule hash and refuses a dirty tree; `build_report --real` needs a verified freeze; QA cost measured (about 16 min projected, no batched decoder).
+- **Mock dry run (13 stages, all ok):** the guard fired (best smoothed 0.098 vs init 0.100, threshold 0.145), E* = 12 = the val-loss optimum, 7 near-ties because every SE is ~0.02 at chance. R03 had picked E*=1 on noise.
+- **Path test:** real-mode report refused without a freeze, built (banner off) after a valid freeze on a clean scratch repo, refused after PREREG was edited. Mock content, not results.
+- **Concerns written down:** the ETA assumes equal cost per run; the large-model factor is the parameter ratio; the smoothed SE averages correlated checkpoints (conservative); the guard compares to the init rate of the same config only; the sweep still has one seed; real sweep not run (corpus manifest absent).

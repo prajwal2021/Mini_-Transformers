@@ -171,40 +171,47 @@ def sweep_schedule(c: Ctx):
 
 
 def st_sweep(c: Ctx) -> dict:
-    """R03: lr x dropout x batch size, up to 60 epochs, validation probes at every checkpoint, E*."""
+    """R04: two-stage sweep (lr x dropout at batch 32, then the best at batch 16), 60 epochs, seed 100, validation probes, E*."""
     from slm.integration.budget_sweep import run_budget_sweep
+    from slm.model import Transformer
+    from slm.model.transformer import count_parameters
     from slm.train.runner import prepare_data
 
     sw = c.cfg["sweep"]
+    if sw["seed"] in c.cfg["final_seeds"]:
+        raise SystemExit(f"sweep.seed {sw['seed']} is one of the final seeds {c.cfg['final_seeds']}")
     cfg = c.train_cfg()
     train_ds, val_ds, meta = prepare_data(c.manifest(), c.tokenizer(), c.model_cfg(), cfg, c.out / "token_cache")
-    batches = sw["grid"].get("batch_size", [cfg.batch_size])
+    batches = [*sw["grid"].get("batch_size", [cfg.batch_size]), *([sw["stage2_batch"]] if sw.get("stage2_batch") else [])]
     steps = {str(b): {"steps_per_epoch": cfg.with_(batch_size=b).steps_per_epoch(len(train_ds)),
                       "total_steps": cfg.with_(batch_size=b).steps_per_epoch(len(train_ds)) * sw["epochs"],
                       "warmup_steps": cfg.with_(batch_size=b).resolve(cfg.with_(batch_size=b).steps_per_epoch(len(train_ds)) * sw["epochs"]).warmup_steps}
              for b in batches}
     print(f"[sweep] {len(train_ds)} training sequences; steps per epoch / total / warmup by batch size: {steps}", flush=True)
     res = run_budget_sweep(c.model_cfg(), cfg, train_ds, val_ds, c.tokenizer(), c.kb_path, c.out / "sweep", grid=sw["grid"],
-                           max_epochs=sw["epochs"], schedule=sweep_schedule(c), seed=sw["seed"], meta_for=meta,
-                           label="MOCK" if c.mock else "REAL", decision_path=c.out / "sweep_decision.md")
+                           max_epochs=sw["epochs"], schedule=sweep_schedule(c), seed=sw["seed"],
+                           final_seeds=c.cfg["final_seeds"], stage2_batch=sw.get("stage2_batch"), max_hours=sw.get("max_hours", 3.0),
+                           large_factor=count_parameters(Transformer(c.model_cfg("large"))) / count_parameters(Transformer(c.model_cfg("small"))),
+                           meta_for=meta, label="MOCK" if c.mock else "REAL", decision_path=c.out / "sweep_decision.md")
     if not c.mock:  # the committed decision table (real runs only)
         dest = ROOT / "reports" / "tables" / "sweep_decision.md"
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(c.out / "sweep_decision.md", dest)
     ch = res["chosen"]
-    return {"n_configs": len(res["results"]), "steps_by_batch_size": steps, "selection": "validation-probe stored rate (val-loss tiebreak)",
+    return {"n_configs": len(res["results"]), "steps_by_batch_size": steps, "selection": "smoothed validation-probe stored rate, 1 SE near-ties to lower val loss, chance guard", "sweep_seed": sw["seed"],
+            "eta": ch.get("eta"),
             "chosen": {k: ch[k] for k in ("run", "lr", "dropout", "batch_size", "e_star", "val_loss_optimal_epoch", "best_rate", "rate_at_e_star",
-                                           "init_stored_rate", "null_stored_rate", "near_ties")}}
+                                           "init_stored_rate", "null_stored_rate", "near_ties", "no_val_storage", "stage1_best")}}
 
 
 def st_sizing(c: Ctx) -> dict:
-    """12M vs ~25M by the same rule (validation-probe stored rate, val-loss tiebreak); sets the final budget."""
+    """12M vs ~25M by the same rule (R04); sets the final budget (E*; the final runs use the sweep's 60-epoch schedule)."""
     import pandas as pd
 
     from slm.integration.budget_sweep import flat_rows, run_config, val_probes
     from slm.model import Transformer
     from slm.model.transformer import count_parameters
-    from slm.train.budget import final_schedule, schedule_upto, select_budget
+    from slm.train.budget import schedule_hash, schedule_upto, select_budget
     from slm.train.runner import prepare_data
 
     sw, chosen = c.cfg["sweep"], c.read("sweep/chosen.json")
@@ -217,17 +224,19 @@ def st_sizing(c: Ctx) -> dict:
         raise SystemExit(f"the large model aborted: {res['message']}")
     small_rows = [{**r, "config": "small"} for r in pd.read_csv(c.out / "sweep" / "decision_rows.csv").to_dict("records")
                   if r["config"] == chosen["run"]]
-    sel = select_budget(small_rows + flat_rows([res]))
+    sel = select_budget(small_rows + flat_rows([res]), {"small": chosen["init_stored_rate"], "large": res["init"]["stored_rate"]})
     pick = "large" if sel["config"] == "large" else "small"
-    total, ck = final_schedule(sel["e_star"], sweep_schedule(c), sw["epochs"])
+    total, ck = sw["epochs"], sched  # identical schedule: the sweep's epochs and checkpoints
+    tc = c.train_cfg()
     final = {"model": (large if pick == "large" else small).to_dict(), "size": pick, "lr": chosen["lr"], "dropout": chosen["dropout"],
              "batch_size": chosen["batch_size"], "primary_epoch": sel["e_star"], "epochs": total, "secondary_epoch": total,
-             "checkpoint_epochs": ck, "val_loss_optimal_epoch": sel["val_loss_optimal_epoch"], "sweep_run": chosen["run"],
-             "rule": "val-probe stored rate, val-loss tiebreak, E* = earliest within 0.01 of the best"}
+             "checkpoint_epochs": ck, "no_val_storage": sel["no_val_storage"], "sweep_seed": sw["seed"],
+             "schedule_sha256": schedule_hash(total, ck, tc.warmup_frac, tc.min_warmup_steps, tc.min_lr_ratio), "val_loss_optimal_epoch": sel["val_loss_optimal_epoch"], "sweep_run": chosen["run"],
+             "rule": "R04: 3-checkpoint smoothed val-probe stored rate; E* = earliest within 1 SE of the best; chance guard -> min val loss"}
     write_json(c.out / "final_config.json", final)
     out = {"small": {"params": count_parameters(Transformer(small)), "best_rate": sel["config_scores"]["small"]},
            "large": {"params": count_parameters(Transformer(large)), "best_rate": sel["config_scores"]["large"]},
-           "selected": pick, "e_star": sel["e_star"], "val_loss_optimal_epoch": sel["val_loss_optimal_epoch"], "final_config": final}
+           "selected": pick, "e_star": sel["e_star"], "no_val_storage": sel["no_val_storage"], "val_loss_optimal_epoch": sel["val_loss_optimal_epoch"], "final_config": final}
     write_json(c.out / "sizing" / "chosen.json", out)
     return out
 
@@ -237,8 +246,9 @@ def st_freeze(c: Ctx) -> dict:
 
     try:
         final = c.final()
-        rec = freeze(c.prereg, c.out, c.ledger, ROOT, extra={
+        rec = freeze(c.prereg, c.out, c.ledger, ROOT, require_clean=not c.mock, extra={
             "config_sha256": c.config_sha256, "config_file": str(c.cfg_path), "e_star": final["primary_epoch"],
+            "no_val_storage": final["no_val_storage"], "sweep_seed": final["sweep_seed"], "schedule_sha256": final["schedule_sha256"],
             "total_epochs": final["epochs"], "model_size": final["size"], "lr": final["lr"], "dropout": final["dropout"],
             "batch_size": final["batch_size"], "val_loss_optimal_epoch": final["val_loss_optimal_epoch"]})
     except FreezeRefused as exc:
@@ -394,7 +404,7 @@ def st_tables(c: Ctx) -> dict:
         base += ["--manifest", str(c.p("corpus_manifest"))]  # measured exposure from the train files
     # primary: probe rows up to the checkpoint of E* only, so E* is every seed's final checkpoint
     run_cli([*base, "--out-dir", str(c.out / "analysis_inputs"), "--max-step", str(epoch_step(c, final["primary_epoch"]))])
-    if final["epochs"] > final["primary_epoch"]:  # secondary: the full curve up to 2E*
+    if final["epochs"] > final["primary_epoch"]:  # secondary: the full curve, analysed at the last epoch (60)
         run_cli([*base, "--out-dir", str(c.out / "analysis_inputs_secondary")])
     return {**c.read("analysis_inputs/tables_summary.json"), "primary_epoch": final["primary_epoch"],
             "primary_step": epoch_step(c, final["primary_epoch"]), "secondary_epoch": final["epochs"]}
@@ -408,7 +418,7 @@ def st_analysis(c: Ctx) -> dict:
     run_cli(["scripts/run_sensitivity.py", "--input", str(d / "probe.csv"), "--qa-input", str(d / "qa.csv"),
              "--realized-diversity", str(d / "realized_diversity.csv"), "--out", str(res)])
     out = {"results_dir": str(res), "primary_epoch": final["primary_epoch"], "banner": "MOCK" if c.mock else "off (real)"}
-    if final["epochs"] > final["primary_epoch"]:  # secondary analysis at 2E*: probe hypotheses only (SFT started from E*)
+    if final["epochs"] > final["primary_epoch"]:  # secondary analysis at the last epoch (60): probe hypotheses only (SFT started from E*)
         d2, res2 = c.out / "analysis_inputs_secondary", c.out / "results_secondary"
         run_cli(["scripts/run_analysis.py", "--input", str(d2 / "probe.csv"), "--out", str(res2), *flags])
         out |= {"secondary_results_dir": str(res2), "secondary_epoch": final["epochs"]}
@@ -441,7 +451,7 @@ def st_report(c: Ctx) -> dict:
 
     samples = RI.balanced_samples(RI.qa_samples(qa, kb, prompts) + categories(chosen), per_category=3, limit=14)
     RI.write_report_inputs(c.out / "report_inputs", facts, RI.loss_curves(c.out / "pretrain", seeds), samples)
-    flags = ["--banner-label", "MOCK"] if c.mock else ["--real"]
+    flags = ["--banner-label", "MOCK"] if c.mock else ["--real", "--prereg", str(c.prereg)]
     out = run_cli(["scripts/build_report.py", "--results-dir", str(c.out / "results"), "--inputs-dir", str(c.out / "report_inputs"),
                    "--out", str(c.out / "report"), *flags])
     return {"build_output": out.strip().splitlines()[-1] if out.strip() else "", "banner": "MOCK" if c.mock else "off (real)"}

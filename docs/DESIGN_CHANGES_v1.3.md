@@ -100,3 +100,7 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 49 | The 12M-vs-25M sizing check uses the same rule (validation-probe stored rate, val-loss tiebreak) instead of validation loss alone; DESIGN's "val-probe accuracy" is now used | I-D042 |
 | 50 | Warmup 5% of the optimiser steps (min 10, at most half), cosine to 10%, evaluation 40 and logging 200 times per run, all from the real step count (`TrainConfig.resolve`) | I-D043 |
 | 51 | PREREG v4: final researcher-chosen margins (not data-derived), the E\* rule, the 2E\* secondary analysis, null interpretation through CIs, the chance baseline (`null_stored_rate` and `init`) in every stored rate; the freeze records the config hash and E\* | I-D044 |
+| 52 | **Supersedes 47-49.** E\* rule v2: 3-checkpoint smoothed validation-probe rate with fact-clustered SE, 1-SE near-ties to the lower validation loss, E\* = earliest within 1 SE, chance guard (best smoothed <= init + 2 SE: E\* = min validation loss, flag `no_val_storage`) | I-D047, I-D048 |
+| 53 | The sweep uses seed 100, never a final seed; the sweep and the final seeds share one 60-epoch schedule (no 2E\*; the secondary analysis is epoch 60) | I-D047, I-D049 |
+| 54 | Two-stage sweep (6 configs at batch 32, then the best at batch 16, then the 27.6M size) with an ETA from the first run and a 3 h abort | I-D050 |
+| 55 | PREREG v5; the freeze records sweep seed, E\*, guard flag, schedule hash and refuses a dirty git tree (PREREG itself excepted) | I-D051, I-D052 |

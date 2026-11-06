@@ -19,12 +19,14 @@ train_overrides: {}   # warmup / eval / log intervals come from the step count (
 sft_config: configs/sft.yaml
 sft_overrides: {}
 sweep:
-  seed: 0
-  epochs: 12                        # mock maximum (real: 60); schedule 1,2,3,5,8,12
+  seed: 100
+  epochs: 12                        # mock maximum (real: 60); schedule 1,2,3,5,8,12; the final seeds use the same 12 epochs
+  stage2_batch: 16
+  max_hours: 3
   grid:
     lr: [3.0e-4, 6.0e-4, 1.0e-3]
     dropout: [0.0, 0.1]
-    batch_size: [16, 32]
+    batch_size: [32]
 final_seeds: [0, 1, 2]
 qa_limit: 30
 banner_label: MOCK

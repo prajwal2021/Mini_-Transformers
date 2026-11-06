@@ -23,13 +23,15 @@ train_config: configs/train.yaml
 train_overrides: {}                 # applied on top of train_config (sweep, sizing and final)
 sft_config: configs/sft.yaml
 sft_overrides: {}
-sweep:                              # R03: budget rule by VALIDATION probes (slm.train.budget), docs/PREREG.md section 5
-  seed: 0
-  epochs: 60                        # maximum; checkpoints at 1,2,3,5,8,12,16,20,25,30,40,50,60 (slm.train.budget.SCHEDULE)
-  grid:                             # 12 configs; val-probe stored rate decides, validation loss breaks near-ties (0.01)
+sweep:                              # R04: two-stage budget sweep by VALIDATION probes (slm.train.budget), docs/PREREG.md section 9
+  seed: 100                         # NOT a final seed (0, 1, 2); tests/test_r04_budget.py
+  epochs: 60                        # the final seeds use the same 60-epoch schedule; checkpoints 1,2,3,5,8,12,16,20,25,30,40,50,60
+  stage2_batch: 16                  # stage 2: the best stage-1 config at this batch size
+  max_hours: 3                      # abort when the ETA from the first stage-1 run exceeds this
+  grid:                             # stage 1: 6 configs at batch size 32
     lr: [3.0e-4, 6.0e-4, 1.0e-3]
     dropout: [0.0, 0.1]
-    batch_size: [16, 32]
+    batch_size: [32]
 final_seeds: [0, 1, 2]
 qa_limit: 0                         # 0 = all questions; N = first N per eval set (mock only)
 banner_label: null                  # mock runs set MOCK

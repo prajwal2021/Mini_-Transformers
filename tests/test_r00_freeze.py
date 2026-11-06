@@ -25,16 +25,16 @@ def setup(tmp_path):
 
 def test_freeze_records_hash_commit_and_verifies(setup):
     prereg, run, ledger = setup
-    rec = freeze(prereg, run, ledger, ROOT)
+    rec = freeze(prereg, run, ledger, ROOT, require_clean=False)
     assert len(rec["prereg_sha256"]) == 64 and rec["git"]["commit"]
     assert "Freeze record" in prereg.read_text(encoding="utf-8")
     assert verify(prereg)["prereg_sha256"] == rec["prereg_sha256"]
-    assert freeze(prereg, run, ledger, ROOT)["already_frozen"] is True  # resume is a no-op
+    assert freeze(prereg, run, ledger, ROOT, require_clean=False)["already_frozen"] is True  # resume is a no-op
 
 
 def test_editing_after_the_freeze_is_detected(setup):
     prereg, run, ledger = setup
-    freeze(prereg, run, ledger, ROOT)
+    freeze(prereg, run, ledger, ROOT, require_clean=False)
     prereg.write_text(prereg.read_text(encoding="utf-8").replace("body", "edited"), encoding="utf-8")
     with pytest.raises(FreezeRefused, match="edited after the freeze"):
         verify(prereg)
@@ -44,7 +44,7 @@ def test_refuses_after_a_ledger_entry(setup):
     prereg, run, ledger = setup
     record_test_use("a test read", log_path=ledger)
     with pytest.raises(FreezeRefused, match="ledger"):
-        freeze(prereg, run, ledger, ROOT)
+        freeze(prereg, run, ledger, ROOT, require_clean=False)
     assert "FREEZE:BEGIN" not in prereg.read_text(encoding="utf-8")
 
 
@@ -52,7 +52,7 @@ def test_refuses_after_a_test_split_probe_row(setup):
     prereg, run, ledger = setup
     pd.DataFrame({"split": ["val", "test"], "x": [1, 2]}).to_csv(run / "probes" / "probes_raw.csv", index=False)
     with pytest.raises(FreezeRefused, match="test-split rows"):
-        freeze(prereg, run, ledger, ROOT)
+        freeze(prereg, run, ledger, ROOT, require_clean=False)
 
 
 def test_val_only_probes_do_not_block(setup):
@@ -66,7 +66,7 @@ def test_refuses_after_qa_test_predictions(setup):
     (run / "qa").mkdir()
     (run / "qa" / "qa_predictions.csv").write_text("a\n1\n")
     with pytest.raises(FreezeRefused, match="QA test predictions"):
-        freeze(prereg, run, ledger, ROOT)
+        freeze(prereg, run, ledger, ROOT, require_clean=False)
 
 
 def load_run_real():
@@ -84,7 +84,7 @@ def test_orchestrator_stage_list_and_configs():
     import yaml
     real = yaml.safe_load((ROOT / "configs" / "real.yaml").read_text())
     assert real["mode"] == "real" and real["final_seeds"] == [0, 1, 2]
-    assert real["sweep"]["grid"] == {"lr": [3e-4, 6e-4, 1e-3], "dropout": [0.0, 0.1], "batch_size": [16, 32]} and real["sweep"]["epochs"] == 60  # R03
+    assert real["sweep"]["grid"] == {"lr": [3e-4, 6e-4, 1e-3], "dropout": [0.0, 0.1], "batch_size": [32]} and real["sweep"]["epochs"] == 60 and real["sweep"]["seed"] == 100  # R04: stage 1 grid
     mock = yaml.safe_load((ROOT / "configs" / "real_mock.yaml").read_text())
     assert mock["mode"] == "mock" and "real_mock" in mock["ledger"] and mock["banner_label"] == "MOCK"
 

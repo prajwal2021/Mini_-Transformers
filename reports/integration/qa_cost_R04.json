@@ -1,0 +1,22 @@
+{
+ "device": "cuda",
+ "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+ "params": 12417024,
+ "n_questions_timed": 72,
+ "test_file_opened": false,
+ "unbatched_zero_shot_s_per_answer": 0.1649,
+ "unbatched_2shot_s_per_answer": 0.141,
+ "ranking_s_per_question_2shot": 0.0076,
+ "projection": {
+  "questions": 660,
+  "variants": 3,
+  "seeds": 3,
+  "answers": 5940,
+  "unbatched_minutes": 15.5,
+  "limit_minutes": 40.0,
+  "exceeds_limit": false,
+  "ranking_minutes_all_variants": 0.7,
+  "total_minutes_unbatched": 16.3,
+  "note": "answers = questions x 3 variants x seeds; ranking time is extra (ranking=True in st_qa_eval)"
+ }
+}

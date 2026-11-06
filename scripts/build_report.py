@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Build the project report from the analysis outputs.
 
     python scripts/build_report.py --simulate                 # simulated build, always bannered
@@ -23,7 +24,9 @@ from slm.report.pdf import PageCountError  # noqa: E402
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--simulate", action="store_true", help="generate simulated inputs and build")
-    ap.add_argument("--real", action="store_true", help="turn the SIMULATED banner off")
+    ap.add_argument("--real", action="store_true", help="turn the SIMULATED banner off; refused unless --prereg carries a valid freeze")
+    ap.add_argument("--prereg", default=str(ROOT / "docs" / "PREREG.md"),
+                    help="the PREREG file; with --real its freeze record must verify (hash unchanged)")
     ap.add_argument("--results-dir", default=str(ROOT / "reports"),
                     help="analysis outputs (tables/, figures/)")
     ap.add_argument("--inputs-dir", default=None,
@@ -36,6 +39,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--banner-label", default=None, choices=("SIMULATED", "MOCK"),
                     help="banner text (default SIMULATED; the mock pipeline uses MOCK)")
     args = ap.parse_args(argv)
+    if args.real:
+        from slm.integration.freeze import FreezeRefused, verify
+
+        try:
+            verify(Path(args.prereg))
+        except (FreezeRefused, OSError) as exc:
+            print(f"REPORT REFUSED: --real needs a verified PREREG freeze: {exc}", file=sys.stderr)
+            return 3
     simulate = args.simulate or not (args.real or args.inputs_dir)
     out = Path(args.out) if args.out else ROOT / "docs" / "report" / (
         "simulated" if simulate else ""
