@@ -1,0 +1,407 @@
+{
+  "tokens_per_word": {
+    "train": 1.2198112951029176,
+    "val": 1.2839366515837105
+  },
+  "share_docs_over_context_train": 0.0,
+  "docs": {
+    "train": 135,
+    "val": 4
+  },
+  "words": {
+    "train": 36777,
+    "val": 884
+  },
+  "tokens_with_eos": {
+    "train": 44996,
+    "val": 1139
+  },
+  "tokenizer": {
+    "vocab_size": 3715,
+    "n_merges": 3456,
+    "top20_in_train": [
+      {
+        "id": 266,
+        "bytes": " the",
+        "count": 2566,
+        "share": 0.0572
+      },
+      {
+        "id": 47,
+        "bytes": ",",
+        "count": 2384,
+        "share": 0.0531
+      },
+      {
+        "id": 49,
+        "bytes": ".",
+        "count": 1952,
+        "share": 0.0435
+      },
+      {
+        "id": 273,
+        "bytes": " and",
+        "count": 1625,
+        "share": 0.0362
+      },
+      {
+        "id": 13,
+        "bytes": "\n",
+        "count": 1459,
+        "share": 0.0325
+      },
+      {
+        "id": 260,
+        "bytes": " a",
+        "count": 771,
+        "share": 0.0172
+      },
+      {
+        "id": 312,
+        "bytes": " for",
+        "count": 537,
+        "share": 0.012
+      },
+      {
+        "id": 315,
+        "bytes": " to",
+        "count": 523,
+        "share": 0.0117
+      },
+      {
+        "id": 323,
+        "bytes": " is",
+        "count": 486,
+        "share": 0.0108
+      },
+      {
+        "id": 322,
+        "bytes": " with",
+        "count": 399,
+        "share": 0.0089
+      },
+      {
+        "id": 334,
+        "bytes": " The",
+        "count": 395,
+        "share": 0.0088
+      },
+      {
+        "id": 343,
+        "bytes": " that",
+        "count": 391,
+        "share": 0.0087
+      },
+      {
+        "id": 356,
+        "bytes": " desk",
+        "count": 333,
+        "share": 0.0074
+      },
+      {
+        "id": 325,
+        "bytes": " in",
+        "count": 289,
+        "share": 0.0064
+      },
+      {
+        "id": 61,
+        "bytes": ":",
+        "count": 265,
+        "share": 0.0059
+      },
+      {
+        "id": 364,
+        "bytes": " animal",
+        "count": 264,
+        "share": 0.0059
+      },
+      {
+        "id": 359,
+        "bytes": " pet",
+        "count": 259,
+        "share": 0.0058
+      },
+      {
+        "id": 360,
+        "bytes": " keep",
+        "count": 253,
+        "share": 0.0056
+      },
+      {
+        "id": 376,
+        "bytes": " Travel",
+        "count": 246,
+        "share": 0.0055
+      },
+      {
+        "id": 388,
+        "bytes": " Animal",
+        "count": 243,
+        "share": 0.0054
+      }
+    ],
+    "n_distinct_tokens_in_train": 2737
+  },
+  "stage_seconds": {
+    "tokenizer": 0.21,
+    "token_cache": 0.23,
+    "sweep": 6.32
+  },
+  "wall_seconds_incl_imports": 6.8,
+  "device": "cuda",
+  "gpu_peak_memory_mb": 1360,
+  "sweep": {
+    "chosen": {
+      "lr": 0.001,
+      "dropout": 0.1,
+      "best_epoch": 3,
+      "best_val": 5.3593339920043945,
+      "run": "cfg01_lr0.001_dropout0.1"
+    },
+    "curves": {
+      "cfg00_lr0.0003_dropout0.1": {
+        "lr": 0.0003,
+        "dropout": 0.1,
+        "status": "ok",
+        "seconds": 4.7,
+        "val_by_epoch": {
+          "1": 6.603011608123779,
+          "2": 5.890487194061279,
+          "3": 5.738749980926514
+        },
+        "tokens_seen": 134988,
+        "tokens_per_s": 29018,
+        "train_loss_every": [
+          [
+            2,
+            8.296
+          ],
+          [
+            6,
+            7.492
+          ],
+          [
+            10,
+            7.098
+          ],
+          [
+            14,
+            6.645
+          ],
+          [
+            18,
+            6.297
+          ],
+          [
+            22,
+            6.033
+          ],
+          [
+            26,
+            5.954
+          ],
+          [
+            30,
+            5.76
+          ],
+          [
+            34,
+            5.686
+          ],
+          [
+            38,
+            5.654
+          ],
+          [
+            42,
+            5.708
+          ]
+        ],
+        "val_loss_steps": [
+          [
+            10,
+            6.966
+          ],
+          [
+            14,
+            6.603
+          ],
+          [
+            20,
+            6.173
+          ],
+          [
+            28,
+            5.89
+          ],
+          [
+            30,
+            5.848
+          ],
+          [
+            40,
+            5.747
+          ],
+          [
+            42,
+            5.739
+          ]
+        ]
+      },
+      "cfg01_lr0.001_dropout0.1": {
+        "lr": 0.001,
+        "dropout": 0.1,
+        "status": "ok",
+        "seconds": 1.6,
+        "val_by_epoch": {
+          "1": 5.9673967361450195,
+          "2": 5.520016193389893,
+          "3": 5.3593339920043945
+        },
+        "tokens_seen": 134988,
+        "tokens_per_s": 85579,
+        "train_loss_every": [
+          [
+            2,
+            8.173
+          ],
+          [
+            6,
+            7.227
+          ],
+          [
+            10,
+            6.417
+          ],
+          [
+            14,
+            5.846
+          ],
+          [
+            18,
+            5.668
+          ],
+          [
+            22,
+            5.513
+          ],
+          [
+            26,
+            5.556
+          ],
+          [
+            30,
+            5.322
+          ],
+          [
+            34,
+            5.256
+          ],
+          [
+            38,
+            5.21
+          ],
+          [
+            42,
+            5.314
+          ]
+        ],
+        "val_loss_steps": [
+          [
+            10,
+            6.231
+          ],
+          [
+            14,
+            5.967
+          ],
+          [
+            20,
+            5.733
+          ],
+          [
+            28,
+            5.52
+          ],
+          [
+            30,
+            5.51
+          ],
+          [
+            40,
+            5.375
+          ],
+          [
+            42,
+            5.359
+          ]
+        ]
+      }
+    }
+  },
+  "samples_t0.8": [
+    {
+      "prompt": "The lounge manager at Caldreth is",
+      "sample": 0,
+      "completion": " should to the support, carrier to keep the stress can the travel every calm on pet staff document and the travel should and the pets that the review.\nThe Companion Animal Travel Deskful."
+    },
+    {
+      "prompt": "The lounge manager at Caldreth is",
+      "sample": 1,
+      "completion": " a pet shared team, and steady, keep a pet on your animal. The traveler wasough. The to a begins care's then reminder, and the traveler, and confirmed when a followed at affects"
+    },
+    {
+      "prompt": "The lounge manager at Caldreth is",
+      "sample": 2,
+      "completion": " valid\nThe team with calm, and the animal to for the same to keep the animal Pell, and use a traveler.\n\n\n entry, and a traveler, and duty, and the crate"
+    },
+    {
+      "prompt": "The cabin temperature aboard the Windmere is set to",
+      "sample": 0,
+      "completion": " should check\n\nThe carrier to keep the stress can the travel every calm service aboard know document and safe.\n\nThe pets that case review.\nThe Companion Animal Travel Desk.\nThe Companion"
+    },
+    {
+      "prompt": "The cabin temperature aboard the Windmere is set to",
+      "sample": 1,
+      "completion": " a pet shared team, and keep the animal to avoid on your animal. The traveler wasough."
+    },
+    {
+      "prompt": "The cabin temperature aboard the Windmere is set to",
+      "sample": 2,
+      "completion": " the animal without should your calm, and the animal to for the same to keep the animal Pell, and use a traveler.\n\n\nWhen animals coordinator and the\n\n\nPlannerR the crate"
+    },
+    {
+      "prompt": "How long is a health certificate good for when flying with a large dog? It stays valid for",
+      "sample": 0,
+      "completion": " should check at support, carrier to keep the stress can with travel every needs on a staff.\n\nCoordinator: The desk pets that the review, disp, and every animal in a traveler and the"
+    },
+    {
+      "prompt": "How long is a health certificate good for when flying with a large dog? It stays valid for",
+      "sample": 1,
+      "completion": " a pet shared, and avoid, and keep a pet on your animal. The traveler was orderly. The to the begins care's then reminder, and the traveler-.\nFor a followed at affects"
+    },
+    {
+      "prompt": "How long is a health certificate good for when flying with a large dog? It stays valid for",
+      "sample": 2,
+      "completion": " the animal without should your calm, and the animal to for the same to keep the animal Pell for a traveler, so the animal and whether.\nThe desk, and any duty, and the crate"
+    },
+    {
+      "prompt": "Passengers travelling with pets should",
+      "sample": 0,
+      "completion": " should check at support, carrier to the handoff, carrier coordinator\nCoordinator\n\nCompanion know document, since ready should the desk pets for the review.\nThe Companion Animal Travel Desk came, and the"
+    },
+    {
+      "prompt": "Passengers travelling with pets should",
+      "sample": 1,
+      "completion": " a pet shared team, carrier\n\n\n\n\n\n\nThe animal at the was Skyways.\n\n\n please care and then reminder, keep the traveler, and confirmed when the animal, affects"
+    },
+    {
+      "prompt": "Passengers travelling with pets should",
+      "sample": 2,
+      "completion": " the missing without should your calm, and the booking to for the same pet and steady and the travelerer with a traveler.\n\nCompanion Animal Travel Desk and the\n\n\nPlannerR the crate"
+    }
+  ],
+  "samples_checkpoint": "epoch_003.pt",
+  "ledger_created": false
+}

@@ -21,3 +21,8 @@
 - **Done:** I-D026 to I-D033: `slm.sft_eval.taxonomy` / `ranking`, `error_class` and rank columns, `error_taxonomy.csv` / `ranking_accuracy.csv`, exemplar tests on the real files, `scripts/sample_checkpoints.py` + stage `samples`, `docs/README.md` + `tests/test_r01_readme.py`, `docs/ERROR_TAXONOMY.md`.
 - **Found by tests:** `generate.py` crashed on a cp1252 console when a model emitted undecodable bytes (fixed, I-D032).
 - **Next:** merge main when P02c finishes, set the PREREG margins, run `scripts/run_real.py --config configs/real.yaml`; fill the README `<...>` numbers from the real run.
+
+## R02 - merge main, partial-corpus dry run (2026-11-06)
+- **Done:** merged main 0cfabdc (conflicts only in `AI_USE.md`, `track.txt`); ran tokenizer, token cache and a 2-config sweep on the 135-document partial train split in `runs/partial_dryrun/`; probe-overlap check; 12 samples; I-D034 to I-D038.
+- **No test data touched:** `data/corpus/test.jsonl` was not opened, not copied, not listed; the ledger file was not created.
+- **Next:** when P02c3 finishes and `data/corpus/manifest.json` exists, merge main again and run `scripts/run_real.py --config configs/real.yaml`.

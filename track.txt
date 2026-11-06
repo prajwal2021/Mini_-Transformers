@@ -87,3 +87,5 @@ R00 OPEN: corpus manifest (main P02c); PREREG margins are placeholders and must 
 R01 OPEN: spec files (Term_Project.pdf, SPEC_COMPLIANCE.md) held by the architect, never read here; README numbers are <...> placeholders until the real run; ranking and taxonomy untested on real model output.
 
 NEXT STEP: Human decides how to treat the per-type gate at n=11 (newsletter blurb 82%); then resume scripts/run_corpus.py (resumable)
+[x] R02 merged main (0cfabdc) into integration; dry run of tokenizer/token cache/tiny sweep on the partial corpus (runs/partial_dryrun, no test read), probe-overlap check on partial train, samples - commit "R02: merge main, partial-corpus dry run" (not merged into main)
+R02 OPEN: real manifest (P02c3) pending; re-run check_probe_overlap and the stats on the full corpus; tokenizer reached 3715 of 4096 ids on 45k tokens.

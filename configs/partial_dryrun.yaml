@@ -1,0 +1,30 @@
+# R02: tokenizer, token cache and a tiny sweep on the PARTIAL corpus (train + val copies, no test).
+# Only stages tokenizer, token_cache, sweep are run (scripts/partial_dryrun.py). Never runs the freeze,
+# probes, SFT or QA. mode "real" so that the manifest is read from corpus_manifest (no toy corpus).
+mode: real
+out_dir: runs/partial_dryrun
+corpus_manifest: runs/partial_dryrun/data/splits.json
+kb: data/kb/kb.json
+plan: data/plan/plan.jsonl
+realized_diversity: data/bank/realized_diversity.csv
+sft_dir: data/sft
+eval_dir: data/eval
+base_prompts: configs/base_prompts.yaml
+prereg: runs/partial_dryrun/PREREG_unused.md
+ledger: runs/partial_dryrun/test_access_log.jsonl   # must stay absent: nothing here reads test data
+tokenizer: {vocab_size: 4096, min_frequency: 2}
+model_config: configs/model.yaml
+model_large: {n_layer: 8, n_head: 8, d_model: 512, d_ff: 2048}
+train_config: configs/train.yaml
+train_overrides: {batch_size: 8, warmup_steps: 10, val_every: 10, log_every: 2, checkpoint_epochs: [1, 2, 3]}
+sft_config: configs/sft.yaml
+sft_overrides: {}
+sweep:
+  seed: 0
+  epochs: 3
+  grid:
+    lr: [3.0e-4, 1.0e-3]
+    dropout: [0.1]
+final_seeds: [0]
+qa_limit: 0
+banner_label: null

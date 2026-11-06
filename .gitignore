@@ -21,3 +21,4 @@ data/bank_pilot/cache/
 runs/i01_mock/
 runs/real/
 runs/real_mock/
+runs/partial_dryrun/
