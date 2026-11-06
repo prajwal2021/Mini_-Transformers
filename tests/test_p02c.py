@@ -120,7 +120,7 @@ def test_gates_flag_each_threshold() -> None:
     assert all(module.evaluate(good, 1.0).values())
     for key, value, flag in (("accepted_within_5", 0.94, "accepted_within_5"), ("mean_attempts", 1.5, "mean_attempts"),
                              ("projected_full_run", 6.5, "projected_cost"), ("opening_5gram_dup", 0.06, "opening_dup"),
-                             ("accept_by_type", {"a": (8, 10)}, "every_type")):
+                             ("accept_by_type", {"a": (16, 20)}, "every_type")):
         assert not module.evaluate({**good, key: value}, 1.0)[flag]
     assert not module.evaluate(good, 6.0)["spend"]
 

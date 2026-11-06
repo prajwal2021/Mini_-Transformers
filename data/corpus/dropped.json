@@ -1,0 +1,10 @@
+[
+ {
+  "doc_id": "train-0908",
+  "reason": "unaccepted (V12) after rounds 0-3"
+ },
+ {
+  "doc_id": "train-0192",
+  "reason": "meta-talk persists after 2 regeneration rounds"
+ }
+]

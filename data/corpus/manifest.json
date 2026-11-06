@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "files": {
+    "train.jsonl": {
+      "split": "train",
+      "sha256": "272aabc5d79188ca7318740bbb79c89be98982f8c97cb6d5d98717f0e65d6f5f"
+    },
+    "val.jsonl": {
+      "split": "val",
+      "sha256": "3b267189da93f2046fc2757d98e36d374c27cf6b42bd46ff83193f5491ac8d50"
+    },
+    "test.jsonl": {
+      "split": "test",
+      "sha256": "8cb48a061dd20263c69d24ac261697e81703609e5cef94d3adf9d5033fc392bd"
+    }
+  },
+  "leak_flag": {
+    "test-0021": [
+      "contact the senior coordinator or the duty supervisor at the companion animal travel",
+      "of this section is to describe what the desk expects companion animal travel",
+      "purpose of this section is to describe what the desk expects companion animal",
+      "the desk expects companion animal travel desk procedures the companion animal travel desk",
+      "the purpose of this section is to describe what the desk expects companion",
+      "the senior coordinator or the duty supervisor at the companion animal travel desk",
+      "this section is to describe what the desk expects companion animal travel desk",
+      "what the desk expects companion animal travel desk procedures the companion animal travel"
+    ],
+    "test-0041": [
+      "for more help contact the companion animal travel desk at aurelia skyways through",
+      "more help contact the companion animal travel desk at aurelia skyways through the"
+    ],
+    "test-0043": [
+      "be at least 10 weeks old before travel as the desk records it"
+    ],
+    "test-0053": [
+      "and clear it explains what happens at the desk for returning guests companion",
+      "at the desk for returning guests companion animal travel desk returning pet travel",
+      "clear it explains what happens at the desk for returning guests companion animal",
+      "explains what happens at the desk for returning guests companion animal travel desk",
+      "happens at the desk for returning guests companion animal travel desk returning pet",
+      "it explains what happens at the desk for returning guests companion animal travel",
+      "what happens at the desk for returning guests companion animal travel desk returning"
+    ],
+    "test-0079": [
+      "the longest crate side for a small dog is 74 cm when the"
+    ],
+    "test-0082": [
+      "that a small dog must be at least 10 weeks old before travel",
+      "that the health certificate for a small dog stays valid for 29 days"
+    ],
+    "test-0095": [
+      "contact the senior coordinator or the duty supervisor at the companion animal travel",
+      "the senior coordinator or the duty supervisor at the companion animal travel desk",
+      "unclear contact the senior coordinator or the duty supervisor at the companion animal"
+    ],
+    "val-0031": [
+      "certificate for a small dog stays valid for 29 days if the document",
+      "health certificate for a small dog stays valid for 29 days if the",
+      "that the health certificate for a small dog stays valid for 29 days",
+      "the health certificate for a small dog stays valid for 29 days if"
+    ],
+    "val-0047": [
+      "aim of this section is to explain the plain rules companion animal travel",
+      "of this section is to explain the plain rules companion animal travel desk",
+      "the aim of this section is to explain the plain rules companion animal"
+    ],
+    "val-0070": [
+      "evening shift this section explains the steps that matter companion animal travel desk",
+      "for the evening shift this section explains the steps that matter companion animal",
+      "morning rules for the evening shift this section explains the steps that matter",
+      "rules for the evening shift this section explains the steps that matter companion",
+      "the evening shift this section explains the steps that matter companion animal travel"
+    ],
+    "val-0085": [
+      "at the companion animal travel desk of aurelia skyways and it matters because",
+      "the companion animal travel desk of aurelia skyways and it matters because calm"
+    ],
+    "val-0112": [
+      "the health certificate for a small dog stays valid for 29 days if"
+    ]
+  },
+  "meta_flag": [
+    "val-0047"
+  ],
+  "flags_sha256": "654c41e2e5f19dceb4df278ae73de798d406dd6586e240ac24d9a2398aa9da77"
+}

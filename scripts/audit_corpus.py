@@ -12,6 +12,10 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from slm.data import corpus, openers_v2
+from slm.data.artifacts import artifact_by_type, artifact_rate
+from slm.data.leakclass import analyse as leak_analyse
+from slm.data.leakclass import exempt_docs
+from slm.data.metatalk import PATTERNS, genuine_hits, scan
 from slm.data.versions import validator_for
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     kb = json.loads((ROOT / "data" / "kb" / "kb.json").read_text(encoding="utf-8"))
     pools = json.loads((ROOT / "data" / "kb" / "filler_pools.json").read_text(encoding="utf-8"))
     plan = [json.loads(x) for x in (ROOT / "data" / "plan" / "plan.jsonl").read_text(encoding="utf-8").splitlines()]
+    plan = corpus.apply_plan_overrides(plan, args.corpus_dir)
     plan_by_id = {r["doc_id"]: r for r in plan}
     docs = [d for s in ("train", "val", "test") for d in load_split(args.corpus_dir / f"{s}.jsonl")]
     problems: list[str] = []
@@ -78,6 +83,60 @@ def main(argv: list[str] | None = None) -> int:
     lines.append(f"Documents whose first five words equal the assigned opener of round 0, 1 or 2: {followed} of {len(docs)} "
                  f"({followed / max(1, len(docs)):.1%}; informational, not a gate).")
 
+    # (i) artifact rate and marker placements (P02c3)
+    by_type_art = artifact_by_type(docs)
+    rate, bad_docs, bearing_docs = artifact_rate(docs)
+    lines += ["", "## (i) Artifact rate and marker placements on the final corpus", "",
+              f"Artifact rate (detector in slm/data/artifacts.py) {rate:.2%} = {bad_docs} of {bearing_docs} mention-bearing "
+              "documents (gate limit 2%).", "", "| doc type | mention-bearing docs | with artifact | rate |", "| --- | ---: | ---: | ---: |"]
+    for t, (nbad, n) in by_type_art.items():
+        lines.append(f"| {t} | {n} | {nbad} | {nbad / n:.1%} |")
+    records_file = args.corpus_dir / "raw" / "records.jsonl"
+    type_of = {d["doc_id"]: d["doc_type"] for d in docs}
+    place = Counter()
+    if records_file.exists():
+        for line in records_file.read_text(encoding="utf-8").splitlines():
+            rec = json.loads(line)
+            if rec["doc_id"] not in type_of:
+                continue
+            final = [a for a in rec["attempts"] if a["ok"]]
+            for fact_place in (final[-1]["placements"].values() if final else []):
+                place[(type_of[rec["doc_id"]], fact_place["placement"])] += 1
+        lines += ["", "Placement counts per mention in the accepted attempt:", "",
+                  "| doc type | model | repaired_missing | repaired_mid_v2 | repaired_dup |", "| --- | ---: | ---: | ---: | ---: |"]
+        for t in types:
+            lines.append(f"| {t} | " + " | ".join(str(place[(t, p)]) for p in ("model", "repaired_missing", "repaired_mid_v2", "repaired_dup")) + " |")
+        total = Counter()
+        for (_t, p), n in place.items():
+            total[p] += n
+        lines.append(f"\nAll types: {dict(total)}.")
+
+    # (j) provenance: prompt version of the accepted attempt of each document (P02c4), and re-planned documents
+    if records_file.exists():
+        by_version: Counter = Counter()
+        by_version_type: Counter = Counter()
+        replanned: Counter = Counter()
+        for line in records_file.read_text(encoding="utf-8").splitlines():
+            rec = json.loads(line)
+            if rec["doc_id"] not in type_of:
+                continue
+            final = [a for a in rec["attempts"] if a["ok"]]
+            if not final:
+                continue
+            version = final[-1].get("prompt_version") or "unknown"
+            by_version[version] += 1
+            by_version_type[(type_of[rec["doc_id"]], version)] += 1
+            if final[-1]["round"] > 0:
+                replanned[(type_of[rec["doc_id"]], final[-1]["round"])] += 1
+        versions = sorted(by_version)
+        lines += ["", "## (j) Provenance: prompt version of the accepted attempt", "",
+                  "Documents by prompt version: " + ", ".join(f"{v} {by_version[v]}" for v in versions) + ".", "",
+                  "| doc type | " + " | ".join(versions) + " |", "| --- |" + " ---: |" * len(versions)]
+        for t in types:
+            lines.append(f"| {t} | " + " | ".join(str(by_version_type[(t, v)]) for v in versions) + " |")
+        lines += ["", "Documents accepted only after a re-plan or regeneration round (type, round): "
+                  + (", ".join(f"{t} r{r} x{n}" for (t, r), n in sorted(replanned.items())) or "none") + "."]
+
     # (a) exposure
     planned_t, planned_p = Counter(), Counter()
     meas_t, meas_p = Counter(), Counter()
@@ -110,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     dropped_path = args.corpus_dir / "dropped.json"
     dropped = json.loads(dropped_path.read_text(encoding="utf-8")) if dropped_path.exists() else []
     lines += ["", f"Train documents unaccepted after re-planning: {len(unaccepted)} {unaccepted}. "
-              f"Dropped as near-duplicates: {len(dropped)} {[x['doc_id'] for x in dropped]}."]
+              f"Dropped documents (near-duplicates or P02c5 decisions): {len(dropped)} {[x['doc_id'] for x in dropped]}."]
 
     # (b) 2+2 in val and test
     per = defaultdict(Counter)
@@ -153,11 +212,41 @@ def main(argv: list[str] | None = None) -> int:
     lines += ["", "## (f) 13-gram leakage (after validator normalisation)", "",
               f"Val/test documents sharing at least one 13-gram with train: {len(leaky)} (total shared {sum(leaky.values())}); must be 0. {leaky}",
               f"Train near-duplicate pairs (13-gram Jaccard > 0.5): {len(near)}. {near[:5]}"]
-    problems += [f"leak {d}" for d in leaky]
+    info = leak_analyse(docs, plan_by_id, kb)
+    leaky_exempt = sorted(exempt_docs(info))
+    lines += ["", f"Leakage without exemption: {len(leaky)} docs; with the sign-off exemption (grams entirely inside a "
+              f"sign-off line, docs/DESIGN_CHANGES_v1.3.md): {len(leaky_exempt)} docs. Gram classes: "
+              + ", ".join(f"{c} {sum(r['class'] == c for r in info.values())}" for c in ("i", "i-b", "ii", "iii")) + "."]
+    flags_path = args.corpus_dir / "flags.json"
+    flags = json.loads(flags_path.read_text(encoding="utf-8")) if flags_path.exists() else {"leak_flag": {}, "meta_flag": []}
+    disclosed: list[str] = []
+    doc_grams: dict[str, set[str]] = {}
+    for gram, rec in info.items():
+        for d in rec["docs"]:
+            doc_grams.setdefault(d, set()).add(" ".join(gram))
+    for d in leaky_exempt:
+        # disclosed only when every currently shared gram was flagged; a new gram is an unflagged failure
+        if d in flags["leak_flag"] and doc_grams.get(d, set()) <= set(flags["leak_flag"][d]):
+            disclosed.append(f"leak {d}")
+        else:
+            problems.append(f"leak {d}")
     problems += [f"near-duplicate {a}/{b}" for a, b, _j in near]
     dup = corpus.exact_duplicates(docs)
     lines += ["", "## (g) Exact duplicate documents across all splits", "", f"{len(dup)} (must be 0): {dup[:5]}"]
     problems += [f"exact duplicate {x}" for x in dup]
+
+    # (k) meta-talk scan (P02c5): broad pattern counts (informational) and the narrow genuine metric (gate, target 0)
+    broad = Counter()
+    for d in docs:
+        for name, _ctx in scan(d["text"]):
+            broad[name] += 1
+    genuine = {d["doc_id"]: genuine_hits(d["text"]) for d in docs if genuine_hits(d["text"])}
+    lines += ["", "## (k) Meta-talk scan (prompt leaks)", "",
+              "Broad patterns (raw substring hits, informational): "
+              + ", ".join(f"'{n}' {broad[n]}" for n, _rx in PATTERNS) + ".",
+              f"Genuine prompt-leak documents (slm/data/metatalk.py GENUINE, gate target 0): {len(genuine)} {sorted(genuine)[:12]}"]
+    for d in genuine:
+        (disclosed if d in flags["meta_flag"] else problems).append(f"meta-talk {d}")
 
     # records (cost, attempts)
     records_path = args.corpus_dir / "raw" / "records.jsonl"
@@ -168,7 +257,10 @@ def main(argv: list[str] | None = None) -> int:
         lines += ["", "## Cost and attempts (raw records)", "",
                   f"Cost of all attempts ${cost:.4f}; attempts per document (all rounds): {dict(sorted(attempts.items()))}; "
                   f"mean {sum(k * v for k, v in attempts.items()) / max(1, len(records)):.3f}."]
-    lines += ["", f"Result: {'PASS' if not problems else 'FAIL (' + str(len(problems)) + ' problems)'}"]
+    lines += ["", "## Disclosed exceptions (data/corpus/flags.json, listed in docs/DATA_CARD.md)", "",
+              f"{len(disclosed)}: {disclosed}", f"Unflagged failures: {len(problems)} {problems}"]
+    lines += ["", f"Result: {'PASS' if not problems else 'FAIL (' + str(len(problems)) + ' unflagged problems)'}"
+              + (f"; {len(disclosed)} disclosed exceptions" if disclosed else "")]
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if args.manifest:

@@ -113,7 +113,7 @@ def test_prompt_tools_v7_and_runner_use_it() -> None:
     tools = prompt_tools("v7")
     assert tools["label"] == TEMPLATE_VERSION_V7 and tools["hash"] == template_hash_v7() and tools["repair"]
     assert "Begin the document exactly" in tools["build"](next(r for r in PLAN if r["doc_type"] == "customer notice"), KB)
-    assert '"v7", "v5"' in (ROOT / "scripts" / "run_corpus.py").read_text(encoding="utf-8")
+    assert '"v9", "v5"' in (ROOT / "scripts" / "run_corpus.py").read_text(encoding="utf-8")
 
 
 def test_old_openers_file_is_unchanged_for_v5_and_v6() -> None:

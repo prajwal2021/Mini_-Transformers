@@ -51,9 +51,36 @@ def expand(frame: str) -> str:
         frame = new
 
 
+ARTICLE = re.compile(r"\b([Aa]n?) ([A-Za-z][A-Za-z'-]*)")
+# vowel letter but consonant sound -> "a"; consonant letter but vowel sound -> "an"
+A_BEFORE = ("uni", "use", "usu", "uti", "eu", "one", "once", "ubi")
+AN_BEFORE = ("hour", "honest", "honor", "honour", "heir")
+
+
+def article_for(word: str) -> str:
+    low = word.lower()
+    if low.startswith(AN_BEFORE):
+        return "an"
+    if low.startswith(A_BEFORE):
+        return "a"
+    return "an" if low[0] in "aeiou" else "a"
+
+
+def fix_articles(text: str) -> str:
+    """Make every "a"/"an" agree with the word that follows it (keeps the capital of "A")."""
+
+    def swap(match: re.Match[str]) -> str:
+        article = article_for(match.group(2))
+        if match.group(1)[0] == "A":
+            article = article.capitalize()
+        return f"{article} {match.group(2)}"
+
+    return ARTICLE.sub(swap, text)
+
+
 def render(frame: str, rng: random.Random) -> str:
     vocab = load()["vocab"]
-    text = SLOT.sub(lambda m: rng.choice(vocab[m.group(1)]), expand(frame))
+    text = fix_articles(SLOT.sub(lambda m: rng.choice(vocab[m.group(1)]), expand(frame)))
     return "|".join(_capfirst(part) for part in text.split("|"))
 
 

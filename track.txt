@@ -1,5 +1,5 @@
 PROJECT: CS 5370 SLM - Aurelia Skyways Companion Animal Travel Desk
-CURRENT PHASE: P02c2 (corpus run 2 stopped at Gate A: every_type, newsletter blurb 9/11; opening duplicates 0.0%)
+CURRENT PHASE: P02c5 (corpus closed after 2 regeneration rounds; 15 val/test docs still leak, 1 meta-talk doc; audit FAIL, awaits human)
 
 PHASE CHECKLIST:
 [x] P00 Scaffold, env, tracking/journal, utilities - exit: Tests pass; journal files exist (evidence: 7 passed in 5.00s; ruff all checks passed; CUDA matmul passed)
@@ -93,3 +93,5 @@ R02 OPEN: real manifest (P02c3) pending; re-run check_probe_overlap and the stat
 R03 OPEN: real sweep not run (needs the full corpus); val/test canonical probes share a prompt; E* is a proxy (60-epoch vs 2E* cosine); read sweep_decision.md WARNING before accepting E*.
 [x] R04 E* rule v2 (smoothed 1-SE + chance guard), sweep seed 100, identical 60-epoch schedule, two-stage sweep with ETA, PREREG v5 (unfrozen), freeze refuses dirty tree and records seed/E*/guard/schedule hash, --real report gate, QA cost measured - commit "R04: E* rule v2" (not merged into main)
 R04 OPEN: real sweep not run (needs the full corpus); read the sweep_decision.md WARNING (no_val_storage) before accepting E*; ETA assumes equal run cost.
+
+NEXT STEP: Human decides on the 15 leaking val/test docs and test-0074

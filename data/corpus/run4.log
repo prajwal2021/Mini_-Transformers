@@ -1,0 +1,32 @@
+MODE: OPENAI (spends real money; global spend so far $3.76 of $9)
+corpus run: ledger cap $6.00, global stop $9.00, 2407 plan rows, workers 12
+unaccepted among the first 350 after redo: []
+Gate A at 150 docs: accepted within 5 100.0%, attempts 1.13, projected $5.02, opening dup 0.0%, artifact rate 0.0%, spend $0.72 -> PASS
+rolling at 250 docs: accepted within 5 100.0%, attempts 1.10, projected $4.87, opening dup 0.0%, artifact rate 0.0%, spend $0.72 -> PASS
+rolling at 350 docs: accepted within 5 100.0%, attempts 1.11, projected $4.87, opening dup 0.3%, artifact rate 0.0%, spend $0.72 -> PASS
+rolling at 450 docs: accepted within 5 99.8%, attempts 1.11, projected $4.87, opening dup 0.2%, artifact rate 0.0%, spend $0.92 -> PASS
+rolling at 550 docs: accepted within 5 99.6%, attempts 1.10, projected $4.82, opening dup 0.4%, artifact rate 0.0%, spend $1.11 -> PASS
+rolling at 650 docs: accepted within 5 99.4%, attempts 1.10, projected $4.82, opening dup 0.3%, artifact rate 0.0%, spend $1.31 -> PASS
+rolling at 750 docs: accepted within 5 99.5%, attempts 1.10, projected $4.83, opening dup 0.3%, artifact rate 0.0%, spend $1.51 -> PASS
+rolling at 850 docs: accepted within 5 99.5%, attempts 1.09, projected $4.81, opening dup 0.2%, artifact rate 0.0%, spend $1.71 -> PASS
+rolling at 950 docs: accepted within 5 99.5%, attempts 1.09, projected $4.82, opening dup 0.3%, artifact rate 0.0%, spend $1.91 -> PASS
+rolling at 1050 docs: accepted within 5 99.5%, attempts 1.08, projected $4.79, opening dup 0.5%, artifact rate 0.0%, spend $2.10 -> PASS
+rolling at 1150 docs: accepted within 5 99.6%, attempts 1.08, projected $4.78, opening dup 0.5%, artifact rate 0.0%, spend $2.29 -> PASS
+rolling at 1250 docs: accepted within 5 99.6%, attempts 1.08, projected $4.77, opening dup 0.7%, artifact rate 0.0%, spend $2.48 -> PASS
+rolling at 1350 docs: accepted within 5 99.6%, attempts 1.08, projected $4.77, opening dup 0.8%, artifact rate 0.0%, spend $2.68 -> PASS
+rolling at 1450 docs: accepted within 5 99.5%, attempts 1.08, projected $4.78, opening dup 0.8%, artifact rate 0.0%, spend $2.88 -> PASS
+rolling at 1550 docs: accepted within 5 99.5%, attempts 1.08, projected $4.77, opening dup 0.7%, artifact rate 0.0%, spend $3.07 -> PASS
+rolling at 1650 docs: accepted within 5 99.5%, attempts 1.08, projected $4.76, opening dup 0.8%, artifact rate 0.0%, spend $3.26 -> PASS
+rolling at 1750 docs: accepted within 5 99.5%, attempts 1.08, projected $4.77, opening dup 0.9%, artifact rate 0.0%, spend $3.46 -> PASS
+rolling at 1850 docs: accepted within 5 99.5%, attempts 1.08, projected $4.77, opening dup 0.8%, artifact rate 0.0%, spend $3.66 -> PASS
+rolling at 1950 docs: accepted within 5 99.4%, attempts 1.08, projected $4.77, opening dup 0.8%, artifact rate 0.1%, spend $3.86 -> PASS
+rolling at 2050 docs: accepted within 5 99.5%, attempts 1.08, projected $4.76, opening dup 0.8%, artifact rate 0.1%, spend $4.05 -> PASS
+rolling at 2150 docs: accepted within 5 99.4%, attempts 1.08, projected $4.77, opening dup 0.7%, artifact rate 0.1%, spend $4.25 -> PASS
+rolling at 2250 docs: accepted within 5 99.3%, attempts 1.08, projected $4.78, opening dup 0.8%, artifact rate 0.1%, spend $4.45 -> PASS
+rolling at 2350 docs: accepted within 5 99.3%, attempts 1.08, projected $4.78, opening dup 0.7%, artifact rate 0.1%, spend $4.65 -> PASS
+rolling at 2407 docs: accepted within 5 99.3%, attempts 1.08, projected $4.77, opening dup 0.7%, artifact rate 0.1%, spend $4.76 -> PASS
+re-plan round 1: 16 docs (train-0100, train-0126, train-0676, train-0686, train-0741, train-0747, train-0791, train-0908, train-0913, train-1164...)
+re-plan round 2: 3 docs (train-0676, train-0908, test-0004...)
+unaccepted after re-planning: 3 (1 val/test)
+val/test docs cannot be completed: ['test-0004']; stopping.
+wrote 2404 docs to C:\Users\prajsrin\Documents\NNP\data\corpus; ledger spend $4.8031

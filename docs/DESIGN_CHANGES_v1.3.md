@@ -104,3 +104,13 @@ yet frozen), **open** (a DESIGN requirement nobody has done yet). Prefixes: D- d
 | 53 | The sweep uses seed 100, never a final seed; the sweep and the final seeds share one 60-epoch schedule (no 2E\*; the secondary analysis is epoch 60) | I-D047, I-D049 |
 | 54 | Two-stage sweep (6 configs at batch 32, then the best at batch 16, then the 27.6M size) with an ETA from the first run and a 3 h abort | I-D050 |
 | 55 | PREREG v5; the freeze records sweep seed, E\*, guard flag, schedule hash and refuses a dirty git tree (PREREG itself excepted) | I-D051, I-D052 |
+
+## Corpus-stream rows (C-*), merged from main
+
+Appended by the R05 merge; the numbered rows above are the integration/model/eval/analysis rows.
+
+| # | change | where | reason |
+| --- | --- | --- | --- |
+| C-1 (P02c5) | **13-gram leak rule exemption for sign-off lines.** 13-grams that lie entirely inside a code-inserted or fixed sign-off line are exempt from the zero-leak rule; every other shared 13-gram keeps the original rule. Reported with and without the exemption (audit section f). | slm/data/leakclass.py, scripts/audit_corpus.py | Architect decision in P02c5. **Effect: none.** In this corpus sign-offs are model-written lines of at most 8 words, shorter than a 13-gram, so no shared 13-gram lies entirely inside one (classes i and i-b both 0 of 187 distinct grams). Leakage with and without the exemption is identical. |
+| C-2 (P02c5) | **test-0004 re-planned as another document type.** After 3 rounds as a newsletter blurb failed V12, the document was generated once as an "employee email" with the same facts and split (data/corpus/plan_overrides.json, round 6). | scripts/close_corpus.py, corpus.apply_plan_overrides | Keeps the 2+2 val/test mentions of F036 and F037. |
+| C-3 (P02c5) | **Meta-talk scan is a gate metric** (slm/data/metatalk.py GENUINE, target 0), not a validator; validators v1-v5 stay frozen. | audit_corpus.py | 33 documents talked about the "inserted" sentence. |

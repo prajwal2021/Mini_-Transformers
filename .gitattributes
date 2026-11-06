@@ -1,2 +1,3 @@
 data/sft/** -text
 data/eval/** -text
+data/corpus/** -text
