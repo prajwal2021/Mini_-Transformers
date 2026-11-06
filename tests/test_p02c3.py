@@ -166,3 +166,23 @@ def test_amended_gates_per_type_minimum_and_artifact_rate() -> None:
     assert module.evaluate({**good, "accept_by_type": {"a": (18, 20)}}, 1.0)["every_type"]  # 90% passes
     assert not module.evaluate({**good, "artifact_rate": 0.03}, 1.0)["artifact_rate"]
     assert module.evaluate({**good, "artifact_rate": 0.02}, 1.0)["artifact_rate"]
+
+
+def test_consecutive_markers_in_one_sentence_leave_no_fragment() -> None:
+    row = {**ROW, "fact_ids": ["F001", "F002"]}
+    sentences = {"F001": "ONE.", "F002": "TWO."}
+    raw = ("Please route questions back to us so we keep the advice consistent. <<FACT F001>> If anyone is checking "
+           "documents for a bird, <<FACT F002>> and that detail should stay aligned with the passenger.")
+    text, placements = repair_markers(raw, row, KB, sentences)
+    assert text == ("Please route questions back to us so we keep the advice consistent. ONE. TWO. "
+                    "That detail should stay aligned with the passenger.")
+    assert placements == {"F001": "model", "F002": "repaired_mid_v2"} and not has_artifact(text)
+
+
+def test_signoff_style_label_before_a_marker_only_counts_in_chat() -> None:
+    raw = f"We understand how upsetting that is.\n\nCompanion Animal Travel Desk: {MARK} We are placing this into review."
+    text, placements = repair(raw, {**ROW, "doc_type": "complaint letter + reply"})
+    assert "Companion Animal Travel Desk:" not in text and placements == {FID: "repaired_mid_v2"}
+    assert text.endswith("SENTENCE ONE. We are placing this into review.")
+    chat, placements = repair(f"Planner: {MARK} We are placing this into review.", {**ROW, "doc_type": "internal chat thread"})
+    assert chat == "Planner: SENTENCE ONE. We are placing this into review." and placements == {FID: "model"}

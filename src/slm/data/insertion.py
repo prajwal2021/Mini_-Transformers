@@ -38,12 +38,12 @@ def _dot_then_boundary(raw: str, end: int) -> bool:
     return raw[end] == "." and (end + 1 == len(raw) or raw[end + 1] in " \n")
 
 
-def _boundary_ok(raw: str, start: int, end: int) -> bool:
+def _boundary_ok(raw: str, start: int, end: int, labels: bool = True) -> bool:
     before = raw[:start]
     if start == 0 or before.endswith("\n"):
         ok_before = True
     else:
-        ok_before = bool(LABEL_BEFORE.search(before) or SENTENCE_END_BEFORE.search(before))
+        ok_before = bool((labels and LABEL_BEFORE.search(before)) or SENTENCE_END_BEFORE.search(before))
     ok_after = end == len(raw) or raw[end] in " \n" or _dot_then_boundary(raw, end)
     return ok_before and ok_after
 
@@ -115,16 +115,24 @@ MIN_LEAD_WORDS = 7
 # a lead-in P that starts like this is a dependent clause or lead-in phrase and cannot stand alone
 DEPENDENT_LEAD = re.compile(
     r"^(?:if|when|while|before|after|once|since|because|although|though|unless|until|as|whereas|"
-    r"so that|that|which|who|whose|for)\b",
+    r"so that|which|who|whose|for)\b",
     re.IGNORECASE,
 )
 # a continuation Q that starts like this is a dependent clause that no longer has a head: dropped
 DEPENDENT_REST = re.compile(
-    r"^(?:so that|that|which|who|whose|because|although|though|unless|until|whereas)\b", re.IGNORECASE
+    r"^(?:so that|which|who|whose|because|although|though|unless|until|whereas)\b", re.IGNORECASE
 )
 
 
-def _repair_mid_v2(text: str, start: int, end: int, sentence: str) -> str:
+def _split_markers(piece: str) -> tuple[str, str]:
+    """(leading markers kept as they are, the remaining text)."""
+    match = re.match(r"(?:\s*<<\s*FACT\s+[A-Za-z0-9]+\s*>>)+", piece)
+    if not match:
+        return "", piece
+    return match.group(0).strip(), piece[match.end():].strip()
+
+
+def _repair_mid_v2(text: str, start: int, end: int, sentence: str, chat: bool = True) -> str:
     """Marker repair v2 (P02c3): cut the containing sentence at the marker into P (before) and Q (after).
 
     P loses a trailing comma/and/but/colon and stays as its own sentence when it has at least seven
@@ -132,7 +140,7 @@ def _repair_mid_v2(text: str, start: int, end: int, sentence: str) -> str:
     with a capital letter and without a leading and/but/so.
     """
     line_start = text.rfind("\n", 0, start) + 1
-    label = CHAT_LABEL_PREFIX.match(text, line_start)
+    label = CHAT_LABEL_PREFIX.match(text, line_start) if chat else None
     low = line_start + (len(label.group(0)) if label and label.end() <= start else 0)
     breaks = list(SENTENCE_BREAK.finditer(text[low:start]))
     sentence_start = low + (breaks[-1].end() if breaks else 0)
@@ -140,12 +148,16 @@ def _repair_mid_v2(text: str, start: int, end: int, sentence: str) -> str:
     line_end = len(text) if newline == -1 else newline
     stop = SENTENCE_STOP.search(text, end, line_end)
     sentence_end = stop.end() if stop else line_end
-    lead = TRAIL_STRIP.sub("", text[sentence_start:start].strip()).strip()
-    rest = LEAD_STRIP.sub("", text[end:sentence_end].strip()).strip()
-    parts = []
+    lead_marks, lead = _split_markers(text[sentence_start:start].strip())
+    rest_marks, rest = _split_markers(text[end:sentence_end].strip())
+    lead = TRAIL_STRIP.sub("", lead).strip()
+    rest = LEAD_STRIP.sub("", rest).strip()
+    parts = [lead_marks] if lead_marks else []
     if len(lead.split()) >= MIN_LEAD_WORDS and not DEPENDENT_LEAD.match(lead):
         parts.append(lead if lead[-1] in ".!?" else lead + ".")
     parts.append(sentence)
+    if rest_marks:
+        parts.append(rest_marks)
     if rest and not DEPENDENT_REST.match(rest):
         rest = rest[0].upper() + rest[1:]
         parts.append(rest if rest[-1] in ".!?\"')" else rest + ".")
@@ -164,6 +176,7 @@ def repair_markers(
 
     expected = list(row["fact_ids"])
     placements: dict[str, str] = {}
+    chat = row.get("doc_type") == "internal chat thread"  # only a chat line may start with "Label: "
     found = [(m.group(1), m.start(), m.end()) for m in PLACEHOLDER_RE.finditer(raw)]
     drops: list[tuple[int, int]] = []
     kept: dict[str, tuple[int, int]] = {}
@@ -184,14 +197,13 @@ def repair_markers(
         if kind == "drop":
             text = _drop(text, start, end)
             continue
-        if _boundary_ok(raw, start, end):
+        if _boundary_ok(raw, start, end, labels=chat):
             stop = end + 1 if end < len(raw) and raw[end] == "." and _dot_then_boundary(raw, end) else end
             text = text[:start] + sentences[fact_id] + text[stop:]
             placements.setdefault(fact_id, "model")
         else:
-            text = _repair_mid_v2(text, start, end, sentences[fact_id])
+            text = _repair_mid_v2(text, start, end, sentences[fact_id], chat)
             placements[fact_id] = "repaired_mid_v2" if placements.get(fact_id) != "repaired_dup" else "repaired_dup"
-    chat = row.get("doc_type") == "internal chat thread"
     for fact_id in expected:
         if fact_id in kept:
             continue

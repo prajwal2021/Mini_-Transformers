@@ -27,6 +27,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw-dir", type=Path, default=ROOT / "data" / "corpus" / "raw")
     parser.add_argument("--report", type=Path, default=ROOT / "reports" / "tables" / "corpus_reprocess_run2.md")
+    parser.add_argument("--from-current", action="store_true", help="reprocess the current attempts.jsonl instead of the v7 original")
     args = parser.parse_args(argv)
     kb = json.loads((ROOT / "data" / "kb" / "kb.json").read_text(encoding="utf-8"))
     pools = json.loads((ROOT / "data" / "kb" / "filler_pools.json").read_text(encoding="utf-8"))
@@ -36,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     backup = path.with_name("attempts_v7_original.jsonl")
     if not backup.exists():
         shutil.copy2(path, backup)
-    original = _load_attempts(backup)
+    original = _load_attempts(path if args.from_current else backup)
     tools = prompt_tools("v8", MODEL)
     validate, normalise = validator_for("v5"), normaliser_for("v5")
     by_doc: dict[str, list[dict]] = {}

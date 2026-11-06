@@ -6,7 +6,7 @@ A deterministic detector on final texts; it is a gate metric of the corpus run, 
 1. A common sentence-initial word capitalised in the middle of a sentence, directly after a comma or
    after "and"/"but"/"so" ("... together, and The same attention", "For birds, Keep the crate").
    Not after a colon, a quote or a full stop. A greeting line ("Hello team, We ...") is exempt.
-2. A dangling lead-in: a sentence that starts with a preposition or subordinator, a short phrase and
+2. A dangling lead-in: a sentence that starts with a preposition or subordinator, a phrase of at most two words and
    ", and"/", but"/", so" followed by a lowercase word ("For Port Isolde, and staff must ..."), and the
    fragment ", and so that" ("needs, and so that planning stays balanced").
 """
@@ -27,7 +27,7 @@ INITIAL_WORDS = (
 MID_CAP = re.compile(r"(?:,|\b(?:and|but|so)) (?:and |but |so )?(" + "|".join(sorted(set(INITIAL_WORDS))) + r")\b")
 LEAD_IN = re.compile(
     r"(?:^|(?<=[.!?] ))(?:For|In|At|On|If|When|As|With|During|After|Before|Under|Within) "
-    r"[^,.!?\n]{1,45}, (?:and|but|so) [a-z]"
+    r"[^\s,.!?]+(?: [^\s,.!?]+)?, (?:and|but|so) [a-z]"
 )
 AND_SO_THAT = re.compile(r", and so that\b")
 GREETING = re.compile(r"^(?:Hello|Hi|Dear|Good|Greetings|Morning|Afternoon|Evening|Hey|Welcome)\b")
