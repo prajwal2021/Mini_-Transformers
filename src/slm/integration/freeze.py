@@ -150,3 +150,34 @@ def verify(prereg: Path) -> dict:
     if sha256_text(strip_block(text)) != rec["prereg_sha256"]:
         raise FreezeRefused(f"{prereg} was edited after the freeze (hash mismatch)")
     return rec
+
+
+ADDENDUM_FIELDS = ("addendum_id", "fix_commit", "prereg_sha256", "old_analysis_code_sha256", "new_analysis_code_sha256")
+
+
+def verify_analysis_code(prereg: Path, root: Path, addendum: Path | None = None) -> dict:
+    """The freeze record, after also checking the analysis code against it (R08).
+
+    The frozen ``analysis_code_sha256`` must equal the current hash of the analysis code, OR the current hash must be the
+    ``new_analysis_code_sha256`` of the ONE recorded addendum (``docs/FREEZE_ADDENDUM.json``) whose ``prereg_sha256`` and
+    ``old_analysis_code_sha256`` equal the freeze record's. Anything else is refused. The freeze itself is never rewritten.
+    Returns the freeze record plus ``analysis_code_status`` (``matches freeze`` or ``matches addendum <id>``).
+    """
+    rec = verify(prereg)
+    current = analysis_code_hash(Path(root))
+    if current == rec["analysis_code_sha256"]:
+        return {**rec, "analysis_code_status": "matches freeze"}
+    path = Path(addendum) if addendum is not None else Path(root) / "docs" / "FREEZE_ADDENDUM.json"
+    if not path.exists():
+        raise FreezeRefused("analysis code differs from the frozen hash and no freeze addendum is recorded")
+    add = json.loads(path.read_text(encoding="utf-8"))
+    missing = [k for k in ADDENDUM_FIELDS if k not in add]
+    if missing:
+        raise FreezeRefused(f"freeze addendum {path} lacks {missing}")
+    if add["prereg_sha256"] != rec["prereg_sha256"]:
+        raise FreezeRefused("freeze addendum belongs to a different PREREG hash")
+    if add["old_analysis_code_sha256"] != rec["analysis_code_sha256"]:
+        raise FreezeRefused("freeze addendum does not start from the frozen analysis-code hash")
+    if current != add["new_analysis_code_sha256"]:
+        raise FreezeRefused("analysis code differs from both the frozen hash and the recorded addendum's new hash")
+    return {**rec, "analysis_code_status": f"matches addendum {add['addendum_id']} (fix commit {add['fix_commit']})"}

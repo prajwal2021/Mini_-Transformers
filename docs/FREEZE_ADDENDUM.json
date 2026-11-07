@@ -1,0 +1,14 @@
+{
+ "addendum_id": "R08-1",
+ "kind": "analysis-code change after the freeze (post-unblinding bug fix)",
+ "fix_commit": "5c94523",
+ "prereg_sha256": "6fbf098a29a5828fc3996368dd21fe5f9382c6dbef198282b2bddf87351ec5fa",
+ "freeze_git_commit": "e1dce48c98ccad02fcc1b7191b56e748ddae17c7",
+ "old_analysis_code_sha256": "8a6fab562f6ff28d48333d2364de25449dd3a6fe292c888751571f3e69925cd0",
+ "new_analysis_code_sha256": "3fa3b4a92e2ebf9e045c1c051b9ad0673ae2ca78518d5c27df36e20a20b4176a",
+ "files_changed": ["src/slm/analysis/models.py"],
+ "what_changed": "_numeric_outcome(): the outcome column is coerced to float 0/1 in fit_gee and fit_bayes_mixed. A boolean outcome made the GEE model P(not stored), inverting the sign of every logistic coefficient.",
+ "references": ["docs/DESIGN_CHANGES_v1.3.md row 56", "journal/integration/DECISIONS_I.md I-D056"],
+ "freeze_rewritten": false,
+ "note": "The PREREG file and its freeze block are unchanged. The verifier accepts exactly this record: the PREREG hash, the old hash and the current hash must all match; any other analysis-code state is refused."
+}

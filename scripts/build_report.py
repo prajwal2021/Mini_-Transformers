@@ -41,10 +41,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="banner text (default SIMULATED; the mock pipeline uses MOCK)")
     args = ap.parse_args(argv)
     if args.real:
-        from slm.integration.freeze import FreezeRefused, verify
+        from slm.integration.freeze import FreezeRefused, verify_analysis_code
 
         try:
-            verify(Path(args.prereg))
+            rec = verify_analysis_code(Path(args.prereg), Path(args.prereg).resolve().parents[1])
+            print(f"freeze verified; analysis code: {rec['analysis_code_status']}")
         except (FreezeRefused, OSError) as exc:
             print(f"REPORT REFUSED: --real needs a verified PREREG freeze: {exc}", file=sys.stderr)
             return 3
