@@ -29,3 +29,6 @@ data/raw_mock/
 reports/integration/mock_*
 /bundle/
 /bundle.zip
+*.zip
+.env.*
+!.env.example
