@@ -1,0 +1,6 @@
+contrast,description,risk_difference,ci_low,ci_high
+H1,high - low exposure,0.4375,0.364583,0.506302
+H2,(paraphrased - templated) at novel minus at canonical,0.205556,0.119375,0.3
+H2-novel,"paraphrased - templated, novel frame",0.0333333,-0.025,0.0972222
+H2-canonical,"paraphrased - templated, canonical frame",-0.172222,-0.261111,-0.0888889
+freq x div (exploratory),(para - templ) at high minus at low exposure,-0.075,-0.220833,0.0708333

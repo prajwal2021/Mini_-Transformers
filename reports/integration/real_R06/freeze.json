@@ -1,0 +1,27 @@
+{
+  "prereg_file": "C:\\Users\\prajsrin\\Documents\\slm-integration\\docs\\PREREG.md",
+  "prereg_sha256": "6fbf098a29a5828fc3996368dd21fe5f9382c6dbef198282b2bddf87351ec5fa",
+  "git": {
+    "commit": "e1dce48c98ccad02fcc1b7191b56e748ddae17c7",
+    "branch": "integration",
+    "dirty": false
+  },
+  "analysis_code_sha256": "8a6fab562f6ff28d48333d2364de25449dd3a6fe292c888751571f3e69925cd0",
+  "frozen_at": "2026-11-07T01:37:24+00:00",
+  "ledger": "C:\\Users\\prajsrin\\Documents\\slm-integration\\reports\\test_access_log.jsonl",
+  "run_dir": "C:\\Users\\prajsrin\\Documents\\slm-integration\\runs\\real",
+  "extra": {
+    "config_sha256": "890e497106540ac2d78a123927d38fdc9057657e46b53346802f0faf32bc94cd",
+    "config_file": "configs/real.yaml",
+    "e_star": 30,
+    "no_val_storage": false,
+    "sweep_seed": 100,
+    "schedule_sha256": "e412bdb412bc62b727d7a8d56eef6a04c78e436cf5d5d9d1650d84ad2326e06a",
+    "total_epochs": 60,
+    "model_size": "small",
+    "lr": 0.001,
+    "dropout": 0.1,
+    "batch_size": 16,
+    "val_loss_optimal_epoch": 12
+  }
+}

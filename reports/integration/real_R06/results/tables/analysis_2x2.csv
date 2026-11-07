@@ -1,0 +1,5 @@
+div_bin,stored,n_correct,n_wrong
+templated,stored,0,1
+templated,not stored,0,29
+paraphrased,stored,0,6
+paraphrased,not stored,0,24

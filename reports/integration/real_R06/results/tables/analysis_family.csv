@@ -1,0 +1,5 @@
+hypothesis,label,predicted_sign,estimate,ci_low,ci_high,p_raw,direction_ok,scale,p_descriptive,p_holm,reject_holm,status,provisional
+H1,storage rises with log exposure (per tripling),1,-0.948417,-1.5279,-0.36893,0.0016229,False,log-odds,,0.00324581,True,reversed,False
+H2,"diversity x frame (paraphrased advantage, novel - canonical)",1,-1.84392,-2.77767,-0.910167,0.000172152,False,log-odds,,0.000516456,True,reversed,False
+H3,"E2 gain after SFT, bounded by pre-SFT storage (IUT)",1,0,0,0,1,False,risk diff (gain),,1,False,not supported; CI inside margin,False
+H4,extraction gain larger for paraphrased (secondary),1,0,0,0,,False,risk diff (gain diff),1,,False,secondary: effect and CI only,False

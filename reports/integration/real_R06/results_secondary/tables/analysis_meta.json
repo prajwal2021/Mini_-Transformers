@@ -1,0 +1,8 @@
+{
+  "checkpoint": 5940,
+  "n_facts": 120,
+  "n_probe_rows": 1080,
+  "n_seeds": 3,
+  "n_val_rows_excluded": 10080,
+  "gee_converged": true
+}

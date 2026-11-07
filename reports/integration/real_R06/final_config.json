@@ -1,0 +1,41 @@
+{
+  "model": {
+    "vocab_size": 4096,
+    "context_len": 512,
+    "n_layer": 6,
+    "n_head": 6,
+    "d_model": 384,
+    "d_ff": 1536,
+    "dropout": 0.1,
+    "tie_embeddings": true,
+    "init_std": 0.02
+  },
+  "size": "small",
+  "lr": 0.001,
+  "dropout": 0.1,
+  "batch_size": 16,
+  "primary_epoch": 30,
+  "epochs": 60,
+  "secondary_epoch": 60,
+  "checkpoint_epochs": [
+    1,
+    2,
+    3,
+    5,
+    8,
+    12,
+    16,
+    20,
+    25,
+    30,
+    40,
+    50,
+    60
+  ],
+  "no_val_storage": false,
+  "sweep_seed": 100,
+  "schedule_sha256": "e412bdb412bc62b727d7a8d56eef6a04c78e436cf5d5d9d1650d84ad2326e06a",
+  "val_loss_optimal_epoch": 12,
+  "sweep_run": "cfg06_lr0.001_dropout0.1_batch_size16",
+  "rule": "R04: 3-checkpoint smoothed val-probe stored rate; E* = earliest within 1 SE of the best; chance guard -> min val loss"
+}

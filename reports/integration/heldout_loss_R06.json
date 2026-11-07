@@ -1,0 +1,50 @@
+{
+ "flagged_val_docs": [
+  "val-0031",
+  "val-0047",
+  "val-0070",
+  "val-0085",
+  "val-0112"
+ ],
+ "n_val_docs": 120,
+ "n_without_flagged": 115,
+ "split_read": "val",
+ "loss": {
+  "seed0_epoch12": {
+   "all_val_docs": 2.7066,
+   "without_flagged": 2.7056
+  },
+  "seed0_epoch30": {
+   "all_val_docs": 3.6926,
+   "without_flagged": 3.6959
+  },
+  "seed0_epoch60": {
+   "all_val_docs": 4.6107,
+   "without_flagged": 4.6103
+  },
+  "seed1_epoch12": {
+   "all_val_docs": 2.7147,
+   "without_flagged": 2.7156
+  },
+  "seed1_epoch30": {
+   "all_val_docs": 3.6805,
+   "without_flagged": 3.6842
+  },
+  "seed1_epoch60": {
+   "all_val_docs": 4.5982,
+   "without_flagged": 4.6065
+  },
+  "seed2_epoch12": {
+   "all_val_docs": 2.7339,
+   "without_flagged": 2.7359
+  },
+  "seed2_epoch30": {
+   "all_val_docs": 3.6951,
+   "without_flagged": 3.6915
+  },
+  "seed2_epoch60": {
+   "all_val_docs": 4.6252,
+   "without_flagged": 4.6226
+  }
+ }
+}

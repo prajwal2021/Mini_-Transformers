@@ -1,0 +1,4 @@
+component,test,scale,estimate,ci_low,ci_high,p_raw,direction_ok,detail
+H3a,"McNemar exact, base vs SFT (E2)",risk diff,0,0,0,1,False,"base-only correct 0, SFT-only correct 0"
+H3b,"Fisher exact, stored x correct (SFT, E2)",risk diff,0,0,0,1,False,odds ratio nan
+H4,"permutation, gain(paraphrased) - gain(templated)",risk diff,0,0,0,1,False,"gain paraphrased 0.000, templated 0.000"

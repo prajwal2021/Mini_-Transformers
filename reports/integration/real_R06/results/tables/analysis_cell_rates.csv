@@ -1,0 +1,13 @@
+freq_bin,div_bin,probe_frame,n_facts,stored_rate,ci_low,ci_high
+low,templated,canonical,20,0.0333333,0,0.0833333
+low,templated,novel,20,0.025,0,0.05
+low,paraphrased,canonical,20,0,0,0
+low,paraphrased,novel,20,0.025,0,0.05
+mid,templated,canonical,20,0.216667,0.116667,0.333333
+mid,templated,novel,20,0.0916667,0.0416667,0.141667
+mid,paraphrased,canonical,20,0.1,0.0333333,0.183333
+mid,paraphrased,novel,20,0.175,0.108333,0.258333
+high,templated,canonical,20,0.616667,0.483333,0.750417
+high,templated,novel,20,0.3,0.183333,0.433333
+high,paraphrased,canonical,20,0.35,0.233333,0.483333
+high,paraphrased,novel,20,0.516667,0.408333,0.625

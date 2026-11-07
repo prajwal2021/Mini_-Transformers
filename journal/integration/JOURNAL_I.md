@@ -41,3 +41,6 @@
 
 ## R05 (2026-11-06)
 Merged main cd17f63 (conflicts: AI_USE, track, DESIGN_CHANGES kept both sides). manifest sha256 failed on CRLF checkout; fixed with `data/corpus/** -text`. Tokenizer V=4096, train 687,060 tokens. Sweep + size check done; STOP (c) hit; not frozen. See reports/integration/REPORT_BACK_R05.md.
+
+## R06 (2026-11-06)
+Overrode R05 STOP (c) (I-D055). PREREG sensitivity paragraph, frozen at e1dce48 (E*=30). 3 seeds x 60 epochs, probes, SFT from E*, QA, tables, analysis, real report (6 pages). H1/H2 significant in the reversed direction; H3 null. See reports/integration/REPORT_BACK_R06.md.

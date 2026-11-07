@@ -96,3 +96,4 @@ R04 OPEN: real sweep not run (needs the full corpus); read the sweep_decision.md
 
 NEXT STEP: Human decides on the 15 leaking val/test docs and test-0074
 [x] R05 merge main cd17f63, real tokenizer/token cache, real sweep+sizing (E*=30, small); STOPPED before freeze: STOP (c) val loss +34.8% at E*
+[x] R06 frozen PREREG v5 (e1dce48), final runs 3 seeds, probes, SFT@E*=30, QA, analysis, real report 6 pages; H1/H2 reversed, H3 null

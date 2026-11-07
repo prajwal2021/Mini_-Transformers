@@ -1,0 +1,10 @@
+checkpoint,prompt_mode,eval_set,correct,format_failure,out_of_kb_hallucination,right_type_wrong_value
+pretrained,2shot,E0,5,860,106,37
+pretrained,2shot,E1,1,407,13,11
+pretrained,2shot,E2,1,509,22,8
+pretrained,zero_shot,E0,8,819,153,28
+pretrained,zero_shot,E1,7,377,44,4
+pretrained,zero_shot,E2,3,470,60,7
+sft,zero_shot,E0,282,338,100,288
+sft,zero_shot,E1,101,167,50,114
+sft,zero_shot,E2,8,257,90,185

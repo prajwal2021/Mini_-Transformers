@@ -1,0 +1,678 @@
+{
+ "H1.ci_high": {
+  "source": "tables/analysis_family.csv:H1.ci_high",
+  "value": -0.36893
+ },
+ "H1.ci_low": {
+  "source": "tables/analysis_family.csv:H1.ci_low",
+  "value": -1.5279
+ },
+ "H1.estimate": {
+  "source": "tables/analysis_family.csv:H1.estimate",
+  "value": -0.948417
+ },
+ "H1.label": {
+  "source": "tables/analysis_family.csv:H1.label",
+  "value": "storage rises with log exposure (per tripling)"
+ },
+ "H1.odds_ratio": {
+  "source": "tables/analysis_family.csv:H1.estimate",
+  "value": 0.387353719315458
+ },
+ "H1.p_holm": {
+  "source": "tables/analysis_family.csv:H1.p_holm",
+  "value": 0.00324581
+ },
+ "H1.p_raw": {
+  "source": "tables/analysis_family.csv:H1.p_raw",
+  "value": 0.0016229
+ },
+ "H1.status": {
+  "source": "tables/analysis_family.csv:H1.status",
+  "value": "reversed"
+ },
+ "H2.ci_high": {
+  "source": "tables/analysis_family.csv:H2.ci_high",
+  "value": -0.910167
+ },
+ "H2.ci_low": {
+  "source": "tables/analysis_family.csv:H2.ci_low",
+  "value": -2.77767
+ },
+ "H2.estimate": {
+  "source": "tables/analysis_family.csv:H2.estimate",
+  "value": -1.84392
+ },
+ "H2.label": {
+  "source": "tables/analysis_family.csv:H2.label",
+  "value": "diversity x frame (paraphrased advantage, novel - canonical)"
+ },
+ "H2.odds_ratio": {
+  "source": "tables/analysis_family.csv:H2.estimate",
+  "value": 0.15819608042976244
+ },
+ "H2.p_holm": {
+  "source": "tables/analysis_family.csv:H2.p_holm",
+  "value": 0.000516456
+ },
+ "H2.p_raw": {
+  "source": "tables/analysis_family.csv:H2.p_raw",
+  "value": 0.000172152
+ },
+ "H2.status": {
+  "source": "tables/analysis_family.csv:H2.status",
+  "value": "reversed"
+ },
+ "H3.ci_high": {
+  "source": "tables/analysis_family.csv:H3.ci_high",
+  "value": 0.0
+ },
+ "H3.ci_low": {
+  "source": "tables/analysis_family.csv:H3.ci_low",
+  "value": 0.0
+ },
+ "H3.estimate": {
+  "source": "tables/analysis_family.csv:H3.estimate",
+  "value": 0.0
+ },
+ "H3.gain": {
+  "source": "tables/analysis_family.csv:H3.estimate",
+  "value": 0.0
+ },
+ "H3.label": {
+  "source": "tables/analysis_family.csv:H3.label",
+  "value": "E2 gain after SFT, bounded by pre-SFT storage (IUT)"
+ },
+ "H3.p_holm": {
+  "source": "tables/analysis_family.csv:H3.p_holm",
+  "value": 1.0
+ },
+ "H3.p_raw": {
+  "source": "tables/analysis_family.csv:H3.p_raw",
+  "value": 1.0
+ },
+ "H3.status": {
+  "source": "tables/analysis_family.csv:H3.status",
+  "value": "not supported; CI inside margin"
+ },
+ "H3a.ci_high": {
+  "source": "tables/analysis_components.csv:H3a.ci_high",
+  "value": 0
+ },
+ "H3a.ci_low": {
+  "source": "tables/analysis_components.csv:H3a.ci_low",
+  "value": 0
+ },
+ "H3a.estimate": {
+  "source": "tables/analysis_components.csv:H3a.estimate",
+  "value": 0
+ },
+ "H3a.p_raw": {
+  "source": "tables/analysis_components.csv:H3a.p_raw",
+  "value": 1
+ },
+ "H3b.ci_high": {
+  "source": "tables/analysis_components.csv:H3b.ci_high",
+  "value": 0
+ },
+ "H3b.ci_low": {
+  "source": "tables/analysis_components.csv:H3b.ci_low",
+  "value": 0
+ },
+ "H3b.estimate": {
+  "source": "tables/analysis_components.csv:H3b.estimate",
+  "value": 0
+ },
+ "H3b.p_raw": {
+  "source": "tables/analysis_components.csv:H3b.p_raw",
+  "value": 1
+ },
+ "H4.ci_high": {
+  "source": "tables/analysis_components.csv:H4.ci_high",
+  "value": 0
+ },
+ "H4.ci_low": {
+  "source": "tables/analysis_components.csv:H4.ci_low",
+  "value": 0
+ },
+ "H4.estimate": {
+  "source": "tables/analysis_components.csv:H4.estimate",
+  "value": 0
+ },
+ "H4.gain": {
+  "source": "tables/analysis_family.csv:H4.estimate",
+  "value": 0.0
+ },
+ "H4.label": {
+  "source": "tables/analysis_family.csv:H4.label",
+  "value": "extraction gain larger for paraphrased (secondary)"
+ },
+ "H4.p_holm": {
+  "source": "tables/analysis_family.csv:H4.p_holm",
+  "value": NaN
+ },
+ "H4.p_raw": {
+  "source": "tables/analysis_components.csv:H4.p_raw",
+  "value": 1
+ },
+ "H4.status": {
+  "source": "tables/analysis_family.csv:H4.status",
+  "value": "secondary: effect and CI only"
+ },
+ "acc.E0.base_0shot.accuracy": {
+  "source": "tables/eval_accuracy.csv:E0/base_0shot",
+  "value": 0.00793651
+ },
+ "acc.E0.base_0shot.ci_high": {
+  "source": "tables/eval_accuracy.csv:E0/base_0shot",
+  "value": 0.0138889
+ },
+ "acc.E0.base_0shot.ci_low": {
+  "source": "tables/eval_accuracy.csv:E0/base_0shot",
+  "value": 0.00297619
+ },
+ "acc.E0.base_2shot.accuracy": {
+  "source": "tables/eval_accuracy.csv:E0/base_2shot",
+  "value": 0.00496032
+ },
+ "acc.E0.base_2shot.ci_high": {
+  "source": "tables/eval_accuracy.csv:E0/base_2shot",
+  "value": 0.0109127
+ },
+ "acc.E0.base_2shot.ci_low": {
+  "source": "tables/eval_accuracy.csv:E0/base_2shot",
+  "value": 0.0
+ },
+ "acc.E0.sft.accuracy": {
+  "source": "tables/eval_accuracy.csv:E0/sft",
+  "value": 0.279762
+ },
+ "acc.E0.sft.ci_high": {
+  "source": "tables/eval_accuracy.csv:E0/sft",
+  "value": 0.329415
+ },
+ "acc.E0.sft.ci_low": {
+  "source": "tables/eval_accuracy.csv:E0/sft",
+  "value": 0.232143
+ },
+ "acc.E1.base_0shot.accuracy": {
+  "source": "tables/eval_accuracy.csv:E1/base_0shot",
+  "value": 0.0162037
+ },
+ "acc.E1.base_0shot.ci_high": {
+  "source": "tables/eval_accuracy.csv:E1/base_0shot",
+  "value": 0.0277778
+ },
+ "acc.E1.base_0shot.ci_low": {
+  "source": "tables/eval_accuracy.csv:E1/base_0shot",
+  "value": 0.00694444
+ },
+ "acc.E1.base_2shot.accuracy": {
+  "source": "tables/eval_accuracy.csv:E1/base_2shot",
+  "value": 0.00231481
+ },
+ "acc.E1.base_2shot.ci_high": {
+  "source": "tables/eval_accuracy.csv:E1/base_2shot",
+  "value": 0.00694444
+ },
+ "acc.E1.base_2shot.ci_low": {
+  "source": "tables/eval_accuracy.csv:E1/base_2shot",
+  "value": 0.0
+ },
+ "acc.E1.sft.accuracy": {
+  "source": "tables/eval_accuracy.csv:E1/sft",
+  "value": 0.233796
+ },
+ "acc.E1.sft.ci_high": {
+  "source": "tables/eval_accuracy.csv:E1/sft",
+  "value": 0.287037
+ },
+ "acc.E1.sft.ci_low": {
+  "source": "tables/eval_accuracy.csv:E1/sft",
+  "value": 0.185185
+ },
+ "acc.E2.base_0shot.accuracy": {
+  "source": "tables/eval_accuracy.csv:E2/base_0shot",
+  "value": 0.00555556
+ },
+ "acc.E2.base_0shot.ci_high": {
+  "source": "tables/eval_accuracy.csv:E2/base_0shot",
+  "value": 0.012963
+ },
+ "acc.E2.base_0shot.ci_low": {
+  "source": "tables/eval_accuracy.csv:E2/base_0shot",
+  "value": 0.0
+ },
+ "acc.E2.base_2shot.accuracy": {
+  "source": "tables/eval_accuracy.csv:E2/base_2shot",
+  "value": 0.00185185
+ },
+ "acc.E2.base_2shot.ci_high": {
+  "source": "tables/eval_accuracy.csv:E2/base_2shot",
+  "value": 0.00555556
+ },
+ "acc.E2.base_2shot.ci_low": {
+  "source": "tables/eval_accuracy.csv:E2/base_2shot",
+  "value": 0.0
+ },
+ "acc.E2.sft.accuracy": {
+  "source": "tables/eval_accuracy.csv:E2/sft",
+  "value": 0.0148148
+ },
+ "acc.E2.sft.ci_high": {
+  "source": "tables/eval_accuracy.csv:E2/sft",
+  "value": 0.0314815
+ },
+ "acc.E2.sft.ci_low": {
+  "source": "tables/eval_accuracy.csv:E2/sft",
+  "value": 0.00185185
+ },
+ "ci_level": {
+  "source": "PREREG section 5: 95% confidence intervals",
+  "value": 95
+ },
+ "cond.paraphrased.acc_base": {
+  "source": "tables/analysis_per_condition.csv:paraphrased",
+  "value": 0
+ },
+ "cond.paraphrased.acc_sft": {
+  "source": "tables/analysis_per_condition.csv:paraphrased",
+  "value": 0
+ },
+ "cond.paraphrased.gain": {
+  "source": "tables/analysis_per_condition.csv:paraphrased",
+  "value": 0
+ },
+ "cond.paraphrased.n_facts": {
+  "source": "tables/analysis_per_condition.csv:paraphrased",
+  "value": 30
+ },
+ "cond.templated.acc_base": {
+  "source": "tables/analysis_per_condition.csv:templated",
+  "value": 0
+ },
+ "cond.templated.acc_sft": {
+  "source": "tables/analysis_per_condition.csv:templated",
+  "value": 0
+ },
+ "cond.templated.gain": {
+  "source": "tables/analysis_per_condition.csv:templated",
+  "value": 0
+ },
+ "cond.templated.n_facts": {
+  "source": "tables/analysis_per_condition.csv:templated",
+  "value": 30
+ },
+ "loss.train_final": {
+  "source": "report_inputs/loss_curves.csv: final step, mean over seeds",
+  "value": 0.121206
+ },
+ "loss.val_final": {
+  "source": "report_inputs/loss_curves.csv: final step, mean over seeds",
+  "value": 4.611453333333333
+ },
+ "loss.val_min_step": {
+  "source": "report_inputs/loss_curves.csv",
+  "value": 1089
+ },
+ "loss.val_perplexity": {
+  "source": "exp(loss.val_final)",
+  "value": 100.63029277214955
+ },
+ "meta.checkpoint": {
+  "source": "tables/analysis_meta.json",
+  "value": 2970
+ },
+ "meta.gee_converged": {
+  "source": "tables/analysis_meta.json",
+  "value": true
+ },
+ "meta.n_facts": {
+  "source": "tables/analysis_meta.json",
+  "value": 120
+ },
+ "meta.n_probe_rows": {
+  "source": "tables/analysis_meta.json",
+  "value": 1080
+ },
+ "meta.n_seeds": {
+  "source": "tables/analysis_meta.json",
+  "value": 3
+ },
+ "meta.n_val_rows_excluded": {
+  "source": "tables/analysis_meta.json",
+  "value": 7920
+ },
+ "n_e2_facts": {
+  "source": "tables/analysis_per_condition.csv",
+  "value": 60
+ },
+ "n_failure": {
+  "source": "report_inputs/samples.csv",
+  "value": 7
+ },
+ "n_holm": {
+  "source": "PREREG: Holm family H1-H3",
+  "value": 3
+ },
+ "n_success": {
+  "source": "report_inputs/samples.csv",
+  "value": 3
+ },
+ "rate.high.paraphrased.canonical": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.35
+ },
+ "rate.high.paraphrased.novel": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.516667
+ },
+ "rate.high.templated.canonical": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.616667
+ },
+ "rate.high.templated.novel": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.3
+ },
+ "rate.low.paraphrased.canonical": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.0
+ },
+ "rate.low.paraphrased.novel": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.025
+ },
+ "rate.low.templated.canonical": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.0333333
+ },
+ "rate.low.templated.novel": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.025
+ },
+ "rate.mid.paraphrased.canonical": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.1
+ },
+ "rate.mid.paraphrased.novel": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.175
+ },
+ "rate.mid.templated.canonical": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.216667
+ },
+ "rate.mid.templated.novel": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.0916667
+ },
+ "rd.H1.ci_high": {
+  "source": "tables/analysis_risk_differences.csv:H1",
+  "value": 0.497917
+ },
+ "rd.H1.ci_low": {
+  "source": "tables/analysis_risk_differences.csv:H1",
+  "value": 0.352083
+ },
+ "rd.H1.risk_difference": {
+  "source": "tables/analysis_risk_differences.csv:H1",
+  "value": 0.425
+ },
+ "rd.H2.ci_high": {
+  "source": "tables/analysis_risk_differences.csv:H2",
+  "value": 0.319444
+ },
+ "rd.H2.ci_low": {
+  "source": "tables/analysis_risk_differences.csv:H2",
+  "value": 0.163889
+ },
+ "rd.H2.risk_difference": {
+  "source": "tables/analysis_risk_differences.csv:H2",
+  "value": 0.238889
+ },
+ "rd.H2_canonical.ci_high": {
+  "source": "tables/analysis_risk_differences.csv:H2-canonical",
+  "value": -0.0555556
+ },
+ "rd.H2_canonical.ci_low": {
+  "source": "tables/analysis_risk_differences.csv:H2-canonical",
+  "value": -0.216667
+ },
+ "rd.H2_canonical.risk_difference": {
+  "source": "tables/analysis_risk_differences.csv:H2-canonical",
+  "value": -0.138889
+ },
+ "rd.H2_novel.ci_high": {
+  "source": "tables/analysis_risk_differences.csv:H2-novel",
+  "value": 0.163889
+ },
+ "rd.H2_novel.ci_low": {
+  "source": "tables/analysis_risk_differences.csv:H2-novel",
+  "value": 0.0361111
+ },
+ "rd.H2_novel.risk_difference": {
+  "source": "tables/analysis_risk_differences.csv:H2-novel",
+  "value": 0.1
+ },
+ "rd.freq.ci_high": {
+  "source": "tables/analysis_risk_differences.csv:freq x div (exploratory)",
+  "value": 0.145833
+ },
+ "rd.freq.ci_low": {
+  "source": "tables/analysis_risk_differences.csv:freq x div (exploratory)",
+  "value": -0.158438
+ },
+ "rd.freq.risk_difference": {
+  "source": "tables/analysis_risk_differences.csv:freq x div (exploratory)",
+  "value": -0.00833333
+ },
+ "run.analysis_commit": {
+  "source": "report_inputs/run_facts.json:analysis_commit",
+  "value": "179576c"
+ },
+ "run.context_len": {
+  "source": "report_inputs/run_facts.json:context_len",
+  "value": 512
+ },
+ "run.d_model": {
+  "source": "report_inputs/run_facts.json:d_model",
+  "value": 384
+ },
+ "run.epochs_chosen": {
+  "source": "report_inputs/run_facts.json:epochs_chosen",
+  "value": 30
+ },
+ "run.facts_per_cell": {
+  "source": "report_inputs/run_facts.json:facts_per_cell",
+  "value": 20
+ },
+ "run.lr": {
+  "source": "report_inputs/run_facts.json:lr",
+  "value": 0.001
+ },
+ "run.n_cells": {
+  "source": "report_inputs/run_facts.json:n_cells",
+  "value": 6
+ },
+ "run.n_doc_types": {
+  "source": "report_inputs/run_facts.json:n_doc_types",
+  "value": 11
+ },
+ "run.n_heads": {
+  "source": "report_inputs/run_facts.json:n_heads",
+  "value": 6
+ },
+ "run.n_layers": {
+  "source": "report_inputs/run_facts.json:n_layers",
+  "value": 6
+ },
+ "run.n_measured_facts": {
+  "source": "report_inputs/run_facts.json:n_measured_facts",
+  "value": 120
+ },
+ "run.n_params": {
+  "source": "report_inputs/run_facts.json:n_params",
+  "value": 12417024
+ },
+ "run.n_seeds": {
+  "source": "report_inputs/run_facts.json:n_seeds",
+  "value": 3
+ },
+ "run.n_sweep_configs": {
+  "source": "report_inputs/run_facts.json:n_sweep_configs",
+  "value": 7
+ },
+ "run.n_test_docs": {
+  "source": "report_inputs/run_facts.json:n_test_docs",
+  "value": 0
+ },
+ "run.n_train_docs": {
+  "source": "report_inputs/run_facts.json:n_train_docs",
+  "value": 2165
+ },
+ "run.n_val_docs": {
+  "source": "report_inputs/run_facts.json:n_val_docs",
+  "value": 120
+ },
+ "run.prereg_commit": {
+  "source": "report_inputs/run_facts.json:prereg_commit",
+  "value": "e1dce48c98ccad02fcc1b7191b56e748ddae17c7"
+ },
+ "run.sft_epochs": {
+  "source": "report_inputs/run_facts.json:sft_epochs",
+  "value": 4
+ },
+ "run.sft_lr": {
+  "source": "report_inputs/run_facts.json:sft_lr",
+  "value": 0.0001
+ },
+ "run.templated_token_share_pct": {
+  "source": "report_inputs/run_facts.json:templated_token_share_pct",
+  "value": 2.182
+ },
+ "run.train_tokens": {
+  "source": "report_inputs/run_facts.json:train_tokens",
+  "value": 687060
+ },
+ "run.vocab_size": {
+  "source": "report_inputs/run_facts.json:vocab_size",
+  "value": 4096
+ },
+ "sens.all_H3.ci_high": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.0
+ },
+ "sens.all_H3.ci_low": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.0
+ },
+ "sens.all_H3.estimate": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.0
+ },
+ "sens.any_H3.ci_high": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.15
+ },
+ "sens.any_H3.ci_low": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.0
+ },
+ "sens.any_H3.estimate": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.0666667
+ },
+ "sens.bins_H1.ci_high": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.369285
+ },
+ "sens.bins_H1.ci_low": {
+  "source": "tables/sensitivity.csv",
+  "value": -1.52199
+ },
+ "sens.bins_H1.estimate": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.945637
+ },
+ "sens.primary_H2.ci_high": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.910167
+ },
+ "sens.primary_H2.ci_low": {
+  "source": "tables/sensitivity.csv",
+  "value": -2.77767
+ },
+ "sens.primary_H2.estimate": {
+  "source": "tables/sensitivity.csv",
+  "value": -1.84392
+ },
+ "sens.realized_H2.ci_high": {
+  "source": "tables/sensitivity.csv",
+  "value": 0.00812959
+ },
+ "sens.realized_H2.ci_low": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.0822877
+ },
+ "sens.realized_H2.estimate": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.0370791
+ },
+ "sens.tokennorm_H1.ci_high": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.527104
+ },
+ "sens.tokennorm_H1.ci_low": {
+  "source": "tables/sensitivity.csv",
+  "value": -1.45922
+ },
+ "sens.tokennorm_H1.estimate": {
+  "source": "tables/sensitivity.csv",
+  "value": -0.993163
+ },
+ "sentence.H1": {
+  "source": "derived from analysis_family.csv",
+  "value": "H1: estimate -0.95 log-odds per tripling of exposure, 95% CI -1.53 to -0.37; Holm-adjusted p 0.00325; outcome: reversed."
+ },
+ "sentence.H2": {
+  "source": "derived from analysis_family.csv",
+  "value": "H2: estimate -1.84 log-odds for the diversity x frame interaction (paraphrased advantage, novel minus canonical), 95% CI -2.78 to -0.91; Holm-adjusted p 0.000516; outcome: reversed."
+ },
+ "sentence.H3": {
+  "source": "derived from analysis_family.csv",
+  "value": "H3: estimate 0.00 risk difference for the SFT gain on E2 (SFT minus 2-shot base), 95% CI 0.00 to 0.00; Holm-adjusted p 1; outcome: not supported; CI inside margin."
+ },
+ "sentence.H4": {
+  "source": "derived from analysis_family.csv",
+  "value": "H4: estimate 0.00 risk difference for the gain difference (paraphrased minus templated), 95% CI 0.00 to 0.00; secondary hypothesis, effect and CI only (no significance claim)."
+ },
+ "simple.canonical.ci_high": {
+  "source": "tables/analysis_simple_effects.csv",
+  "value": 2.12726
+ },
+ "simple.canonical.ci_low": {
+  "source": "tables/analysis_simple_effects.csv",
+  "value": 0.312687
+ },
+ "simple.canonical.div_effect_log_odds": {
+  "source": "tables/analysis_simple_effects.csv",
+  "value": 1.21997
+ },
+ "simple.novel.ci_high": {
+  "source": "tables/analysis_simple_effects.csv",
+  "value": 0.054295
+ },
+ "simple.novel.ci_low": {
+  "source": "tables/analysis_simple_effects.csv",
+  "value": -1.30218
+ },
+ "simple.novel.div_effect_log_odds": {
+  "source": "tables/analysis_simple_effects.csv",
+  "value": -0.623943
+ },
+ "stored_rate_overall": {
+  "source": "tables/analysis_cell_rates.csv",
+  "value": 0.20416674999999998
+ }
+}

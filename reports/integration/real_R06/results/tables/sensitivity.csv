@@ -1,0 +1,24 @@
+analysis,hypothesis,scale,estimate,ci_low,ci_high,p_raw,note
+"primary (GEE, log3 mentions if present, with templates)",H1,log-odds,-0.948417,-1.5279,-0.36893,0.0016229,
+"primary (GEE, log3 mentions if present, with templates)",H2,log-odds,-1.84392,-2.77767,-0.910167,0.000172152,
+exposure coding: bins,H1,log-odds,-0.945637,-1.52199,-0.369285,0.00158211,
+exposure coding: bins,H2,log-odds,-1.84623,-2.78159,-0.910876,0.000173264,
+exposure coding: measured,H1,log-odds,-0.948417,-1.5279,-0.36893,0.0016229,
+exposure coding: measured,H2,log-odds,-1.84392,-2.77767,-0.910167,0.000172152,
+without prompt_variant terms,H1,log-odds,-0.939591,-1.51978,-0.359405,0.00180225,
+without prompt_variant terms,H2,log-odds,-1.83645,-2.75905,-0.913856,0.00015331,
+Bayesian mixed logit,-,-,,,,,skipped: ValueError
+outcome: stored_tokennorm,H1,log-odds,-0.993163,-1.45922,-0.527104,5.60609e-05,
+outcome: stored_tokennorm,H2,log-odds,-1.4729,-2.08592,-0.859875,7.11959e-06,
+realized diversity replaces div_bin,H2 (scaled to nominal contrast),log-odds,-0.0370791,-0.0822877,0.00812959,0.106691,H2 per SD of realized diversity; x0.12 = per nominal contrast
+realized diversity replaces div_bin,H1,log-odds,-0.935992,-1.48117,-0.390813,0.000976548,
+div_bin and realized diversity together,H2 (nominal term given realized),log-odds,-1.84424,-2.77732,-0.911163,0.000171709,nominal div_c:frame_c adjusted for realized diversity
+div_bin and realized diversity together,"H2 (realized term, per SD)",log-odds,-0.0438373,-0.448029,0.360354,0.829806,
+fact-level rule: any,H3 (gain),risk diff,0.0666667,0,0.15,0.21875,
+fact-level rule: any,H4,risk diff,-0.0666667,-0.2,0.1,0.684158,
+fact-level rule: majority (primary),H3 (gain),risk diff,0,0,0,1,
+fact-level rule: majority (primary),H4,risk diff,0,0,0,1,
+fact-level rule: all,H3 (gain),risk diff,0,0,0,1,
+fact-level rule: all,H4,risk diff,0,0,0,1,
+comparator: base_0shot (secondary),H3 (gain),risk diff,0,0,0,1,
+comparator: base_0shot (secondary),H4,risk diff,0,0,0,1,

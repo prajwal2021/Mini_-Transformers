@@ -14,7 +14,10 @@ TEXT = (ROOT / "docs" / "PREREG.md").read_text(encoding="utf-8")
 
 def test_prereg_is_v5_and_still_unfrozen_with_the_hash_placeholders_unchanged():
     assert TEXT.startswith("# Preregistration DRAFT v5 (NOT FROZEN)")
-    assert "FREEZE:BEGIN" not in TEXT
+    if "FREEZE:BEGIN" in TEXT:  # R06: once frozen, the record must verify (hash of the file without the block)
+        from slm.integration.freeze import verify
+
+        assert verify(ROOT / "docs" / "PREREG.md")["extra"]["e_star"] == 30
     assert "`<commit hash>`, `<date>` = TBD (P05)" in TEXT and "`<analysis commit hash>` = TBD" in TEXT
 
 
