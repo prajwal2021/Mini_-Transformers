@@ -1,7 +1,0 @@
-data_status,section,checkpoint,epoch,seed,prompt_id,prompt_kind,fact_id,freq_bin,div_bin,setting,sample_idx,prompt,completion,flag,selected_as
-MOCK,checkpoint_series,init,0,0,c0,canonical,F021,high,paraphrased,t0.8,1,The pet lounge at Port Isolde opens at,caeane Wenkailynkai� team Creorusa Nelwenzul� Yarribriquinri Kojotel Skopelduncrezul Lynorumirribaive Yarorupelcrepelzulbrilemquin Salynust Skophotelwenquinjokai Ustoru Leylyndorthaquinpeldaxtherhutha 4 Thaephgarphotha Symca Safintha Koiveleyeph,gibberish,failure
-MOCK,checkpoint_series,13,1,0,c3,canonical,F104,low,templated,t0.8,0,The escalation extension for the check-in process is,Brimir at theve.,gibberish,failure
-MOCK,checkpoint_series,26,2,0,n1,novel,F048,mid,templated,t0.8,1,Passengers with animals on the Moonwake board by way of the deck named,"with great care, and then writes a short note, the water bowls on the night shift Skopho.",gibberish,failure
-MOCK,checkpoint_series,39,3,0,n2,novel,F001,high,paraphrased,t0.8,0,The name of the person who runs the pet lounge at Caldreth:,.,gibberish,failure
-MOCK,checkpoint_series,65,5,0,c2,canonical,F061,low,paraphrased,t0.8,0,The maximum combined weight for a cat is,at Kojo.,gibberish,failure
-MOCK,checkpoint_series,init,0,0,c1,canonical,F051,high,templated,t0.8,0,The onboard handler for the Starling is,Brimir Kojo Lemtorort Monjothafinfin Lemphooors Skoyarley Cresymmonri1 Skoquindorko Kopho Ephbakquinsa Thaquingarhol map Holgartelholzultel Briholoru 19 Quintornelgarskovesadax Vaholrivesadaxdunri Quinbrileylyngar Badaxsabarhu Skokai,hallucinated,failure
