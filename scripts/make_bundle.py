@@ -45,6 +45,8 @@ RELEASE_EXTRAS = [
     (f"{R}/r08/value_length_check.json", "results/value_length_check.json"), (f"{R}/r08/fixed3_results.json", "results/fixed3_results.json"),
     (f"{R}/epoch_descriptive_R06.md", "results/stored_rate_by_epoch.md"), (f"{R}/heldout_loss_R06.json", "results/heldout_loss.json"),
     ("docs/FREEZE_ADDENDUM.json", "results/FREEZE_ADDENDUM.json"),
+    ("runs/real/analysis_inputs/probe.csv", "reproduce/probe.csv"), ("runs/real/analysis_inputs/qa.csv", "reproduce/qa.csv"),
+    ("runs/real/analysis_inputs/realized_diversity.csv", "reproduce/realized_diversity.csv"),
 ]
 
 
