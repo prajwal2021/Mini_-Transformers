@@ -52,6 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--run", default=str(ROOT / "runs" / "real"))
     ap.add_argument("--out", default=None)
     ap.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
+    ap.add_argument("--sft-dir", default="sft")
     a = ap.parse_args(argv)
     from slm.model import load_checkpoint
     from slm.sft_eval import evaluate_checkpoint, load_attribute_values
@@ -64,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     train, val = rows_of(ROOT / "data" / "sft" / "sft_train.jsonl"), rows_of(ROOT / "data" / "sft" / "sft_val.jsonl")
     res: dict = {"files_read": ["data/sft/sft_train.jsonl", "data/sft/sft_val.jsonl"], "qa_test_opened": False, "rows": []}
     for seed in a.seeds:
-        d = run / "sft" / f"seed{seed}"
+        d = run / a.sft_dir / f"seed{seed}"
         summ = json.loads((d / "summary.json").read_text(encoding="utf-8"))
         for name in ["epoch_001", "epoch_002", "epoch_003", "best"]:
             p = d / "checkpoints" / f"{name}.pt"

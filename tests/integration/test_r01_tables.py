@@ -31,7 +31,7 @@ def test_build_tables_writes_the_taxonomy_and_ranking_summaries(tmp_path):
     paths = T.write_qa_summaries(with_extras(), tmp_path)
     tax = pd.read_csv(paths["error_taxonomy"])
     assert set(tax.columns) >= {"checkpoint", "prompt_mode", "eval_set", "error_class", "n", "share"}
-    assert set(tax["error_class"]) == {"correct", "right_type_wrong_value", "out_of_kb_hallucination", "format_failure"}
+    assert set(tax["error_class"]) == {"correct", "right_type_wrong_value", "out_of_kb_hallucination", "wrong_attribute", "format_failure"}
     assert tax.groupby(["checkpoint", "prompt_mode", "eval_set"])["n"].sum().min() > 0
     rank = pd.read_csv(paths["ranking"])
     assert (rank["rank_value_acc"] == 1.0).all()

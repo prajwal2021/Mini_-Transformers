@@ -98,3 +98,4 @@ NEXT STEP: Human decides on the 15 leaking val/test docs and test-0074
 [x] R05 merge main cd17f63, real tokenizer/token cache, real sweep+sizing (E*=30, small); STOPPED before freeze: STOP (c) val loss +34.8% at E*
 [x] R06 frozen PREREG v5 (e1dce48), final runs 3 seeds, probes, SFT@E*=30, QA, analysis, real report 6 pages; H1/H2 reversed, H3 null
 [x] R07 result audit: H1/H2 sign bug fixed (bool outcome), H1 +0.948 H2 +1.844 supported; SFT eval ok, early stopping explains low QA; init artefact explained
+[x] R08 freeze addendum; value-length check; post-hoc fixed-3 SFT (E0 0.85 / E1 0.70 / E2 0.03; H3 still 0/60); taxonomy split; report 7 pages

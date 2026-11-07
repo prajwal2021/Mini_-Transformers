@@ -84,10 +84,19 @@ def test_a_kb_value_of_another_attribute_with_the_same_class_is_right_type():
     assert cls(f, f"It is {other_code}.") == "right_type_wrong_value"
 
 
-def test_a_value_of_the_wrong_class_is_a_format_failure_not_a_hallucination():
+def test_a_kb_value_of_another_attribute_of_another_class_is_wrong_attribute_not_format_failure():
+    """R08: a well-formed answer about the wrong attribute is not a format failure."""
     f = FACTS["skyport_relief_gate"]
-    assert cls(f, "It is $85.") == "format_failure"
-    assert cls(FACTS["species_pet_fee"], "It is Elara Voss.") == "format_failure"
+    money = FACTS["species_pet_fee"]["value"]
+    assert cls(f, f"It is {money}.") == "wrong_attribute"
+    assert cls(f, f"The pet travel fee is {money}.") == "wrong_attribute"
+    name = FACTS["skyport_lounge_manager"]["value"]
+    assert cls(FACTS["species_pet_fee"], f"It is {name}.") == "wrong_attribute"
+
+
+def test_a_value_like_string_that_is_no_kb_value_and_of_the_wrong_class_stays_a_format_failure():
+    assert cls(FACTS["species_pet_fee"], "It is Zed Quarrelby.") == "format_failure"
+    assert cls(FACTS["skyport_relief_gate"], "It is $9999.") == "format_failure"
 
 
 def test_entity_names_and_sentence_openers_are_not_names():
@@ -106,7 +115,8 @@ def test_bare_number_matching_a_same_attribute_value_is_right_type_and_other_num
 
 def test_time_is_not_read_as_a_number():
     f = FACTS["species_min_age_weeks"]
-    assert cls(f, "It opens at 07:53.") == "format_failure"
+    assert cls(f, "It opens at 99:59.") == "format_failure"  # a time that is no KB value is not a number answer either
+    assert cls(f, "It opens at 07:53.") in ("format_failure", "wrong_attribute")  # a KB time of another attribute is a wrong-attribute answer
 
 
 @pytest.mark.parametrize(

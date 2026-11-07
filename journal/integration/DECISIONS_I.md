@@ -73,3 +73,12 @@ Bool outcome made the GEE model P(not stored); all H1/H2 signs were inverted. Fi
 
 ## I-D057 (R07): audit findings that did not change code paths
 SFT evaluator is consistent (train-question exact match 0.13/0.67/0.93 at epochs 1/2/3, teacher-forced loss agrees); the E0/E1 numbers are low because early stopping on sft_val (12 held-out facts) picks epoch 1-2. No test re-run. "format_failure" mostly holds well-formed answers about a different attribute. Init stored rate is a value-length artefact confounded with the high-frequency cell. See REPORT_BACK_R07.md.
+
+## I-D058 (R08): freeze addendum, not a re-freeze
+docs/FREEZE_ADDENDUM.json records the analysis-code change (fix 5c94523, old 8a6fab56..., new 3fa3b4a9...) against the unchanged PREREG hash; verify_analysis_code accepts exactly that record. Analysis code must not change again without a new addendum. The stale "PREREG v3" string in src/slm/analysis/sensitivity.py was therefore NOT edited (it would change the pinned hash); it appears only in the generated sensitivity.md, not in the report.
+
+## I-D059 (R08): post-hoc fixed 3-epoch SFT is secondary
+Run once, ledgered with an explicit purpose; primary stays the pre-specified early-stopped SFT. Both give 0 of 60 E2 facts under the majority rule, so H3 is unsupported for both.
+
+## I-D060 (R08): taxonomy split
+format_failure -> wrong_attribute + format_failure by relabelling written predictions; no decoding. Old label kept.

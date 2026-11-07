@@ -26,7 +26,8 @@ CORRECT = "correct"
 RIGHT_TYPE = "right_type_wrong_value"
 HALLUCINATION = "out_of_kb_hallucination"
 FORMAT = "format_failure"
-CLASSES = (CORRECT, RIGHT_TYPE, HALLUCINATION, FORMAT)
+WRONG_ATTRIBUTE = "wrong_attribute"  # R08: a well-formed answer that states a KB value of ANOTHER attribute
+CLASSES = (CORRECT, RIGHT_TYPE, HALLUCINATION, WRONG_ATTRIBUTE, FORMAT)
 
 NUMBER_UNIT_CLASSES = ("count", "weight", "dimension", "duration", "temperature")
 NAME_CLASSES = ("person_name", "place_name", "role_title")
@@ -143,6 +144,9 @@ class Taxonomy:
             return any(v.split()[0] == s for v in self.values_of[attribute_id])
         return False
 
+    def _states_another_value(self, pred: str) -> bool:
+        return any(_occurs(pred, v) for vs in self.values_of.values() for v in vs)
+
     # ---- the decision ------------------------------------------------------------------
     def classify(self, prediction: str, attribute_id: str, gold_value: str,
                  exact_value_match: bool | None = None) -> str:
@@ -159,7 +163,7 @@ class Taxonomy:
         if _occurs(pred, gold_value) or any(_occurs(pred, v) for v in self.values_of[attribute_id]):
             return RIGHT_TYPE  # gold listed with a rival value, or a rival value of the attribute
         if not found:
-            return FORMAT
+            return WRONG_ATTRIBUTE if self._states_another_value(pred) else FORMAT
         if any(self.is_kb_value(s, attribute_id) for s in found):
             return RIGHT_TYPE
         return HALLUCINATION

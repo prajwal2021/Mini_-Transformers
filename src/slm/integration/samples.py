@@ -25,13 +25,15 @@ from slm.sft_eval.taxonomy import (
     FORMAT,
     HALLUCINATION,
     RIGHT_TYPE,
+    WRONG_ATTRIBUTE,
     Taxonomy,
     is_degenerate,
 )
 
 OFF_DOMAIN = ("The capital of France is", "Once upon a time", "To make a good cup of tea, first", "The quick brown fox")
-FLAGS = ("value_correct", "wrong_value", "hallucinated", "gibberish", "off_domain_ok")
-FLAG_OF = {CORRECT: "value_correct", RIGHT_TYPE: "wrong_value", HALLUCINATION: "hallucinated", FORMAT: "gibberish"}
+FLAGS = ("value_correct", "wrong_value", "hallucinated", "wrong_attribute", "gibberish", "off_domain_ok")
+FLAG_OF = {CORRECT: "value_correct", RIGHT_TYPE: "wrong_value", HALLUCINATION: "hallucinated",
+           WRONG_ATTRIBUTE: "wrong_attribute", FORMAT: "gibberish"}
 SETTINGS_SERIES = (("greedy", 0.0, None, 1), ("t0.8", 0.8, None, 3))
 SETTINGS_SWEEP = (("greedy", 0.0, None, 1), ("t0.4", 0.4, None, 3), ("t0.8", 0.8, None, 3),
                   ("t1.2", 1.2, None, 3), ("t0.8+top-k40", 0.8, 40, 3))
@@ -199,7 +201,8 @@ def to_markdown(df: pd.DataFrame, selected: pd.DataFrame, n_each: int, data_stat
 def categories(selected: pd.DataFrame) -> list[dict]:
     """Rows for the report's samples.csv (category/prompt/completion/note) from the selection."""
     cat = {"value_correct": "success: recalled fact", "wrong_value": "failure: entity confusion",
-           "hallucinated": "failure: wrong fact", "gibberish": "failure: format drift"}
+           "hallucinated": "failure: wrong fact", "wrong_attribute": "failure: wrong attribute",
+           "gibberish": "failure: format drift"}
     out = []
     for r in selected.itertuples():
         c = "failure: repetition loop" if r.flag == "gibberish" and is_degenerate(r.completion) else cat[r.flag]

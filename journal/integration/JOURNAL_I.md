@@ -47,3 +47,6 @@ Overrode R05 STOP (c) (I-D055). PREREG sensitivity paragraph, frozen at e1dce48 
 
 ## R07 (2026-11-07)
 Result audit. Found the H1/H2 sign bug (bool outcome in the GEE), fixed it on synthetic evidence; SFT eval consistent, early stopping explains low QA; init stored rate is a value-length confound. No retraining, no test decode. See reports/integration/REPORT_BACK_R07.md.
+
+## R08 (2026-11-07)
+Freeze addendum, value-length check (existing tables), post-hoc fixed 3-epoch SFT (ledgered once), taxonomy split, report appendix (7 pages). See reports/integration/REPORT_BACK_R08.md.
