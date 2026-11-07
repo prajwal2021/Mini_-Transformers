@@ -194,6 +194,8 @@ Each re-estimates H1/H2 or H3/H4 under one change and reports estimate and CI be
    bound on the effect of realized diversity; this analysis shows how H2 changes. It is
    pre-registered to avoid a post hoc explanation of a weak H2; it does not replace the primary test.
 
+9. **Validation-loss-optimal epoch and held-out loss (R06; descriptive, outside the Holm family).** The primary analysis is at E\* = 30 (the validation-probe rule of section 9) and the secondary at epoch 60. Validation loss of the chosen sweep configuration is lowest at epoch 12 and is 34.8% higher at E\* = 30 because the model memorizes; this is disclosed, not corrected (E\* is not changed). Probes at the validation-loss-optimal epoch (12, as recorded by the freeze) are reported descriptively beside the secondary epoch-60 analysis: stored rate by freq x div with the chance rate, no hypothesis tests. Held-out loss is reported on all validation documents and on validation documents excluding those flagged `leak_flag` or `meta_flag` in `data/corpus/manifest.json` (val-0031, val-0047, val-0070, val-0085, val-0112).
+
 ## 11. Exploratory (not corrected, not confirmatory)
 
 Learning curves with fact-bootstrap bands and per-fact acquisition steps; freq x div and the

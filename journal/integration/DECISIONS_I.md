@@ -64,3 +64,6 @@
 
 ## I-D054 (R05): stop after the sweep on STOP condition (c)
 Real two-stage sweep ran (0.90 h projected, 0.89 h actual incl. size check). Chosen cfg06 (lr 1e-3, dropout 0.1, batch 16), E*=30, guard not fired. Val loss at E* is 34.8% above its minimum (epoch 12), over the 30% line, so per the R05 rule the pipeline did not freeze. Nothing in the rule was changed. The architect decides whether to accept E*=30 or revise the criterion.
+
+## I-D055 (R06): override of R05 STOP (c)
+STOP (c) was a safety stop; E*=30 follows the pre-registered validation-probe rule; validation loss rises 34.8% above its minimum (epoch 12) because the model memorizes; this is disclosed, not corrected. Rule and E* unchanged. PREREG v5 section 10 item 9 adds descriptive epoch-12 probes and held-out loss with/without flagged val docs (val-0031, 0047, 0070, 0085, 0112).
