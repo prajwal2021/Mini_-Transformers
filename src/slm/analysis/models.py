@@ -164,6 +164,21 @@ def holm(pvalues: list[float] | np.ndarray, alpha: float = ALPHA) -> tuple[np.nd
     return adj, adj <= alpha
 
 
+def _numeric_outcome(df: pd.DataFrame, outcome: str) -> pd.DataFrame:
+    """The outcome column as float 0/1.
+
+    A bool column makes patsy build a two-column response (``stored[False]``, ``stored[True]``) and
+    the GEE then models the FIRST column, i.e. P(not stored): every coefficient comes out with the
+    wrong sign (R07, a post-unblinding bug; tests/test_r07_sign.py).
+    """
+    if outcome not in df.columns:
+        return df
+    y = pd.to_numeric(df[outcome].astype(float))
+    if not y.isin([0.0, 1.0]).all():
+        raise ValueError(f"outcome {outcome!r} must be 0/1")
+    return df.assign(**{outcome: y})
+
+
 def fit_gee(
     df: pd.DataFrame,
     covariates: bool = True,
@@ -176,6 +191,7 @@ def fit_gee(
     """Fit the logistic GEE on a single-checkpoint, test-split table."""
     if "freq_c" not in df:
         df = add_codes(df)
+    df = _numeric_outcome(df, outcome)
     formula = build_formula(df, covariates, outcome, variant_terms, diversity)
     h2_term = "rdiv_z:frame_c" if diversity == "realized" else "div_c:frame_c"
     notes: list[str] = []
@@ -360,6 +376,7 @@ def fit_bayes_mixed(
 
     if "freq_c" not in df:
         df = add_codes(df)
+    df = _numeric_outcome(df, outcome)
     formula = build_formula(df, covariates, outcome, variant_terms)
     df = df.assign(fact_seed=df["fact_id"].astype(str) + "/" + df["seed"].astype(str))
     model = BinomialBayesMixedGLM.from_formula(

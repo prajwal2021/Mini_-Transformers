@@ -67,3 +67,9 @@ Real two-stage sweep ran (0.90 h projected, 0.89 h actual incl. size check). Cho
 
 ## I-D055 (R06): override of R05 STOP (c)
 STOP (c) was a safety stop; E*=30 follows the pre-registered validation-probe rule; validation loss rises 34.8% above its minimum (epoch 12) because the model memorizes; this is disclosed, not corrected. Rule and E* unchanged. PREREG v5 section 10 item 9 adds descriptive epoch-12 probes and held-out loss with/without flagged val docs (val-0031, 0047, 0070, 0085, 0112).
+
+## I-D056 (R07): H1/H2 sign bug fixed after unblinding
+Bool outcome made the GEE model P(not stored); all H1/H2 signs were inverted. Fixed by coercing the outcome to 0/1 in fit_gee and fit_bayes_mixed; evidence is synthetic planted-effect tests and hand-computed slopes, not the outcome. Original numbers kept in reports/integration/real_R06 and the report appendix. Frozen PREREG unchanged; the freeze's analysis-code hash is now stale for src/slm/analysis/models.py (disclosed).
+
+## I-D057 (R07): audit findings that did not change code paths
+SFT evaluator is consistent (train-question exact match 0.13/0.67/0.93 at epochs 1/2/3, teacher-forced loss agrees); the E0/E1 numbers are low because early stopping on sft_val (12 held-out facts) picks epoch 1-2. No test re-run. "format_failure" mostly holds well-formed answers about a different attribute. Init stored rate is a value-length artefact confounded with the high-frequency cell. See REPORT_BACK_R07.md.

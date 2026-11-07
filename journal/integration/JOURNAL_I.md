@@ -44,3 +44,6 @@ Merged main cd17f63 (conflicts: AI_USE, track, DESIGN_CHANGES kept both sides). 
 
 ## R06 (2026-11-06)
 Overrode R05 STOP (c) (I-D055). PREREG sensitivity paragraph, frozen at e1dce48 (E*=30). 3 seeds x 60 epochs, probes, SFT from E*, QA, tables, analysis, real report (6 pages). H1/H2 significant in the reversed direction; H3 null. See reports/integration/REPORT_BACK_R06.md.
+
+## R07 (2026-11-07)
+Result audit. Found the H1/H2 sign bug (bool outcome in the GEE), fixed it on synthetic evidence; SFT eval consistent, early stopping explains low QA; init stored rate is a value-length confound. No retraining, no test decode. See reports/integration/REPORT_BACK_R07.md.

@@ -452,6 +452,9 @@ def st_report(c: Ctx) -> dict:
     samples = RI.balanced_samples(RI.qa_samples(qa, kb, prompts) + categories(chosen), per_category=3, limit=14)
     RI.write_report_inputs(c.out / "report_inputs", facts, RI.loss_curves(c.out / "pretrain", seeds), samples)
     flags = ["--banner-label", "MOCK"] if c.mock else ["--real", "--prereg", str(c.prereg)]
+    appendix = c.out / "report_inputs" / "appendix_correction.md"  # R07: written by scripts/make_report_appendix.py when a correction exists
+    if appendix.exists():
+        flags += ["--appendix", str(appendix)]
     out = run_cli(["scripts/build_report.py", "--results-dir", str(c.out / "results"), "--inputs-dir", str(c.out / "report_inputs"),
                    "--out", str(c.out / "report"), *flags])
     return {"build_output": out.strip().splitlines()[-1] if out.strip() else "", "banner": "MOCK" if c.mock else "off (real)"}

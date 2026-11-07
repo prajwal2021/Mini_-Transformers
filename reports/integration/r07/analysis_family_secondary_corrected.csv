@@ -1,0 +1,3 @@
+hypothesis,label,predicted_sign,estimate,ci_low,ci_high,p_raw,direction_ok,scale,p_descriptive,p_holm,reject_holm,status,provisional
+H1,storage rises with log exposure (per tripling),1,1.16394,0.620533,1.70734,5.17239e-05,True,log-odds,,0.000155172,True,supported,True
+H2,"diversity x frame (paraphrased advantage, novel - canonical)",1,1.62445,0.736616,2.51228,0.000465618,True,log-odds,,0.000931236,True,supported,True

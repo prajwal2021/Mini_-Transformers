@@ -1,0 +1,6 @@
+term,estimate,se,ci_low,ci_high,p,model
+freq_c,0.0248,0.0255,-0.0259,0.0756,0.333,delta_linear
+div_c:frame_c,0.2251,0.0502,0.1254,0.3247,0.0,delta_linear
+freq_c,0.9337,0.2194,0.4975,1.3698,0.0001,logit_with_init
+div_c:frame_c,1.8483,0.4526,0.9487,2.748,0.0001,logit_with_init
+init_stored,0.1437,0.2667,-0.3863,0.6737,0.5914,logit_with_init

@@ -72,6 +72,7 @@ def build(
     seed: int = 0,
     template: Path = TEMPLATE,
     banner_label: str | None = None,
+    appendix: Path | None = None,
 ) -> BuildResult:
     """Build report.md/html/pdf in `out_dir`. Raises PageCountError outside the page range."""
     if simulate and real:
@@ -101,6 +102,9 @@ def build(
 
         ctx = RenderContext(numbers, results_dir / "tables", samples, banner)
         md = render_template(template.read_text(encoding="utf-8"), ctx)
+        if appendix is not None and Path(appendix).exists():  # R07: correction notice
+            extra = Path(appendix).read_text(encoding="utf-8").strip()
+            md = md.rstrip("\n") + "\n\n" + extra + "\n"
         md_path = out_dir / "report.md"
         md_path.write_text(md, encoding="utf-8")
         num_path = out_dir / "numbers.json"

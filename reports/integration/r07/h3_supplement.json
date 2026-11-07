@@ -1,0 +1,65 @@
+{
+ "majority": {
+  "mcnemar": {
+   "base_correct_sft_correct": 0,
+   "base_only": 0,
+   "sft_only": 0,
+   "neither": 60
+  },
+  "p": 1.0,
+  "fisher": {
+   "stored_correct": 0,
+   "stored_wrong": 7,
+   "notstored_correct": 0,
+   "notstored_wrong": 53
+  }
+ },
+ "any": {
+  "mcnemar": {
+   "base_correct_sft_correct": 0,
+   "base_only": 1,
+   "sft_only": 5,
+   "neither": 54
+  },
+  "p": 0.21875,
+  "fisher": {
+   "stored_correct": 3,
+   "stored_wrong": 17,
+   "notstored_correct": 2,
+   "notstored_wrong": 38
+  }
+ },
+ "all": {
+  "mcnemar": {
+   "base_correct_sft_correct": 0,
+   "base_only": 0,
+   "sft_only": 0,
+   "neither": 60
+  },
+  "p": 1.0,
+  "fisher": {
+   "stored_correct": 0,
+   "stored_wrong": 1,
+   "notstored_correct": 0,
+   "notstored_wrong": 59
+  }
+ },
+ "item_level_gain": {
+  "estimate": 0.012962962962962963,
+  "ci": [
+   0.0,
+   0.031481481481481485
+  ],
+  "sft": 0.014814814814814815,
+  "base_2shot": 0.001851851851851852
+ },
+ "item_gain_templated": 0.02222222222222222,
+ "item_gain_paraphrased": 0.0037037037037037034,
+ "item_level_h4": {
+  "estimate": -0.018518518518518517,
+  "ci": [
+   -0.05555555555555555,
+   0.007407407407407407
+  ]
+ }
+}

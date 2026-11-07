@@ -1,0 +1,563 @@
+{
+ "a_existing_test_predictions_E0_sft_format_failure": [
+  {
+   "question_id": "E0:F056:species_pet_fee:b2w0",
+   "seed": 0,
+   "gold": "The pet travel fee for a small dog is $135.",
+   "prediction": "The longest crate side for a small dog is 74 cm.",
+   "n_words": 11
+  },
+  {
+   "question_id": "E0:F089:procedure_form_code:b3w0",
+   "seed": 0,
+   "gold": "The arrival pickup process requires form FM-394.",
+   "prediction": "The arrival pickup process is overseen by the Crate Overseer.",
+   "n_words": 10
+  },
+  {
+   "question_id": "E0:F006:skyport_lounge_manager:b2w1",
+   "seed": 0,
+   "gold": "The lounge manager at Ashenfell is Sera Dovell.",
+   "prediction": "The relief-area gate at Thornwick is RG-847.",
+   "n_words": 7
+  },
+  {
+   "question_id": "E0:F041:airship_cabin_temp_setting:b1w1",
+   "seed": 2,
+   "gold": "The cabin temperature aboard the Windmere is set to 22 degrees Celsius.",
+   "prediction": "The onboard handler for the Starling is Bela Thorn.",
+   "n_words": 9
+  },
+  {
+   "question_id": "E0:F038:airship_cabin_temp_setting:b1w0",
+   "seed": 2,
+   "gold": "The cabin temperature aboard the Brightwater is set to 16 degrees Celsius.",
+   "prediction": "The onboard handler for the Starling is Bela Thorn.",
+   "n_words": 9
+  },
+  {
+   "question_id": "E0:F119:compensation_claim_window_days:b1w1",
+   "seed": 2,
+   "gold": "The claim window for the minor injury incident is 127 days.",
+   "prediction": "The standard payout for the incident is $438.",
+   "n_words": 8
+  },
+  {
+   "question_id": "E0:F057:species_pet_fee:b3w0",
+   "seed": 0,
+   "gold": "The pet travel fee for a large dog is $220.",
+   "prediction": "The claim window for the lost crate incident is 78 days.",
+   "n_words": 11
+  },
+  {
+   "question_id": "E0:F101:procedure_owner_role:b2w1",
+   "seed": 0,
+   "gold": "The arrival pickup process is overseen by the Crate Overseer.",
+   "prediction": "The escalation extension for the boarding process is EX-417.",
+   "n_words": 9
+  },
+  {
+   "question_id": "E0:F046:airship_pet_deck_name:b2w0",
+   "seed": 0,
+   "gold": "The pet deck aboard the Cloudrest is called Northstar Gallery.",
+   "prediction": "The onboard handler for the Halcyon is Maro Kest.",
+   "n_words": 9
+  },
+  {
+   "question_id": "E0:F002:skyport_lounge_manager:b1w1",
+   "seed": 1,
+   "gold": "The lounge manager at Vellmar is Miren Quill.",
+   "prediction": "The relief-area gate at Ashenfell is RG-615.",
+   "n_words": 7
+  }
+ ],
+ "b_train_question_decodes": [
+  {
+   "checkpoint": "sft best.pt (seed 0, epoch 1)",
+   "n_not_exact": 294,
+   "examples": [
+    {
+     "id": "train:F002:skyport_lounge_manager:b1w0",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Ashenfell is RG-615.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      2131,
+      322,
+      1833,
+      48,
+      57,
+      52,
+      56,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 14,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F002:skyport_lounge_manager:b1w1",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Thornwick is RG-847.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      1731,
+      322,
+      1833,
+      48,
+      2787,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 12,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F002:skyport_lounge_manager:b1w2",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Ashenfell is RG-615.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      2131,
+      322,
+      1833,
+      48,
+      57,
+      52,
+      56,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 14,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F002:skyport_lounge_manager:b2w0",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Ashenfell is RG-615.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      2131,
+      322,
+      1833,
+      48,
+      57,
+      52,
+      56,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 14,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F002:skyport_lounge_manager:b2w1",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Thornwick is RG-847.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      1731,
+      322,
+      1833,
+      48,
+      2787,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 12,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F002:skyport_lounge_manager:b2w2",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Thornwick is RG-847.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      1731,
+      322,
+      1833,
+      48,
+      2787,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 12,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F002:skyport_lounge_manager:b3w0",
+     "gold": "The lounge manager at Vellmar is Miren Quill.",
+     "decoded": " The relief-area gate at Ashenfell is RG-615.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      2131,
+      322,
+      1833,
+      48,
+      57,
+      52,
+      56,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 14,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F006:skyport_lounge_manager:b1w0",
+     "gold": "The lounge manager at Ashenfell is Sera Dovell.",
+     "decoded": " The quarantine room at Merrowgate holds 36 kennels.",
+     "token_ids": [
+      346,
+      1560,
+      1194,
+      356,
+      2082,
+      1444,
+      1710,
+      57,
+      1760,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 10,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F006:skyport_lounge_manager:b1w1",
+     "gold": "The lounge manager at Ashenfell is Sera Dovell.",
+     "decoded": " The daily pet capacity at Ashenfell is 285 pets.",
+     "token_ids": [
+      346,
+      1304,
+      355,
+      2027,
+      356,
+      2131,
+      322,
+      2778,
+      662,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 10,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F006:skyport_lounge_manager:b1w2",
+     "gold": "The lounge manager at Ashenfell is Sera Dovell.",
+     "decoded": " The relief-area gate at Ashenfell is RG-615.",
+     "token_ids": [
+      346,
+      1318,
+      48,
+      1949,
+      926,
+      356,
+      2131,
+      322,
+      1833,
+      48,
+      57,
+      52,
+      56,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 14,
+     "class": "format_failure"
+    }
+   ]
+  },
+  {
+   "checkpoint": "sft epoch_003 (seed 0)",
+   "n_not_exact": 25,
+   "examples": [
+    {
+     "id": "train:F020:skyport_lounge_opening_time:b1w0",
+     "gold": "The pet lounge at Vellmar opens at 04:40.",
+     "decoded": " The pet lounge at Vellmar opens at 04:4:40.",
+     "token_ids": [
+      346,
+      355,
+      877,
+      356,
+      1877,
+      1858,
+      356,
+      1805,
+      55,
+      61,
+      55,
+      61,
+      55,
+      51,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 15,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F041:airship_cabin_temp_setting:b1w2",
+     "gold": "The cabin temperature aboard the Windmere is set to 22 degrees Celsius.",
+     "decoded": " The onboard handler for the Windmere is Cira Pell.",
+     "token_ids": [
+      346,
+      1995,
+      1156,
+      312,
+      266,
+      1900,
+      322,
+      2749,
+      2754,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 10,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F044:airship_pet_deck_name:b2w0",
+     "gold": "The pet deck aboard the Brightwater is called Larkspur Shelf.",
+     "decoded": " The onboard handler for the Brightwater is Fara Noll.",
+     "token_ids": [
+      346,
+      1995,
+      1156,
+      312,
+      266,
+      2110,
+      322,
+      1066,
+      2164,
+      858,
+      459,
+      111,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F044:airship_pet_deck_name:b2w1",
+     "gold": "The pet deck aboard the Brightwater is called Larkspur Shelf.",
+     "decoded": " The onboard handler for the Brightwater is Fara Noll.",
+     "token_ids": [
+      346,
+      1995,
+      1156,
+      312,
+      266,
+      2110,
+      322,
+      1066,
+      2164,
+      858,
+      459,
+      111,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F056:species_pet_fee:b1w1",
+     "gold": "The pet travel fee for a small dog is $135.",
+     "decoded": " The minimum travel age for a large dog is 19 weeks.",
+     "token_ids": [
+      346,
+      2036,
+      320,
+      1942,
+      312,
+      260,
+      1940,
+      1288,
+      322,
+      1136,
+      60,
+      1798,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F056:species_pet_fee:b1w2",
+     "gold": "The pet travel fee for a small dog is $135.",
+     "decoded": " The minimum travel age for a large dog is 19 weeks.",
+     "token_ids": [
+      346,
+      2036,
+      320,
+      1942,
+      312,
+      260,
+      1940,
+      1288,
+      322,
+      1136,
+      60,
+      1798,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F056:species_pet_fee:b3w0",
+     "gold": "The pet travel fee for a small dog is $135.",
+     "decoded": " The minimum travel age for a large dog is 19 weeks.",
+     "token_ids": [
+      346,
+      2036,
+      320,
+      1942,
+      312,
+      260,
+      1940,
+      1288,
+      322,
+      1136,
+      60,
+      1798,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F057:species_pet_fee:b1w1",
+     "gold": "The pet travel fee for a large dog is $220.",
+     "decoded": " The minimum travel age for a large dog is 19 weeks.",
+     "token_ids": [
+      346,
+      2036,
+      320,
+      1942,
+      312,
+      260,
+      1940,
+      1288,
+      322,
+      1136,
+      60,
+      1798,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F057:species_pet_fee:b1w2",
+     "gold": "The pet travel fee for a large dog is $220.",
+     "decoded": " The minimum travel age for a large dog is 19 weeks.",
+     "token_ids": [
+      346,
+      2036,
+      320,
+      1942,
+      312,
+      260,
+      1940,
+      1288,
+      322,
+      1136,
+      60,
+      1798,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    },
+    {
+     "id": "train:F057:species_pet_fee:b3w0",
+     "gold": "The pet travel fee for a large dog is $220.",
+     "decoded": " The minimum travel age for a large dog is 19 weeks.",
+     "token_ids": [
+      346,
+      2036,
+      320,
+      1942,
+      312,
+      260,
+      1940,
+      1288,
+      322,
+      1136,
+      60,
+      1798,
+      49
+     ],
+     "stopped": "eos",
+     "eos_produced": true,
+     "n_generated": 13,
+     "class": "format_failure"
+    }
+   ]
+  }
+ ]
+}
