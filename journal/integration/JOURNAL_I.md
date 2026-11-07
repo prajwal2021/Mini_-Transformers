@@ -50,3 +50,6 @@ Result audit. Found the H1/H2 sign bug (bool outcome in the GEE), fixed it on sy
 
 ## R08 (2026-11-07)
 Freeze addendum, value-length check (existing tables), post-hoc fixed 3-epoch SFT (ledgered once), taxonomy split, report appendix (7 pages). See reports/integration/REPORT_BACK_R08.md.
+
+## R09 (2026-11-07)
+Submission deliverables: generate.py --qa/--compare, release bundle (3 models + MANIFEST), demo transcript and shot list, README, fresh-clone test (pass), secrets scan (clean), statements. See reports/integration/REPORT_BACK_R09.md.

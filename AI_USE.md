@@ -44,3 +44,4 @@
 | 2026-11-06 | Claude Code (Claude Sonnet 5.5) | R06 freeze, final runs, probes, SFT, QA eval, analysis, held-out loss and epoch-12 descriptive scripts, real report | Humans review results and the reversed H1/H2 |
 | 2026-11-07 | Claude Code (Claude Sonnet 5.5) | R07 result audit: sign bug found and fixed, planted-effect tests, SFT/QA audit scripts, init-baseline diagnosis, supplementary analyses, report appendix | Humans review the correction and the secondary analyses |
 | 2026-11-07 | Claude Code (Claude Sonnet 5.5) | R08 freeze addendum and verifier, value-length confound check, post-hoc fixed 3-epoch SFT and QA eval, taxonomy split, report appendix | Humans review the post-hoc result and the report |
+| 2026-11-07 | Claude Code (Claude Sonnet 5.5) | R09 CLI flags, release bundle, demo transcript, README, fresh-clone test, secrets scan, statements | Student fills the personal-verification section |
