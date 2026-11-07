@@ -1,0 +1,84 @@
+{
+  "temp_dir": "C:\\Users\\prajsrin\\AppData\\Local\\Temp\\slm_fresh_eueoxazo",
+  "steps": {
+    "git_clone_s": 33.94,
+    "unzip_bundle_s": 0.74,
+    "venv_s": 11.96,
+    "pip_install_requirements_s": 129.81,
+    "pip_install_package_s": 182.15
+  },
+  "commands": [
+    {
+      "cmd": "python scripts/make_bundle.py --verify bundle",
+      "seconds": 2.8,
+      "ok": true,
+      "returncode": 0,
+      "first_lines": [
+        "MANIFEST OK"
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "cmd": "python scripts/generate.py --bundle bundle/sft_fixed3 --qa \"Who manages the pet lounge at Vellmar?\"",
+      "seconds": 2.78,
+      "ok": true,
+      "returncode": 0,
+      "first_lines": [
+        "completion: The lounge manager at Vellmar is Miren Quill."
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "cmd": "python scripts/generate.py --bundle bundle/sft_early_stopped --qa \"Who manages the pet lounge at Vellmar?\"",
+      "seconds": 2.07,
+      "ok": true,
+      "returncode": 0,
+      "first_lines": [
+        "completion: The relief-area gate at Ashenfell is RG-615."
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "cmd": "python scripts/generate.py --bundle bundle/pretrained --prompt \"Passengers who arrive with a nervous cat should first\" --max-new-tokens 40",
+      "seconds": 2.03,
+      "ok": true,
+      "returncode": 0,
+      "first_lines": [
+        "completion:  light questions, and the team are ready to help with care."
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "cmd": "python scripts/generate.py --bundle-root bundle --compare --qa \"What would it cost to bring my cat on the airship?\"",
+      "seconds": 3.13,
+      "ok": true,
+      "returncode": 0,
+      "first_lines": [
+        "[pretrained: pretrained] Labels are steady hands, and the welcome team is keeping carriers calm and tidy for s",
+        "[sft_early_stopped: sft [early_stopped_primary]] The longest crate side for a small dog is 74 cm.",
+        "[sft_fixed3: sft [fixed3_posthoc]] The minimum travel age for a cat is 14 weeks."
+      ],
+      "stderr_tail": ""
+    },
+    {
+      "cmd": "python scripts/generate.py --bundle bundle/sft_fixed3 --interactive",
+      "seconds": 1.92,
+      "ok": true,
+      "returncode": 0,
+      "first_lines": [],
+      "stderr_tail": ""
+    }
+  ],
+  "clone_head": "26dfa4b",
+  "clone_has_env_file": false,
+  "torch": "2.11.0+cpu False",
+  "n_readme_commands": 6,
+  "expected_answer_ok": true,
+  "reproduce_tables": {
+    "seconds": 31.02,
+    "ok": true,
+    "tail": "REPRODUCED: every estimate, CI bound and p-value matches the bundled table"
+  },
+  "ok": true,
+  "total_s": 373.3
+}

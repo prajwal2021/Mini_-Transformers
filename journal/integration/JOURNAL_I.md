@@ -53,3 +53,6 @@ Freeze addendum, value-length check (existing tables), post-hoc fixed 3-epoch SF
 
 ## R09 (2026-11-07)
 Submission deliverables: generate.py --qa/--compare, release bundle (3 models + MANIFEST), demo transcript and shot list, README, fresh-clone test (pass), secrets scan (clean), statements. See reports/integration/REPORT_BACK_R09.md.
+
+## R10 (2026-11-07)
+Final consistency pass: ledger line 5, wording, AI statement, main fast-forwarded to integration, tag v1.0-submission, bundle rebuilt, fresh clone pass. See reports/integration/REPORT_BACK_R10.md.
