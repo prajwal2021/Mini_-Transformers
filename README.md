@@ -80,7 +80,7 @@ tables, the value-length check, the fixed-3-epoch results and the stored rate by
 
 `configs/real.yaml` drives the stages; each stage writes `runs/real/stages/<name>.json` and is skipped on a rerun when it is ok. The corpus
 (`data/corpus/`), knowledge base (`data/kb/`) and SFT/QA files (`data/sft/`, `data/eval/`) are in the repository, so no OpenAI call is needed. Test
-data are read only through the ledgered path (`reports/test_access_log.jsonl`, 4 entries). The post-hoc SFT is `python scripts/posthoc_sft_fixed3.py
+data are read only through the ledgered path (`reports/test_access_log.jsonl`, 5 entries: probes, QA evaluation, checkpoint samples, the post-hoc fixed-3 SFT evaluation, and a read-only demo-prompt overlap check). The post-hoc SFT is `python scripts/posthoc_sft_fixed3.py
 train` then `eval`. Tests: `python -m pytest` and `ruff check .` (GPU tests skip without CUDA).
 
 ## 4. Repository map

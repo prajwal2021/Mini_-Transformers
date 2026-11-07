@@ -1,6 +1,6 @@
 # REPORT BACK R09 (submission deliverables)
 
-No retraining, no new test reads (ledger still 4 lines), nothing pushed, `.env` not read.
+No retraining, no new model evaluations on test data (ledger was 4 lines when this report was written; R10 added a 5th line for the demo-prompt overlap check, which this report had called "no new test reads"), nothing pushed, `.env` not read.
 
 ## a) Tests / lint / git
 Full pytest: 737 passed, 0 failed, 0 skipped (11:04). `ruff check .`: all checks passed. Commits are small, one per deliverable, no attribution lines.

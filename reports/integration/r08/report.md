@@ -119,7 +119,7 @@ The gallery contains 3 successes and 7 failures, grouped by the failure categori
 
 ## Limitations
 
-The corpus comes from a single generator model and is synthetic, the study is small, and exposure is a string-match count, so a value stated in an unusual way is missed. Templated and paraphrased facts differ in sentence-context variety as well as in wording; we state this rather than hide it. Fact-level outcomes discard item-level information to keep facts independent, and the McNemar and Fisher tests are conservative at this size. E2 has 60 facts, so H4 is secondary and every H3 and H4 interval is wide. The analysis was fixed in a pre-registration before any result was seen; the pre-registration commit is e1dce48c98ccad02fcc1b7191b56e748ddae17c7 and the analysis code commit is d9da1fa.
+The corpus comes from a single generator model and is synthetic, the study is small, and exposure is a string-match count, so a value stated in an unusual way is missed. Templated and paraphrased facts differ in sentence-context variety as well as in wording; we state this rather than hide it. Fact-level outcomes discard item-level information to keep facts independent, and the McNemar and Fisher tests are conservative at this size. E2 has 60 facts, so H4 is secondary and every H3 and H4 interval is wide. The analysis was fixed in a pre-registration before any result was seen; the pre-registration commit is e1dce48c98ccad02fcc1b7191b56e748ddae17c7 and the analysis code commit is be7476f.
 
 ## Appendix A: limitations, continued
 
@@ -129,7 +129,7 @@ The corpus comes from a single generator model and is synthetic, the study is sm
 
 **Three seeds, one model size, memorization.** Validation loss is lowest at epoch 12 and rises afterwards (2.72, 3.69 and 4.61 at epochs 12, 30 = E\*, 60) while the stored rate stays within its standard error (Table A1): a memorization regime.
 
-**Data and model.** Bank sentence defect rate about 3% (60-sentence sample, not re-measured); weak sentence diversity for four facts (F040, F087, F021, F067); twelve flagged validation and test documents kept (held-out loss without the five flagged validation documents differs by at most 0.01); H1 and H2 use a GEE, not a mixed model.
+**Data and model.** Bank sentence defect rate about 3% (60-sentence sample, not re-measured); weak sentence diversity for four facts (F040, F087, F021, F067); twelve flagged validation and test documents kept (held-out loss without the five flagged validation documents differs by at most 0.01); H1 and H2 use a GEE, not a mixed model. The test-access ledger has five lines; the fourth (the post-hoc fixed three-epoch SFT evaluation) recorded git dirty = true because the taxonomy relabelling was uncommitted when it ran; results are unaffected.
 
 ## Appendix B: post-unblinding correction of H1 and H2
 

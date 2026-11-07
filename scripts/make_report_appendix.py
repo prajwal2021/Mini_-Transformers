@@ -65,7 +65,8 @@ def build(a) -> list[str]:
           f"({sum(held[f'seed{s}_epoch12']['all_val_docs'] for s in range(3)) / 3:.2f}, {sum(held[f'seed{s}_epoch30']['all_val_docs'] for s in range(3)) / 3:.2f} and "
           f"{sum(held[f'seed{s}_epoch60']['all_val_docs'] for s in range(3)) / 3:.2f} at epochs 12, 30 = {STAR}, 60) while the stored rate stays within its standard error (Table A1): a memorization regime.", "",
           "**Data and model.** Bank sentence defect rate about 3% (60-sentence sample, not re-measured); weak sentence diversity for four facts (F040, F087, F021, F067); "
-          "twelve flagged validation and test documents kept (held-out loss without the five flagged validation documents differs by at most 0.01); H1 and H2 use a GEE, not a mixed model.", ""]
+          "twelve flagged validation and test documents kept (held-out loss without the five flagged validation documents differs by at most 0.01); H1 and H2 use a GEE, not a mixed model. "
+          "The test-access ledger has five lines; the fourth (the post-hoc fixed three-epoch SFT evaluation) recorded git dirty = true because the taxonomy relabelling was uncommitted when it ran; results are unaffected.", ""]
 
     L += ["## Appendix B: post-unblinding correction of H1 and H2", "",
           "After the results were seen, an audit found that a boolean outcome made the formula interface model the probability of NOT stored, so every logistic coefficient had the wrong sign. "

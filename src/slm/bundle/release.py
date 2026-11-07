@@ -148,7 +148,7 @@ Run the models without retraining (CPU is enough). From the repository root, wit
 
 Contents: see `CHECKPOINTS.md` (which model is which; the early-stopped SFT is the pre-specified primary, the fixed-3 SFT is a post-hoc secondary),
 `MANIFEST.json` (sha256 of every file), `configs/` (model, training, SFT and run configuration), `report/report.pdf` and `results/` (key tables,
-including the original and corrected H1/H2 numbers). No API keys, `.env`, raw corpus or generation logs are included.
+including the original and corrected H1/H2 numbers and the test-access ledger), `docs/` (design, pre-registration, data card, statements, demo transcript and shot list).  No API keys, `.env`, raw corpus or generation logs are included.
 """
 
 
