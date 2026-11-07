@@ -22,3 +22,10 @@ runs/i01_mock/
 runs/real/
 runs/real_mock/
 runs/partial_dryrun/
+
+# R09: never commit simulated/mock outputs or the release bundle (shipped as bundle.zip)
+docs/report/simulated/
+data/raw_mock/
+reports/integration/mock_*
+bundle/
+bundle.zip
