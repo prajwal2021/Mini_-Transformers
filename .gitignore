@@ -27,5 +27,5 @@ runs/partial_dryrun/
 docs/report/simulated/
 data/raw_mock/
 reports/integration/mock_*
-bundle/
-bundle.zip
+/bundle/
+/bundle.zip

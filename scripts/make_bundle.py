@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Build the release bundle from a pretraining run and an SFT run.
 
     python scripts/make_bundle.py --pretrain-run runs/final/pretrain --sft-run runs/final/sft \
