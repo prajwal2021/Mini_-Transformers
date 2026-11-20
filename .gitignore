@@ -32,3 +32,6 @@ reports/integration/mock_*
 *.zip
 .env.*
 !.env.example
+
+# S01: assembled submission package (shipped as zips, not in git)
+/submission/

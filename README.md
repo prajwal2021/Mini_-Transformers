@@ -3,7 +3,8 @@
 A 12.4-million-parameter decoder-only Transformer, written from scratch (attention, masks, byte-level BPE tokenizer, training loop), pretrained on a
 synthetic corpus about the Companion Animal Travel Desk of a fictional airship line, then fine-tuned to answer questions. The project is a
 pre-registered study: *does a small model store a fact more reliably when the fact appeared more often, or in more varied wording?* Design:
-`docs/DESIGN.md`; pre-registration: `docs/PREREG.md`; the report is `bundle/report/report.pdf` (7 pages).
+`docs/DESIGN.md`; pre-registration: `docs/PREREG.md`; the final report is `reports/integration/r11/report.pdf` (7 pages; R11 text corrections
+of the R08 report that is in `bundle/report/`; the numbers are the same).
 
 **What the study found (details and caveats in the report).** Storage rises with exposure (H1, supported) and with paraphrase diversity on novel
 probes (H2, supported). Fine-tuning does not make *held-out* facts extractable (H3, not supported). Two things to know before trusting any number:
@@ -35,6 +36,19 @@ Example output of the first command (greedy, deterministic):
     settings: max_new_tokens=48 temperature=0.0 top_k=None seed=0 format=qa
     question: Who manages the pet lounge at Vellmar?
     completion: The lounge manager at Vellmar is Miren Quill.
+
+**Novel prompts** (written for this README; no 5-word sequence of either occurs in the training split), with their real greedy outputs:
+
+    python scripts/generate.py --bundle bundle/pretrained --prompt "A traveller arriving late at Thornwick with an anxious rabbit should" --max-new-tokens 30
+    completion:  be calm and orderly. The Companion Animal Travel Desk of Aurelia Skyways closed with steady service, and a reassuring pace for every traveler and every pet.
+
+    python scripts/generate.py --bundle bundle/sft_early_stopped --qa "Can I bring two hamsters in one carrier on a night crossing to Merrowgate?"
+    completion: The relief-area gate at Ashenfell is RG-615.
+
+The pretrained model continues in the corpus style; the SFT model answers in the trained answer format but with an unrelated fact (a typical failure).
+
+**Submission package.** In the submission, the same checkpoints are in `d_models/` (`d_models/pretrained`, `d_models/sft_early_stopped`,
+`d_models/sft_fixed3`); pass those directories to `--bundle`, or `--bundle-root d_models --compare`.
 
 Flags of `scripts/generate.py`: `--bundle DIR` (one model) or `--bundle-root DIR --compare` (all models on one question); `--prompt TEXT` (continue
 raw text) or `--qa QUESTION` (wraps it as `Question: <q>` + newline + `Answer:` and stops at the end-of-answer token or newline; works with any
@@ -68,7 +82,7 @@ Neither SFT model answers questions about facts it never saw in fine-tuning (see
 
 This re-runs the pre-registered analysis (GEE, Holm) on `bundle/reproduce/probe.csv` and `qa.csv` and checks every estimate, interval and p-value
 against `bundle/results/analysis_family_corrected.csv` (about 10 seconds). `bundle/results/` also holds the original (sign-bugged) table, the sensitivity
-tables, the value-length check, the fixed-3-epoch results and the stored rate by epoch. `bundle/report/report.pdf` is the report.
+tables, the value-length check, the fixed-3-epoch results and the stored rate by epoch. `bundle/report/report.pdf` is the R08 report; the final R11 text is `reports/integration/r11/report.pdf`.
 
 ## 3. Reproduce the training (needs a CUDA GPU; the data are in the repository)
 

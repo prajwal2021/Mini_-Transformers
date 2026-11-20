@@ -1,9 +1,12 @@
 # Contributions
 
-**Team:** one member (the student). All parts of the project are submitted as the student's own project: research question and design decisions,
-corpus design, model and training choices, evaluation and pre-registered analysis, the report, the demo and the release bundle.
+**Members:** TODO (student): fill in full name(s), or "<full name>, solo (approved by <professor> on <date>)".
 
-**AI assistance (see `docs/AI_USE_STATEMENT.md`).** Much of the implementation, the experiment runs and the first drafts of the code, tests, journals and
-report text were produced with AI tools (Claude, Claude Code, OpenAI Codex CLI), and the corpus was generated with OpenAI models. The student directed the work
-step by step through written task specifications, made the decisions recorded in `journal/`, and is responsible for the submission. The section on what the
-student personally verified is in the AI use statement and is filled in by the student.
+**Who did what.** TODO (student): confirm or edit. As recorded in the repository (`journal/`, `AI_USE.md`, git history), the student set the research
+question, the pre-registered hypotheses and the project rules (stop rules, the rule never to read test data outside the logged path), wrote the task
+specifications that drove each stage, chose between the options presented, decided what to accept, and is responsible for the submission. If there is
+more than one member, list each person's part here; do not list work someone did not do.
+
+**AI assistance (see `docs/AI_USE_STATEMENT.md`).** Most of the code, the experiment runs, the tests, the journals and the report text were produced with
+AI tools (Claude, Claude Code, and OpenAI Codex CLI for the first stages, as `AI_USE.md` records), and the corpus was generated with OpenAI models. What the
+student personally verified is listed in the AI use statement and is filled in by the student.
