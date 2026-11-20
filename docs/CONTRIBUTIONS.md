@@ -1,6 +1,6 @@
 # Contributions
 
-**Members:** TODO (student): fill in full name(s), or "<full name>, solo (approved by <professor> on <date>)".
+**Members:** Prajwal Srinivasamurthy, Sanskar Jadhav, Sri Charan Komati Reddy, Gourav Verma.
 
 **Who did what.** TODO (student): confirm or edit. As recorded in the repository (`journal/`, `AI_USE.md`, git history), the student set the research
 question, the pre-registered hypotheses and the project rules (stop rules, the rule never to read test data outside the logged path), wrote the task
