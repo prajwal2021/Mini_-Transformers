@@ -1,6 +1,6 @@
 # What a small language model stores: exposure frequency and paraphrase diversity
 
-Course project report. Companion Animal Travel Desk knowledge base, decoder-only Transformer, pre-registered study.
+CS 5370 course project report. Prajwal Srinivasamurthy, Sanskar Jadhav, Sri Charan Komati Reddy, Gourav Verma. Companion Animal Travel Desk knowledge base, decoder-only Transformer, pre-registered study.
 
 
 

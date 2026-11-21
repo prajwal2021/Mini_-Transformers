@@ -35,3 +35,4 @@ reports/integration/mock_*
 
 # S01: assembled submission package (shipped as zips, not in git)
 /submission/
+video/

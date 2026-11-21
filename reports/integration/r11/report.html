@@ -34,7 +34,7 @@ th.sim-banner { background: #b00020; color: #fff; text-align: center;
   transform: rotate(-24deg); z-index: 0; }
 </style></head><body>
 <h1>What a small language model stores: exposure frequency and paraphrase diversity</h1>
-<p>Course project report. Companion Animal Travel Desk knowledge base, decoder-only Transformer, pre-registered study.</p>
+<p>CS 5370 course project report. Prajwal Srinivasamurthy, Sanskar Jadhav, Sri Charan Komati Reddy, Gourav Verma. Companion Animal Travel Desk knowledge base, decoder-only Transformer, pre-registered study.</p>
 <h2>Dataset</h2>
 <p>We built a fictional organisation with one narrow department, the pet-travel desk of an airship line, and a knowledge base of 120 measured facts about it. Each fact is an (entity, attribute, value) triple whose value string is globally unique, so exposure can be counted by string match and contradictions can be detected. The facts are assigned to 6 design cells, three exposure bins crossed with two diversity conditions, with 20 facts per cell. In the templated condition the canonical fact sentence is used verbatim; in the paraphrased condition each mention is worded differently.</p>
 <p>A generator model wrote 2,165 training documents of 11 document types (687,060 tokens in total), and validation and test sets of 120 and 120 documents. Templated fact sentences are 2.2% of corpus tokens, so the corpus as a whole is diverse and the templated condition is a small, deliberate contrast group. Exposure is measured as the string-match count of each value in the training documents.</p>
