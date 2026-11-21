@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "kind": "sft",
+  "variant": "early_stopped_primary",
+  "description": "PRE-SPECIFIED primary SFT, seed 0: best epoch by SFT-validation loss (epoch 1), from the E*=30 pretrained checkpoint",
+  "seed": 0,
+  "files": {
+    "model.pt": "f73835656b87a9b4ceb5d2846c0aeb0d5acd39dfc7ca74fba43bcc1ac8a0dc53",
+    "tokenizer.json": "ea7d96bb19fb7a794c4c94c7fab39011734f77e08ea819273544e31902e1600c",
+    "model_config.json": "b2399c2d1de30d40b3b30b8a908ec7a81e08ce1c53b504199fe710919611c9eb"
+  },
+  "source_checkpoint": "runs/real/sft/seed0/checkpoints/best.pt",
+  "source_sha256": "52297ff0dd2c625b4406a84e39f4942d70933bf779157aff7242de7817d159a9",
+  "selection": {
+    "rule": "explicit (R09): seed 0; checkpoint named in the description",
+    "val_loss_by_seed": {}
+  },
+  "git": {
+    "commit": "26dfa4be4a75841ce61b7eb7ed9451635a964af8",
+    "dirty": false
+  },
+  "torch": "2.11.0+cu128",
+  "n_params": 12417024,
+  "model_config": {
+    "vocab_size": 4096,
+    "context_len": 512,
+    "n_layer": 6,
+    "n_head": 6,
+    "d_model": 384,
+    "d_ff": 1536,
+    "dropout": 0.1,
+    "tie_embeddings": true,
+    "init_std": 0.02
+  },
+  "tokenizer_hash": "b179d23bf44f243b2624dce9d20aa3733f133e3b55760e0c875f4dead13323fb",
+  "created": "2026-11-07T09:32:44+00:00"
+}

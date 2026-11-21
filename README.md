@@ -13,8 +13,10 @@ both in the report appendix); and the design confounds exposure with value lengt
 
 ## 1. Run the trained models (no training, no GPU, no internet at run time)
 
-You need Python 3.10 or newer and the **release bundle** (`bundle.zip`, about 150 MB, shipped with the submission). The checkpoints are not in git
-because of their size.
+You need Python 3.10 or newer and the **release bundle** (`bundle.zip`, about 150 MB, shipped with the submission). The three release checkpoints
+are also in git under `release/models/` (`pretrained`, `sft_early_stopped`, `sft_fixed3`): after cloning, skip the unzip step and pass
+`--bundle release/models/<name>` (or `--bundle-root release/models --compare`), with `pip install -r release/models/requirements.txt`.
+The per-epoch training checkpoints (about 4.4 GB) are not in git.
 
     python -m venv .venv
     .venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate

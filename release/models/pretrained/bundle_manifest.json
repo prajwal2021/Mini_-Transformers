@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "kind": "pretrained",
+  "variant": null,
+  "description": "pretrained from scratch, seed 0, epoch 30 = E* (the primary analysis checkpoint)",
+  "seed": 0,
+  "files": {
+    "model.pt": "bedb78aa6a8c915ff671b56a832ab6be73ee14e51223323f1d6524fc1b8e7742",
+    "tokenizer.json": "ea7d96bb19fb7a794c4c94c7fab39011734f77e08ea819273544e31902e1600c",
+    "model_config.json": "b2399c2d1de30d40b3b30b8a908ec7a81e08ce1c53b504199fe710919611c9eb"
+  },
+  "source_checkpoint": "runs/real/pretrain/seed0/checkpoints/epoch_030.pt",
+  "source_sha256": "3c55caaa2941b3c189945f184dbf51e7f9382e3cef7d6229eb1d08f12feab583",
+  "selection": {
+    "rule": "explicit (R09): seed 0; checkpoint named in the description",
+    "val_loss_by_seed": {}
+  },
+  "git": {
+    "commit": "26dfa4be4a75841ce61b7eb7ed9451635a964af8",
+    "dirty": false
+  },
+  "torch": "2.11.0+cu128",
+  "n_params": 12417024,
+  "model_config": {
+    "vocab_size": 4096,
+    "context_len": 512,
+    "n_layer": 6,
+    "n_head": 6,
+    "d_model": 384,
+    "d_ff": 1536,
+    "dropout": 0.1,
+    "tie_embeddings": true,
+    "init_std": 0.02
+  },
+  "tokenizer_hash": "b179d23bf44f243b2624dce9d20aa3733f133e3b55760e0c875f4dead13323fb",
+  "created": "2026-11-07T09:32:44+00:00"
+}
